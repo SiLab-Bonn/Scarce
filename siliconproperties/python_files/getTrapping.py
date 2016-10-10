@@ -66,7 +66,7 @@ if __name__ == '__main__':
     plt.plot(fluence, tr_e, linewidth=2., color='blue', linestyle='-', label='Electrons')
     plt.plot(fluence, tr_h, linewidth=2., color='red', linestyle='-', label='Holes')
     plt.title('Charge carrier trapping time in irradiated silicon')
-    plt.xlabel('Fluence [$N_{eq}/cm^2}$]')
+    plt.xlabel('Fluence [\mathrm{$N_{eq}/cm^2}}$]')
     plt.ylabel('Trapping time [$\mathrm{ns}$]')
     plt.legend(loc=0)
     plt.xscale('log')

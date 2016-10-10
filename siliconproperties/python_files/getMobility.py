@@ -23,7 +23,7 @@ def get_mobility(e_field, temperature, is_electron):
         E_c = 1.24 * temperature ** 1.68  # [V/cm]
         beta = 0.46 * temperature ** 0.17
 
-    mu = v_m / E_c / (1. + (np.abs(e_field) / E_c)**beta)**(1. / beta)
+    mu = v_m / E_c / (1. + (np.abs(e_field) / E_c) ** beta) ** (1. / beta)
 
     return mu
 
