@@ -11,7 +11,8 @@ def get_depletion_depth(V_bias, n_eff, temperature):
 
         Check/citetation of formulars needed!'''
 
-    epsilon_r = epsilon_s / constants.epsilon_0  # Relative permitivity of silicon
+    # Relative permitivity of silicon
+    epsilon_r = epsilon_s / constants.epsilon_0
 
     V_bi = get_diffusion_potential(n_eff=n_eff, temperature=temperature)
     # depletion depth [m]
@@ -28,9 +29,9 @@ if __name__ == '__main__':
     for n_eff in [1, 10, 100]:
         for temperature in [300]:
             depletion_depth = get_depletion_depth(
-                         V_bias=V_bias,
-                         n_eff=n_eff,
-                         temperature=temperature)
+                V_bias=V_bias,
+                n_eff=n_eff,
+                temperature=temperature)
             plt.plot(V_bias,
                      depletion_depth,
                      linewidth=2.,
