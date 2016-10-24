@@ -14,7 +14,7 @@ def get_field_planar(x, V_bias, n_eff, D):
     V_dep = get_depletion_voltage(n_eff, D)  # Depletion voltage
 
     a = (V_bias - V_dep) / D
-    b = -2. * V_dep / (D**2)
+    b = -2. * V_dep / (D ** 2)
     return (a - b * x)
 
 if __name__ == '__main__':
