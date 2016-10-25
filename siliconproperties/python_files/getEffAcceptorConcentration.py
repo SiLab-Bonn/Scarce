@@ -14,6 +14,8 @@ def get_eff_acceptor_concentration(fluence, n_eff_0, is_ntype, is_oxygenated):
         a rather large error on the propotionality factor of 10% is assumed.
     """
 
+    fluence = np.atleast_1d(fluence)
+
     # Constants
     if is_ntype:  # n-type silicon
         # [cm^-1], slope before type inversion
@@ -42,39 +44,39 @@ def get_eff_acceptor_concentration(fluence, n_eff_0, is_ntype, is_oxygenated):
         else:  # Standart silicon
             n_eff = n_eff_0 + beta_n_fz * fluence
 
-    n_eff_error = n_eff * 0.1
-
-    return n_eff, n_eff_error
+    return n_eff
 
 if __name__ == '__main__':
     import matplotlib.pylab as plt
 
-    fluence = np.logspace(12., 15., 1000.)
+    fluence = np.logspace(0., 4., 1000.)
 
     # Plot diffusion potential
     eff_acc_concentration = get_eff_acceptor_concentration(
-        fluence, n_eff_0=1.8e12, is_ntype=False, is_oxygenated=False)[0]
-    plt.plot(fluence, eff_acc_concentration, linewidth=2.,
+        fluence, n_eff_0=1.8, is_ntype=False, is_oxygenated=False)
+    plt.plot(fluence, eff_acc_concentration, '-', linewidth=2.,
              label='p-type')
     eff_acc_concentration = get_eff_acceptor_concentration(
-        fluence, n_eff_0=1.8e12, is_ntype=False, is_oxygenated=True)[0]
-    plt.plot(fluence, eff_acc_concentration, linewidth=2.,
+        fluence, n_eff_0=1.8, is_ntype=False, is_oxygenated=True)
+    plt.plot(fluence, eff_acc_concentration, '-.', linewidth=2.,
              label='oxygenated p-type')
     eff_acc_concentration = get_eff_acceptor_concentration(
-        fluence, n_eff_0=1.8e12, is_ntype=True, is_oxygenated=False)[0]
-    plt.plot(fluence, eff_acc_concentration, linewidth=2.,
+        fluence, n_eff_0=1.8, is_ntype=True, is_oxygenated=False)
+    plt.plot(fluence, eff_acc_concentration, ':', linewidth=2.,
              label='n-type')
     eff_acc_concentration = get_eff_acceptor_concentration(
-        fluence, n_eff_0=1.8e12, is_ntype=True, is_oxygenated=True)[0]
-    plt.plot(fluence, eff_acc_concentration, linewidth=2.,
+        fluence, n_eff_0=1.8, is_ntype=True, is_oxygenated=True)
+    plt.plot(fluence, eff_acc_concentration, '--', linewidth=2.,
              label='oxygenated n-type')
 
-    plt.title('Effctive acceptor concentration')
-    plt.xlabel('Fluence [$\mathrm{N_{eq}/cm^2}}$]')
-    plt.ylabel('Effective acceptor concentration [$\mathrm{N_{eff}\ 10^{12} cm^{-3}}$]')
+    plt.title('Effective acceptor concentration')
+    plt.xlabel('Fluence [$\mathrm{10^{12}\ N_{eq}/cm^2}}$]')
+    plt.ylabel('Acceptor concentration $\mathrm{N_{eff}}$ [$\mathrm{10^{12} cm^{-3}}$]')
     plt.legend(loc=0)
-    #plt.xscale('log')
-    #plt.yscale('log')
+    plt.xscale('log')
+    plt.yscale('log')
+#     plt.xlim((0, 350))
+#     plt.ylim((0, 12))
     plt.grid()
     plt.savefig('EffectiveAcceptorConcetration.pdf', layout='tight')
     plt.show()

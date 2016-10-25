@@ -1,5 +1,5 @@
-''' gmsh has to be installed and put into the ENVIRONMENT variable in a way that
-    the command gmsh from the terminal/console starts it.
+''' gmsh has to be installed and put into an environment variable (e.g. PATH)
+    in a way that the command gmsh from the terminal/console starts it.
 '''
 
 import pygmsh as pg

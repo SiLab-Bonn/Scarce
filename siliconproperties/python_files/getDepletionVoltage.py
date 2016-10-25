@@ -18,7 +18,7 @@ def get_depletion_voltage(n_eff, distance):
     # Relative permitivity of silicon
     epsilon_r = epsilon_s / constants.epsilon_0
 
-    return constants.elementary_charge * n_eff / (constants.epsilon_0 * epsilon_r) * distance**2. / 2e6
+    return constants.elementary_charge * n_eff / (constants.epsilon_0 * epsilon_r) * distance ** 2. / 2e6
 
 if __name__ == '__main__':
     import matplotlib.pylab as plt
