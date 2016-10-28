@@ -39,7 +39,7 @@ if __name__ == '__main__':
 #     plt.plot(points[cells['line'].T, 0], points[cells['line'].T, 1], '-', color='black')
 #     plt.savefig('test.svg')
     #plt.show()
-    raise
+    #raise
     mesh = fipy.GmshImporter2D('test0.msh')
     X,Y =  mesh.getFaceCenters()
     
@@ -61,4 +61,4 @@ if __name__ == '__main__':
     potential.equation.solve(var=potential, boundaryConditions=bcs)
     
     viewer = fipy.viewers.Viewer(vars=(potential, ))
-    viewer.plotMesh("Example.png")
+    viewer.plot("Example.png")
