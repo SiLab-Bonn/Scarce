@@ -22,7 +22,7 @@ def get_weighting_field(x, y, D, S, is_planar=True):
         E_y = -1. / (2 * D) * (np.sinh(wbar / 2 - xbar) / (np.cosh(wbar / 2 - xbar) +
                                                            np.cos(ybar)) + np.sinh(wbar / 2 + xbar) / (np.cosh(wbar / 2 + xbar) + np.cos(ybar)))
 
-        return E_x, E_y
+        return -E_x, -E_y
 
     else:
         # 3D sensor:
@@ -43,7 +43,7 @@ def get_weighting_field(x, y, D, S, is_planar=True):
         E_y = np.ma.masked_where(np.sqrt((x + D) * (x + D) + y * y) < R, E_y)
         E_y = np.ma.masked_where(np.sqrt((x - D) * (x - D) + y * y) < R, E_y)
 
-        return E_x, E_y
+        return -E_x, -E_y
 
 if __name__ == '__main__':
     import matplotlib.pylab as plt
@@ -52,10 +52,52 @@ if __name__ == '__main__':
     from siliconproperties.python_files.getWeightingPotential import (
         get_weighting_potential)
 
-    thickness = 200  # [um]
+    thickness = 300  # [um]
     width = 40  # [um]
 
     y, x = np.mgrid[0:thickness:100j, -width * 2:width * 2:100j]
+    y_1d = y.T[0]
+
+    # Plot planar weighting field in 1 dim
+    for pitch, line_style in zip([50, 250, 500], ['-', '-.', '--']):
+        phi_w = get_weighting_potential(np.zeros_like(y_1d), y_1d, D=thickness, S=pitch, is_planar=True)
+        E_x, E_y = get_weighting_field(x=np.zeros_like(y_1d),
+                                       y=y_1d,
+                                       D=thickness,
+                                       S=pitch,
+                                       is_planar=True)
+        plt.plot(y_1d, phi_w, linestyle=line_style, linewidth=2.,
+                 label='$\mathrm{\Phi_{w},\ %d\ \mu m\ pitch}$' % pitch, color='red')
+
+    plt.ylabel('Weighting potential [$\mathrm{V}$]')
+    plt.grid()
+    plt.xlabel('Depth [$\mathrm{\mu m}$]')
+
+    h1, l1 = plt.gca().get_legend_handles_labels()
+    ax2 = plt.twinx(plt.gca())
+
+    # Plot planar weighting potential in 1 dim
+    for pitch, line_style in zip([50, 250, 500], ['-', '-.', '--']):
+        phi_w = get_weighting_potential(np.zeros_like(y_1d), y_1d, D=thickness, S=pitch, is_planar=True)
+        E_x, E_y = get_weighting_field(x=np.zeros_like(y_1d),
+                                       y=y_1d,
+                                       D=thickness,
+                                       S=pitch,
+                                       is_planar=True)
+        ax2.plot(y_1d, E_y, linestyle=line_style, linewidth=2.,
+                 label='$\mathrm{|E|_w,\ %d\ \mu m\ pitch}$' % pitch, color='blue')
+
+    h2, l2 = ax2.get_legend_handles_labels()
+
+    plt.title('Weighting potential and field at planar pixel center, $\mathrm{d = 300\ \mu m}$')
+    plt.legend(h1 + h2, l1 + l2, loc=0)
+    plt.ylim((0, 0.05))
+    plt.grid()
+    plt.ylabel('Weighting field [$\mathrm{V/\mu m}$]')
+    plt.xlabel('Depth [$\mathrm{\mu m}$]')
+    plt.savefig('WeightingField_planar_1D.pdf', layout='tight')
+    plt.show()
+
     phi_w = get_weighting_potential(x, y, D=thickness, S=width, is_planar=True)
 
     # Plot weighting potential with colour and contour lines
@@ -80,15 +122,51 @@ if __name__ == '__main__':
     plt.show()
 
     radius = 6  # [um]
-    distance = 40  # [um]
+    distance = 70  # [um]
 
     y, x = np.mgrid[-distance:distance:200j, -1.618 * distance:1.618 * distance:300j]
+    x_1d = x[0]
+
+    # Plot planar weighting field in 1 dim
+    phi_w = get_weighting_potential(x_1d, np.zeros_like(x_1d), D=distance, S=radius, is_planar=False)
+    plt.plot(x_1d, phi_w, linestyle='-', linewidth=2.,
+             label='$\mathrm{\Phi_{w}}$', color='red')
+
+    plt.ylabel('Weighting potential [$\mathrm{V}$]')
+    plt.grid()
+    plt.ylim((-0.2, 1.2))
+    # Plot electrode
+    plt.gca().add_patch(plt.Rectangle(((-distance - radius) / 2., plt.ylim()[0]), radius, plt.ylim()[1] - plt.ylim()[0], color="grey"))
+    plt.gca().add_patch(plt.Rectangle(((distance - radius) / 2., plt.ylim()[0]), radius, plt.ylim()[1] - plt.ylim()[0], color="grey"))
+    plt.xlabel('Depth [$\mathrm{\mu m}$]')
+
+    h1, l1 = plt.gca().get_legend_handles_labels()
+    ax2 = plt.twinx(plt.gca())
+
+    # Plot planar weighting potential in 1 dim
+    E_x, E_y = get_weighting_field(x=x_1d,
+                                   y=np.zeros_like(x_1d),
+                                   D=distance,
+                                   S=radius,
+                                   is_planar=False)
+    ax2.plot(x_1d, E_x, linestyle='-.', linewidth=2.,
+             label='$\mathrm{E_{x, w}}$', color='blue')
+
+    h2, l2 = ax2.get_legend_handles_labels()
+
+    plt.title('Weighting potential and field at 3D pixel center line, $\mathrm{d = %d\ \mu m}$' % distance)
+    plt.grid()
+    plt.legend(h1 + h2, l1 + l2, loc=0)
+    plt.ylabel('Weighting field [$\mathrm{V/\mu m}$]')
+    plt.xlabel('Position [$\mathrm{\mu m}$]')
+    plt.savefig('WeightingField_3D_1D.pdf', layout='tight')
+    plt.show()
+
     phi_w = get_weighting_potential(x, y, D=distance, S=radius, is_planar=False)
 
     # Plot weighting potential with colour and contour lines
     levels = np.arange(0, 1, 5)
 
-#     plt.imshow(phi_w, extent=[x.min(), x.max(), y.max(), y.min()], origin='upper', cmap=cm.get_cmap('Blues'))
     plt.contour(x, y, phi_w, 15, colors='black')
     plt.pcolor(x, y, phi_w, cmap='Blues', vmin=np.min(phi_w), vmax=np.max(phi_w))
 
@@ -106,8 +184,8 @@ if __name__ == '__main__':
     plt.quiver(x, y, E_x / np.sqrt(E_x ** 2 + E_y ** 2), E_y / np.sqrt(E_x ** 2 + E_y ** 2), pivot='mid', color='gray', scale=30.)
 
     plt.title('Weighting potential and weighting field direction (3D sensor)')
-    plt.xlabel('Position [um]')
-    plt.ylabel('Depth [um]')
+    plt.xlabel('Position X [um]')
+    plt.xlabel('Position Y [um]')
     plt.savefig('WeightingField_3D.pdf', layout='tight')
     plt.gca().set_aspect(1.)
     plt.show()
