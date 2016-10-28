@@ -159,19 +159,20 @@ def interpolate_potential(potential, smoothing):
 
 if __name__ == '__main__':
     width = 50
-    pitch = 5
+    pitch = 45
     n_pixel = 3
     thickness = 50
-    resolution = 200.
+    resolution = 100.
     V_backplane, V_readout = -1, 0
 
     potential = calculate_planar_sensor_potential(width, pitch, n_pixel, thickness, resolution, V_backplane, V_readout)
 
-#     plot_mesh(potential.mesh)
+    plot_mesh(potential.mesh)
  
     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
  
+    print 'Interpolate'
     fit = interpolate_potential(potential, smoothing=1)
  
     # Plot potential
@@ -198,6 +199,7 @@ if __name__ == '__main__':
     E_y, E_x = np.gradient(z_new)
     E_x, E_y = -E_x, -E_y
     plt.streamplot(xnew, ynew, E_x, E_y, density=1.5, color='gray', arrowstyle='-')
+    plt.savefig('FEM_solution.pdf')
     plt.show()
     
 
