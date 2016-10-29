@@ -64,16 +64,29 @@ if __name__ == '__main__':
     plt.plot(resistivity,
              depletion_depth,
              linewidth=2.,
-             label='$\mathrm{V_{bias}=%d\ V}$, $T=%d$'
+             label='$\mathrm{p-type, V_{bias}=%d\ V}$, $T=%d$'
              % (V_bias, temperature))
-    
     plt.plot(resistivity,
              0.3 * np.sqrt(V_bias * resistivity),
              '--',
              linewidth=2.,
              label=r'$0.3\sqrt{V_{bias}\ \mathrm{[V]}\cdot\rho\ \mathrm{[\Omega - cm]}}$')
     
-    plt.title('Depletion depth in p-type silicon')
+    resistivity = get_resistivity(n_eff, 
+                                  is_n_type=True, 
+                                  temperature=temperature, 
+                                  e_field=e_field)
+    depletion_depth = get_depletion_depth(
+        V_bias=V_bias,
+        n_eff=n_eff,
+        temperature=temperature)
+    plt.plot(resistivity,
+             depletion_depth,
+             linewidth=2.,
+             label='$\mathrm{n-type, V_{bias}=%d\ V}$, $T=%d$'
+             % (V_bias, temperature))
+    
+    plt.title('Depletion depth in silicon')
     plt.xlabel('Resistivity [$\mathrm{\Omega - cm}$]')
     plt.ylabel('Depletion depth [$\mathrm{um}$]')
     plt.legend(loc=0)
