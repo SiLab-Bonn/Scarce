@@ -11,70 +11,78 @@ import matplotlib.pyplot as plt
 from scipy import interpolate
 from scipy.interpolate import SmoothBivariateSpline, LSQBivariateSpline, UnivariateSpline, RectBivariateSpline
 
-from siliconproperties.python_files.plot import plot_mesh
+from siliconproperties.python_files import plot
 from matplotlib import colors, cm
 
 
-def generate_3D_pixel(geom, x=250., y=50., radius=6., nD=2, resolution=10.):
-    pillars = []
+def mesh_3D_sensor(x, y, radius, nD, resolution):
+    
+    def generate_3D_pillar(geom, x, y, radius, nD, resolution):
+        pillars = []
+    
+        # Create readout pillars
+        for pillar in range(nD):
+            position = x / nD * (pillar + 1. / 2.) - x / 2.
+            circle = geom.add_circle(x0=[position, 0.0, 0.0],
+                                     radius=radius,
+                                     lcar=resolution / 2.,
+                                     num_sections=4,
+                                     # If compound==False, the section borders have to be points of the
+                                     # discretization. If using a compound circle, they don't; gmsh can
+                                     # choose by itself where to point the circle points.
+                                     compound=False
+                                     )
+            pillars.append(geom.add_line_loop(circle))
+    
+        return pillars
+    
+    def generate_3D_pixel(geom, x, y, r, nD, resolution):
+        points = []
+        points.append(geom.add_point([-x/2, r-y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([-x/2, y/2-r, 0], lcar=resolution_x))
+        
+        points.append(geom.add_point([r-x/2, y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([-r, y/2, 0], lcar=resolution_x))
+        
+        points.append(geom.add_point([r, y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([x/2-r, y/2, 0], lcar=resolution_x))
+        
+        points.append(geom.add_point([x/2, y/2-r, 0], lcar=resolution_x))
+        points.append(geom.add_point([x/2, r-y/2, 0], lcar=resolution_x))
+               
+        points.append(geom.add_point([x/2-r, -y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([r, -y/2, 0], lcar=resolution_x))
+        
+        points.append(geom.add_point([-r, -y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([r-x/2, -y/2, 0], lcar=resolution_x))
+        
+        loop = []
+        loop.append(geom.add_line(points[0], points[1]))
+        loop.append(geom.add_circle_sector([points[1], geom.add_point([-x/2, y/2, 0], lcar=resolution_x), points[2]]))
+        loop.append(geom.add_line(points[2], points[3]))
+        loop.append(geom.add_circle_sector([points[3], geom.add_point([0, y/2, 0], lcar=resolution_x), points[4]]))
+        
+        loop.append(geom.add_line(points[4], points[5]))
+        loop.append(geom.add_circle_sector([points[5], geom.add_point([x/2, y/2, 0], lcar=resolution_x), points[6]]))
+        loop.append(geom.add_line(points[6], points[7]))
+        loop.append(geom.add_circle_sector([points[7], geom.add_point([x/2, -y/2, 0], lcar=resolution_x), points[8]]))
+        
+        loop.append(geom.add_line(points[8], points[9]))
+        loop.append(geom.add_circle_sector([points[9], geom.add_point([0, -y/2, 0], lcar=resolution_x), points[10]]))
+        
+        loop.append(geom.add_line(points[10], points[11]))
+        loop.append(geom.add_circle_sector([points[11], geom.add_point([-x/2, -y/2, 0], lcar=resolution_x), points[0]]))
+    
+        line_loop = geom.add_line_loop(loop)
+        
+        pillars = generate_3D_pillar(geom, x, y, radius=r, nD=2, resolution=resolution_x)
+        
+        geom.add_plane_surface([line_loop] + pillars)
 
-    # Create readout pillars
-    for pillar in range(nD):
-        position = x / nD * (pillar + 1. / 2.) - x / 2.
-        circle = geom.add_circle(x0=[position, 0.0, 0.0],
-                                 radius=radius,
-                                 lcar=resolution / 2.,
-                                 num_sections=4,
-                                 # If compound==False, the section borders have to be points of the
-                                 # discretization. If using a compound circle, they don't; gmsh can
-                                 # choose by itself where to point the circle points.
-                                 compound=False
-                                 )
-        pillars.append(geom.add_line_loop(circle))
-
-
-def mesh_3D_sensor(x=250., y=50., radius=6., nD=2, resolution=10.):
     geom = pg.Geometry()
-
-    pillars = []
+    resolution_x = x / resolution
 
     generate_3D_pixel(geom, x, y, radius, nD, resolution)
-
-    # Create readout
-    print -y / 2
-    circle_points = []
-    circle_points.append(geom.add_point([-x / 4, -y / 2, 0], lcar=resolution))
-    circle_points.append(geom.add_point([0, y, 0], lcar=resolution))
-    circle_points.append(geom.add_point([x / 4, -y / 2, 0], lcar=resolution))
-#     circle_half = geom.add_circle_sector(circle_points)
-
-    t = [circle_points[0] + circle_points[2]]
-    #circle_half_ll = geom.add_compound_line(circle_points)
-
-    points = []
-
-    points_xyz = [
-        #[-x/4, -y/4, 0],
-        #[x/4, -y/4, 0],
-        #[x/4, -y/2, 0],
-        [x / 2, -y / 2, 0],
-        [x / 2, y / 2, 0],
-        [-x / 2, y / 2, 0],
-        [-x / 2, -y / 2, 0],
-        #[-x/4, -y/2, 0]
-    ]
-    for point in points_xyz:
-        points.append(geom.add_point(point, lcar=resolution))
-
-#     points = t + points
-
-    # Create lines
-    lines = [geom.add_line(points[i], points[i + 1])
-             for i in range(len(points) - 1)]
-    lines.append(geom.add_line(points[-1], points[0]))
-
-    line_loop = geom.add_line_loop(lines)
-    geom.add_plane_surface([line_loop])
 
     return geom
 
@@ -82,6 +90,10 @@ def mesh_3D_sensor(x=250., y=50., radius=6., nD=2, resolution=10.):
 def mesh_planar_sensor(x, thickness, resolution=1.):
     geom = pg.Geometry()
     resolution_x = x / resolution
+#     resolution_x = (np.sqrt(thickness) * np.sqrt(x)) / (resolution * 100.)
+#     resolution_x = 1. / np.sqrt(x) / np.sqrt(thickness) * 10000.
+#     print 'resolution_x', resolution_x
+#     raise
 
     points_xyz = [
         [x / 2, -thickness / 2, 0],
@@ -112,9 +124,65 @@ def mesh_planar_sensor(x, thickness, resolution=1.):
                  'Field[2] = MathEval;',
                  'Field[2].F = Sprintf(\"F1^3 + %g\", lc);',
                  'Background Field = 2;\n']
-
+ 
     geom.add_raw_code(raw_codes)
     return geom
+
+
+def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel, radius, resolution, V_readout, V_bias, nD=2):
+    points, cells = pg.generate_mesh(mesh_3D_sensor(x=pitch_x,
+                                                        y=pitch_y,
+                                                        radius=radius,
+                                                        nD=nD,
+                                                        resolution=resolution))
+                                     
+    mio.write('sensor.msh', points, cells)
+    mesh = fipy.GmshImporter2D('sensor.msh')
+    
+    potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
+    permittivity = 1.
+    potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
+    
+    bcs = []
+    allfaces = mesh.getExteriorFaces()
+    X,Y =  mesh.getFaceCenters()
+    
+    # Readout pillars
+    for pillar in range(nD):
+        position = pitch_x / nD * (pillar + 1. / 2.) - pitch_x / 2.
+        ring = allfaces & ( (X-position)**2+(Y)**2 < (radius)**2) 
+        bcs.append(fipy.FixedValue(value=V_readout,faces=ring))
+        
+    # Bias pillars
+    # Edges
+    positions = [(- pitch_x / 2., - pitch_y / 2.),
+                 (+ pitch_x / 2., - pitch_y / 2.),
+                 (+ pitch_x / 2., + pitch_y / 2.),
+                 (- pitch_x / 2., + pitch_y / 2.)]
+    # Sides
+    positions += [(0, - pitch_y / 2.),
+                 (0, + pitch_y / 2.)]
+
+    for pos_x, pos_y in positions:
+        ring = allfaces & ( (X-pos_x)**2+(Y-pos_y)**2 < (radius)**2) 
+        bcs.append(fipy.FixedValue(value=V_bias,faces=ring))
+
+#     # Calculate boundaries
+#     p_pillars = mesh.getFaces()
+#     n_pillars = mesh.getFacesTop()
+# 
+#     electrodes = readout_plane
+#     bcs = [fipy.FixedValue(value=V_backplane, faces=backplane)]
+#     
+#     for pixel in range(n_pixel):
+#         pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
+#         bcs.append(fipy.FixedValue(value=V_readout,
+#                                    faces=electrodes &
+#                                    (X > pixel_position - pitch / 2.) &
+#                                    (X < pixel_position + pitch / 2.)))
+
+    potential.equation.solve(var=potential, boundaryConditions=bcs)
+    return potential
 
 
 def calculate_planar_sensor_potential(width, pitch, n_pixel, thickness,
@@ -158,31 +226,67 @@ def interpolate_potential(potential, smoothing):
     return SmoothBivariateSpline(x, y, z, s=smoothing, kx=3, ky=3)
 
 if __name__ == '__main__':
-    width = 50
-    pitch = 45
-    n_pixel = 3
-    thickness = 50
-    resolution = 100.
-    V_backplane, V_readout = -1, 0
+    pitch_x = 250.
+    pitch_y = 50.
+    n_pixel = 3.
+    radius = 6.
+    resolution = 300.
+    V_readout, V_bias,  = 0, -1
+    
+    potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel, radius, resolution, V_readout, V_bias)
+    plot.plot_mesh(potential.mesh)
+    viewer = fipy.viewers.Viewer(vars=(potential, ))
+    viewer.plot("3D.png")
 
-    potential = calculate_planar_sensor_potential(width, pitch, n_pixel, thickness, resolution, V_backplane, V_readout)
-
-    plot_mesh(potential.mesh)
- 
     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
- 
+  
     print 'Interpolate'
-    fit = interpolate_potential(potential, smoothing=1)
- 
-    # Plot potential
-    xnew = np.linspace(min_x, max_x, 1000)
-    ynew = np.linspace(min_y, max_y, 1000)
-    phi = fit(xnew, ynew).T
-    plt.contour(xnew, ynew, phi, 15, colors='black')
-    plt.pcolormesh(xnew, ynew, phi, cmap=cm.get_cmap('Blues'), vmin=V_backplane, vmax=V_readout)
-    plt.colorbar()
+    potential_fit = interpolate_potential(potential, smoothing=1)
+    print 'Done'
     
+    plot.plot_3D_sensor(potential_fit,
+                            width,
+                            pitch,
+                            n_pixel,
+                            thickness,
+                            V_backplane, 
+                            V_readout, 
+                            min_x, 
+                            max_x, 
+                            min_y,
+                            max_y)
+
+#     width = 50
+#     pitch = 40
+#     n_pixel = 3
+#     thickness = 50
+#     resolution = 200.
+#     V_backplane, V_readout = -1, 0
+#     potential = calculate_planar_sensor_potential(width, pitch, n_pixel, thickness, resolution, V_backplane, V_readout)
+
+#     plot.plot_mesh(potential.mesh)
+ 
+#     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
+#     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
+#  
+#     
+#  
+#     print 'Interpolate'
+#     potential_fit = interpolate_potential(potential, smoothing=1)
+#     print 'Done'
+#     plot.plot_planar_sensor(potential_fit,
+#                             width,
+#                             pitch,
+#                             n_pixel,
+#                             thickness,
+#                             V_backplane, 
+#                             V_readout, 
+#                             min_x, 
+#                             max_x, 
+#                             min_y,
+#                             max_y)
+
 #     print phi.shape
 #     plt.clf()
 #     plt.plot(ynew, phi.T[600])
@@ -191,15 +295,4 @@ if __name__ == '__main__':
 #     plt.show()
 #     raise
  
-    # Plot E-Field
-    xnew = np.linspace(min_x, max_x, 10)
-    ynew = np.linspace(min_y, max_y, 10)
-    z_new = fit(xnew, ynew).T
-    xnew, ynew = np.meshgrid(xnew, ynew)
-    E_y, E_x = np.gradient(z_new)
-    E_x, E_y = -E_x, -E_y
-    plt.streamplot(xnew, ynew, E_x, E_y, density=1.5, color='gray', arrowstyle='-')
-    plt.savefig('FEM_solution.pdf')
-    plt.show()
-    
 
