@@ -25,7 +25,7 @@ def get_trapping(fluence, is_electron, paper=1):
         tr = 1. / (fluence * beta)
         tr_error = 1. / (fluence * beta ** 2) * beta_error
 
-        return tr, tr_error
+        return tr
 
     elif paper == 2:
         # Oldest most cited reference, with irradiation to 2 e 14 only
@@ -50,7 +50,7 @@ def get_trapping(fluence, is_electron, paper=1):
         tr = 1. / (fluence * beta)
         tr_error = 1. / (fluence * beta ** 2) * beta_error
 
-        return tr, tr_error
+        return tr
     else:
         raise RuntimeError('Unknown paper selected!')
 
@@ -61,8 +61,8 @@ if __name__ == '__main__':
     fluence = np.logspace(12., 15., 1000.)
 
     # Plot trapping rate (1 / s)
-    tr_e, tr_e_error = get_trapping(fluence, is_electron=True, paper=1)
-    tr_h, tr_h_error = get_trapping(fluence, is_electron=False, paper=1)
+    tr_e = get_trapping(fluence, is_electron=True, paper=1)
+    tr_h = get_trapping(fluence, is_electron=False, paper=1)
     plt.plot(fluence, tr_e, linewidth=2., color='blue', linestyle='-', label='Electrons')
     plt.plot(fluence, tr_h, linewidth=2., color='red', linestyle='-', label='Holes')
     plt.title('Charge carrier trapping time in irradiated silicon')
