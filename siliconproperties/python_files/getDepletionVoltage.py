@@ -18,7 +18,7 @@ def get_depletion_voltage(n_eff, distance):
     # Relative permitivity of silicon
     epsilon_r = epsilon_s / constants.epsilon_0
 
-    return constants.elementary_charge * n_eff / (constants.epsilon_0 * epsilon_r) * distance ** 2. / 2e6
+    return constants.elementary_charge * n_eff / (constants.epsilon_0 * epsilon_r) * distance ** 2. / 2 * 1e6
 
 if __name__ == '__main__':
     import matplotlib.pylab as plt
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     for distance in [100, 150, 200, 250]:
         plt.plot(n_eff, get_depletion_voltage(
             n_eff, distance=distance), linewidth=2.,
-            label='Distance = %d' % distance)
+            label='Electrode distance = %d um' % distance)
     plt.title(
         'Full depletion voltage in silicon')
     plt.xlabel('Effective doping concentration [$\mathrm{10^{12} / cm^3}}$]')

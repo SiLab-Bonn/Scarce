@@ -26,7 +26,7 @@ def get_resistivity(n_eff, is_n_type=True, temperature=300, e_field=1e3):
 if __name__ == '__main__':
     import matplotlib.pylab as plt
 
-    n_eff = np.logspace(14., 20., 1000.)
+    n_eff = np.logspace(11., 15., 1000.)
 
     # Plot trapping rate (1 / s)
     plt.plot(n_eff, get_resistivity(n_eff / 1e12, is_n_type=True), label='n-type')
