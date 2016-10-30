@@ -73,20 +73,64 @@ def plot_planar_sensor(potential_function,
     # Plot pixel(s)
     for pixel in range(n_pixel):
         pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
-        plt.gca().add_patch(plt.Rectangle((pixel_position - pitch / 2, plt.ylim()[1]), pitch, 0.05*(plt.ylim()[1] - plt.ylim()[0]), color="darkblue", linewidth=0))
+        plt.gca().add_patch(plt.Rectangle((pixel_position - pitch / 2, plt.ylim()[1]), pitch, 0.05*(plt.ylim()[1] - plt.ylim()[0]), color="darkred", linewidth=0))
 #         plt.gca().add_patch(plt.Rectangle(((distance - radius) / 2., plt.ylim()[0]), radius, plt.ylim()[1] - plt.ylim()[0], color="grey"))
     
     # Plot backside
-    plt.gca().add_patch(plt.Rectangle((min_x, plt.ylim()[0]), (max_x - min_x), - 0.05*(plt.ylim()[1] - plt.ylim()[0]), color="darkred", linewidth=0))
+    plt.gca().add_patch(plt.Rectangle((min_x, plt.ylim()[0]), (max_x - min_x), - 0.05*(plt.ylim()[1] - plt.ylim()[0]), color="darkblue", linewidth=0))
     
     plt.ylim((1.05 * min_y, 1.05 * max_y))
-    plt.xlabel('Position [um]')
-    plt.ylabel('Depth [um]')
+    plt.xlabel('Position x/y [um]', fontsize=22)
+    plt.ylabel('Position z [um]', fontsize=22)
+    plt.gca().set_aspect(1./5.)
     plt.show()
     
 
-def plot_3D_sensor():
-    pass
+def plot_3D_sensor(potential_function, pitch_x, pitch_y, n_pixel, radius, V_readout, V_bias, 
+                   min_x, 
+                        max_x, 
+                        min_y,
+                        max_y, nD=2):
+
+    # Interpolate potential to a x,y grid
+    xnew = np.linspace(min_x, max_x, 1000)
+    ynew = np.linspace(min_y, max_y, 1000)
+    xnew_plot, ynew_plot = np.meshgrid(xnew, ynew)
+    phi = potential_function(xnew_plot, ynew_plot)
+
+    # Plot Potential
+    plt.contour(xnew, ynew, phi, 10, colors='black')
+    plt.pcolormesh(xnew_plot, ynew_plot, phi, cmap=cm.get_cmap('Blues'), vmin=V_bias, vmax=V_readout)
+    plt.colorbar()
+    
+    # Plot E-Field
+    E_y, E_x = np.gradient(phi)
+    E_x, E_y = -E_x, -E_y
+    plt.streamplot(xnew_plot, ynew_plot, E_x, E_y, density=1.0, color='gray', arrowstyle='-')
+    
+    # Plot readout pillars
+    for pillar in range(nD):
+        position = pitch_x / nD * (pillar + 1. / 2.) - pitch_x / 2.
+        plt.gca().add_patch(plt.Circle((position, 0.), radius, color="darkred", linewidth=0))
+        
+    # Plot bias pillars
+    positions = ([- pitch_x/2., -pitch_y/2.],
+                 [0, -pitch_y/2.],
+                 [pitch_x/2., -pitch_y/2.],
+                 [- pitch_x/2., pitch_y/2.],
+                 [0, pitch_y/2.],
+                 [pitch_x/2., pitch_y/2.])
+    for pos_x, pos_y in positions:
+        plt.gca().add_patch(plt.Circle((pos_x, pos_y), radius, color="darkblue", linewidth=0))
+    
+    plt.xlim((1.05 * min_x, 1.05 * max_x))
+    plt.ylim((1.05 * min_y, 1.05 * max_y))
+    plt.xlabel('Position x [um]', fontsize=22)
+    plt.ylabel('Position y [um]', fontsize=22)
+    plt.gca().set_aspect(1.)
+#     plt.savefig('3D.svg', dpi=1, layout='tight')
+    plt.show()
+
 
 if __name__ == '__main__':
     from siliconproperties.python_files.getWeightingPotential import (

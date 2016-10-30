@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 from scipy import interpolate
 from scipy.interpolate import SmoothBivariateSpline, LSQBivariateSpline, UnivariateSpline, RectBivariateSpline
+from scipy.interpolate import griddata
 
 from siliconproperties.python_files import plot
 from matplotlib import colors, cm
@@ -25,7 +26,7 @@ def mesh_3D_sensor(x, y, radius, nD, resolution):
             position = x / nD * (pillar + 1. / 2.) - x / 2.
             circle = geom.add_circle(x0=[position, 0.0, 0.0],
                                      radius=radius,
-                                     lcar=resolution / 2.,
+                                     lcar=resolution / 4.,
                                      num_sections=4,
                                      # If compound==False, the section borders have to be points of the
                                      # discretization. If using a compound circle, they don't; gmsh can
@@ -58,7 +59,7 @@ def mesh_3D_sensor(x, y, radius, nD, resolution):
         
         loop = []
         loop.append(geom.add_line(points[0], points[1]))
-        loop.append(geom.add_circle_sector([points[1], geom.add_point([-x/2, y/2, 0], lcar=resolution_x), points[2]]))
+        loop.append(geom.add_circle_sector([points[1], geom.add_point([-x/2, y/2, 0], lcar=resolution_x / 4.), points[2]]))
         loop.append(geom.add_line(points[2], points[3]))
         loop.append(geom.add_circle_sector([points[3], geom.add_point([0, y/2, 0], lcar=resolution_x), points[4]]))
         
@@ -76,8 +77,20 @@ def mesh_3D_sensor(x, y, radius, nD, resolution):
         line_loop = geom.add_line_loop(loop)
         
         pillars = generate_3D_pillar(geom, x, y, radius=r, nD=2, resolution=resolution_x)
-        
+                
         geom.add_plane_surface([line_loop] + pillars)
+        
+        raw_codes = ['lc = %f;' % (resolution_x / 8.),
+                 'Field[1] = Attractor;',
+                 'Field[1].EdgesList = {c1, c2, c3, c4, c5, c6};'
+                 'Field[1].NNodesByEdge = %d;' % resolution,
+                 'Field[2] = MathEval;',
+                 'Field[2].F = Sprintf(\"F1^3 + %g\", lc);',
+                 'Background Field = 2;\n']
+        geom.add_raw_code(raw_codes)
+        
+#         print geom.get_code()
+#         raise
 
     geom = pg.Geometry()
     resolution_x = x / resolution
@@ -165,7 +178,7 @@ def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel, radius, resolution,
 
     for pos_x, pos_y in positions:
         ring = allfaces & ( (X-pos_x)**2+(Y-pos_y)**2 < (radius)**2) 
-        bcs.append(fipy.FixedValue(value=V_bias,faces=ring))
+        bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
 
 #     # Calculate boundaries
 #     p_pillars = mesh.getFaces()
@@ -219,33 +232,78 @@ def calculate_planar_sensor_potential(width, pitch, n_pixel, thickness,
     return potential
 
 
-def interpolate_potential(potential, smoothing):
+def interpolate_potential(potential, smoothing=None):
     x = np.array(potential.mesh.getFaceCenters()[0])
     y = np.array(potential.mesh.getFaceCenters()[1])
-    z = np.array(potential.arithmeticFaceValue)
+    z = np.array(potential.arithmeticFaceValue())
     return SmoothBivariateSpline(x, y, z, s=smoothing, kx=3, ky=3)
 
-if __name__ == '__main__':
-    pitch_x = 250.
-    pitch_y = 50.
-    n_pixel = 3.
-    radius = 6.
-    resolution = 300.
-    V_readout, V_bias,  = 0, -1
+def interpolate_potential_2(potential):
+    points=np.array(potential.mesh.getFaceCenters()).T
+    values=np.array(potential.arithmeticFaceValue())
     
-    potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel, radius, resolution, V_readout, V_bias)
-    plot.plot_mesh(potential.mesh)
-    viewer = fipy.viewers.Viewer(vars=(potential, ))
-    viewer.plot("3D.png")
+    def interpolator(grid_x, grid_y):
+        return griddata(points=points, 
+                        values=values, 
+                        xi=(grid_x, grid_y), 
+                        method='cubic')
+        
+    return interpolator
 
+if __name__ == '__main__':
+#     pitch_x = 250.
+#     pitch_y = 50.
+#     n_pixel = 3.
+#     radius = 6.
+#     resolution = 500.
+#     V_readout, V_bias,  = 0, -1
+#     
+#     potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel, radius, resolution, V_readout, V_bias)
+# #     plot.plot_mesh(potential.mesh)
+# #     viewer = fipy.viewers.Viewer(vars=(potential, ))
+# #     viewer.plot("3D.png")
+# 
+#     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
+#     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
+#    
+#     print 'Interpolate'
+# 
+#     xnew = np.linspace(min_x, max_x, 1000)
+#     ynew = np.linspace(min_y, max_y, 1000)
+#     xnew_plot, ynew_plot = np.meshgrid(xnew, ynew)
+#      
+#     potential_function = interpolate_potential_2(potential)
+#     print 'Done'
+#      
+#     plot.plot_3D_sensor(potential_function,
+#                         pitch_x, 
+#                         pitch_y, 
+#                         n_pixel, 
+#                         radius,
+#                         V_bias,
+#                         V_readout, 
+#                         min_x, 
+#                         max_x, 
+#                         min_y,
+#                         max_y
+#                         )
+
+    width = 250
+    pitch = 240
+    n_pixel = 1
+    thickness = 200
+    resolution = 200.
+    V_backplane, V_readout = -100, 0
+    potential = calculate_planar_sensor_potential(width, pitch, n_pixel, thickness, resolution, V_backplane, V_readout)
+
+#     plot.plot_mesh(potential.mesh)
+ 
     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
   
-    print 'Interpolate'
-    potential_fit = interpolate_potential(potential, smoothing=1)
-    print 'Done'
-    
-    plot.plot_3D_sensor(potential_fit,
+    print 'Interpolate', np.square(abs(V_backplane - V_readout))
+    potential_function = interpolate_potential(potential, smoothing=np.square(abs(V_backplane - V_readout)))
+    plot.plot_planar_sensor(potential_function,
                             width,
                             pitch,
                             n_pixel,
@@ -256,36 +314,6 @@ if __name__ == '__main__':
                             max_x, 
                             min_y,
                             max_y)
-
-#     width = 50
-#     pitch = 40
-#     n_pixel = 3
-#     thickness = 50
-#     resolution = 200.
-#     V_backplane, V_readout = -1, 0
-#     potential = calculate_planar_sensor_potential(width, pitch, n_pixel, thickness, resolution, V_backplane, V_readout)
-
-#     plot.plot_mesh(potential.mesh)
- 
-#     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
-#     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
-#  
-#     
-#  
-#     print 'Interpolate'
-#     potential_fit = interpolate_potential(potential, smoothing=1)
-#     print 'Done'
-#     plot.plot_planar_sensor(potential_fit,
-#                             width,
-#                             pitch,
-#                             n_pixel,
-#                             thickness,
-#                             V_backplane, 
-#                             V_readout, 
-#                             min_x, 
-#                             max_x, 
-#                             min_y,
-#                             max_y)
 
 #     print phi.shape
 #     plt.clf()
