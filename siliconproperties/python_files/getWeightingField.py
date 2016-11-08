@@ -4,25 +4,32 @@ import numpy as np
 def get_weighting_field(x, y, D, S, is_planar=True):
     """ From Nuclear Instruments and Methods in Physics Research A 535 (2004)
         554-557, with correction from wbar = pi*w/2/D to wbar = pi*w/D
-        with x [um] is the position in the sensor, y [um] the offset from the
+        with x [um] is the position in the sensor [0:thickness], y [um] the offset from the
         middle of the electrode, D [um] the sensor thickness and S [um] the
         eletrode width. The field is calculated from the drivation of the
         potential in x and y.
     """
 
     if is_planar:
-        # y = D - y  # Electrode at D not at 0
-        xbar = np. pi * x / D
+#         y = D - y  # Electrode at D not at 0
+        xbar = np.pi * x / D
         ybar = np.pi * (y - D) / D
         wbar = np.pi * S / D
 
+        # Likely no simpler form possible
+        E_x = np.sin(ybar) / (2. * D) * (1. / (np.cosh(xbar - wbar / 2.) + np.cos(ybar)) 
+                                        - 1. / (np.cosh(xbar + wbar / 2.) + np.cos(ybar)))
+        
+        E_y = 1. / (2 * D) * (-np.sinh(xbar + wbar / 2.) / (np.cosh(xbar + wbar / 2.) + np.cos(ybar)) 
+                             - np.sinh(xbar - wbar / 2.) / (np.cosh(xbar - wbar / 2.) + np.cos(ybar)))
+         
+#         return E_x, E_y
+        
         # Not easy to find a more simple form
-        E_x = -np.sin(ybar) / (2. * D) * (1. / (np.cosh(xbar - wbar / 2.) +
-                                                np.cos(ybar)) - 1. / (np.cosh(wbar / 2 + xbar) + np.cos(ybar)))
-        E_y = -1. / (2 * D) * (np.sinh(wbar / 2 - xbar) / (np.cosh(wbar / 2 - xbar) +
-                                                           np.cos(ybar)) + np.sinh(wbar / 2 + xbar) / (np.cosh(wbar / 2 + xbar) + np.cos(ybar)))
-
-        return -E_x, -E_y
+        E_y = 1. / (2 * D) * (-np.sinh(- xbar + wbar / 2.) / (np.cosh(- xbar + wbar / 2.) + np.cos(ybar)) 
+                              -np.sinh(  xbar + wbar / 2.) / (np.cosh(  xbar + wbar / 2.) + np.cos(ybar)))
+        return E_x, E_y
+        
 
     else:
         # 3D sensor:
@@ -52,74 +59,100 @@ if __name__ == '__main__':
     from siliconproperties.python_files.getWeightingPotential import (
         get_weighting_potential)
 
-    thickness = 300  # [um]
-    width = 40  # [um]
+    thickness = 300.  # [um]
+    width = 40.  # [um]
 
-    y, x = np.mgrid[0:thickness:100j, -width * 2:width * 2:100j]
-    y_1d = y.T[0]
+    x = np.linspace(-width * 2, width * 2, 100)
+    y = np.linspace(0, thickness, 100)
+    xx, yy = np.meshgrid(x, y, sparse=True)
+#     y_1d = y.T[0]
 
-    # Plot planar weighting field in 1 dim
-    for pitch, line_style in zip([50, 250, 500], ['-', '-.', '--']):
-        phi_w = get_weighting_potential(np.zeros_like(y_1d), y_1d, D=thickness, S=pitch, is_planar=True)
-        E_x, E_y = get_weighting_field(x=np.zeros_like(y_1d),
-                                       y=y_1d,
-                                       D=thickness,
-                                       S=pitch,
-                                       is_planar=True)
-        plt.plot(y_1d, phi_w, linestyle=line_style, linewidth=2.,
-                 label='$\mathrm{\Phi_{w},\ %d\ \mu m\ pitch}$' % pitch, color='red')
+#     # Plot planar weighting field in 1 dim
+#     for pitch, line_style in zip([50, 250, 500], ['-', '-.', '--']):
+#         phi_w = get_weighting_potential(np.zeros_like(y_1d), y_1d, D=thickness, S=pitch, is_planar=True)
+#         E_x, E_y = get_weighting_field(x=np.zeros_like(y_1d),
+#                                        y=y_1d,
+#                                        D=thickness,
+#                                        S=pitch,
+#                                        is_planar=True)
+#         plt.plot(y_1d, phi_w, linestyle=line_style, linewidth=2.,
+#                  label='$\mathrm{\Phi_{w},\ %d\ \mu m\ pitch}$' % pitch, color='red')
+# 
+#     plt.ylabel('Weighting potential [$\mathrm{V}$]')
+#     plt.grid()
+#     plt.xlabel('Depth [$\mathrm{\mu m}$]')
+# 
+#     h1, l1 = plt.gca().get_legend_handles_labels()
+#     ax2 = plt.twinx(plt.gca())
+# 
+#     # Plot planar weighting potential in 1 dim
+#     for pitch, line_style in zip([50, 250, 500], ['-', '-.', '--']):
+#         phi_w = get_weighting_potential(np.zeros_like(y_1d), y_1d, D=thickness, S=pitch, is_planar=True)
+#         E_x, E_y = get_weighting_field(x=np.zeros_like(y_1d),
+#                                        y=y_1d,
+#                                        D=thickness,
+#                                        S=pitch,
+#                                        is_planar=True)
+#         ax2.plot(y_1d, E_y, linestyle=line_style, linewidth=2.,
+#                  label='$\mathrm{|E|_w,\ %d\ \mu m\ pitch}$' % pitch, color='blue')
+# 
+#     h2, l2 = ax2.get_legend_handles_labels()
 
-    plt.ylabel('Weighting potential [$\mathrm{V}$]')
-    plt.grid()
-    plt.xlabel('Depth [$\mathrm{\mu m}$]')
+#     plt.title('Weighting potential and field at planar pixel center, $\mathrm{d = 300\ \mu m}$')
+#     plt.legend(h1 + h2, l1 + l2, loc=0)
+#     plt.ylim((0, 0.05))
+#     plt.grid()
+#     plt.ylabel('Weighting field [$\mathrm{V/\mu m}$]')
+#     plt.xlabel('Depth [$\mathrm{\mu m}$]')
+#     plt.savefig('WeightingField_planar_1D.pdf', layout='tight')
+#     plt.show()
 
-    h1, l1 = plt.gca().get_legend_handles_labels()
-    ax2 = plt.twinx(plt.gca())
-
-    # Plot planar weighting potential in 1 dim
-    for pitch, line_style in zip([50, 250, 500], ['-', '-.', '--']):
-        phi_w = get_weighting_potential(np.zeros_like(y_1d), y_1d, D=thickness, S=pitch, is_planar=True)
-        E_x, E_y = get_weighting_field(x=np.zeros_like(y_1d),
-                                       y=y_1d,
-                                       D=thickness,
-                                       S=pitch,
-                                       is_planar=True)
-        ax2.plot(y_1d, E_y, linestyle=line_style, linewidth=2.,
-                 label='$\mathrm{|E|_w,\ %d\ \mu m\ pitch}$' % pitch, color='blue')
-
-    h2, l2 = ax2.get_legend_handles_labels()
-
-    plt.title('Weighting potential and field at planar pixel center, $\mathrm{d = 300\ \mu m}$')
-    plt.legend(h1 + h2, l1 + l2, loc=0)
-    plt.ylim((0, 0.05))
-    plt.grid()
-    plt.ylabel('Weighting field [$\mathrm{V/\mu m}$]')
-    plt.xlabel('Depth [$\mathrm{\mu m}$]')
-    plt.savefig('WeightingField_planar_1D.pdf', layout='tight')
-    plt.show()
-
-    phi_w = get_weighting_potential(x, y, D=thickness, S=width, is_planar=True)
-
+    phi_w = get_weighting_potential(xx, yy, D=thickness, S=width, is_planar=True)
+ 
     # Plot weighting potential with colour and contour lines
     levels = np.arange(0, 1, 5)
-    plt.imshow(phi_w, extent=[x.min(), x.max(), y.max(), y.min()], origin='upper', cmap=cm.get_cmap('Blues'))
+    plt.imshow(phi_w, extent=[x.min(), x.max(), y.min(), y.max()], origin='lower', cmap=cm.get_cmap('Blues'))
     plt.contour(x, y, phi_w, 15, colors='black')
 
     # Plot electrode
     plt.plot([-width / 2., width / 2.], [0, 0], linewidth=5, color='red')
 
     # Plot weighting field directions
-    y, x = np.mgrid[0:thickness:20j, -width * 2:width * 2:20j]
-    E_x, E_y = get_weighting_field(x, y, D=thickness, S=width, is_planar=True)
+    x = np.linspace(-width * 2, width * 2, 20)
+    y = np.linspace(0, thickness, 20)
+    xx, yy = np.meshgrid(x, y, sparse=True)
+    E_x, E_y = get_weighting_field(xx, yy, D=thickness, S=width, is_planar=True)
+    phi_w = get_weighting_potential(xx, yy, D=thickness, S=width, is_planar=True)
+    
+    dx, dy = np.diff(x)[0], np.diff(y)[0]
+    E_x_2, E_y_2 = np.gradient(-phi_w, dx, dy)
 
-    plt.quiver(x, y, E_x / np.sqrt(E_x ** 2 + E_y ** 2), E_y / np.sqrt(E_x ** 2 + E_y ** 2), pivot='mid', color='gray', scale=30.)
+    speed = np.sqrt(E_x**2 + E_y**2)
+
+    print E_x.shape, E_x_2.shape
+    print np.allclose(E_x, E_x_2)
+    print np.allclose(E_y, E_y_2)
+
+    plt.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='->')
+    plt.streamplot(x, y, E_y_2, E_x_2, density=1.0, color='black', arrowstyle='->')
+    
+#     E_x, E_y = get_weighting_field(xx, yy, D=thickness, S=width, is_planar=True)
+#     E_x, E_y = -E_x, -E_y
+#     plt.streamplot(x, y, E_x, E_y, density=1.0, color='gray')#, arrowstyle='-')
 
     plt.title('Weighting potential and weighting field direction (planar sensor)')
     plt.xlabel('Position [um]')
     plt.ylabel('Depth [um]')
+    plt.gca().invert_yaxis()
     plt.gca().set_aspect(1. / plt.gca().get_data_ratio() / 1.618)
     plt.savefig('WeightingField_planar.pdf', layout='tight')
     plt.show()
+    
+    
+    
+    
+    
+    raise
 
     radius = 6  # [um]
     distance = 70  # [um]
@@ -135,6 +168,7 @@ if __name__ == '__main__':
     plt.ylabel('Weighting potential [$\mathrm{V}$]')
     plt.grid()
     plt.ylim((-0.2, 1.2))
+
     # Plot electrode
     plt.gca().add_patch(plt.Rectangle(((-distance - radius) / 2., plt.ylim()[0]), radius, plt.ylim()[1] - plt.ylim()[0], color="grey"))
     plt.gca().add_patch(plt.Rectangle(((distance - radius) / 2., plt.ylim()[0]), radius, plt.ylim()[1] - plt.ylim()[0], color="grey"))
@@ -156,6 +190,7 @@ if __name__ == '__main__':
 
     plt.title('Weighting potential and field at 3D pixel center line, $\mathrm{d = %d\ \mu m}$' % distance)
     plt.grid()
+    
     plt.legend(h1 + h2, l1 + l2, loc=0)
     plt.ylabel('Weighting field [$\mathrm{V/\mu m}$]')
     plt.xlabel('Position [$\mathrm{\mu m}$]')
