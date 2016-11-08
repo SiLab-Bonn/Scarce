@@ -11,11 +11,10 @@ def get_free_path(fluence, e_field, temperature, is_electron=True):
     # function of the fluence and the velocity is a function
     # of the electric field and the temperature. The electric field itself
     # depends on the electrode geometry and the bias voltage.
-
     velocity = get_mobility(e_field, temperature, is_electron) * e_field
-    trapping_time, trapping_time_error = get_trapping(fluence, is_electron, paper=1)
+    trapping_time = get_trapping(fluence, is_electron, paper=1)
 
-    return velocity * trapping_time * 10e-9, velocity * trapping_time_error * 10e-9
+    return velocity * trapping_time * 10e-9
 
 if __name__ == '__main__':
     import matplotlib.pylab as plt
