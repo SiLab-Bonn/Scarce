@@ -21,8 +21,9 @@ def get_weighting_potential(x, y, D, S, is_planar=True):
     if is_planar:
         xbar = np.pi * x / D
         ybar = np.pi * (y - D) / D
-        STRIPWIDTHbar = np.pi * S / D
-        return -1. / np.pi * (np.arctan(np.tan(ybar / 2) * np.tanh((xbar + STRIPWIDTHbar / 2) / 2)) - np.arctan(np.tan(ybar / 2) * np.tanh((xbar - STRIPWIDTHbar / 2.) / 2.)))
+        wbar = np.pi * S / D
+        return -1. / np.pi * (np.arctan(np.tan(ybar / 2) * np.tanh((xbar + wbar / 2.) / 2)) - 
+                              np.arctan(np.tan(ybar / 2) * np.tanh((xbar - wbar / 2.) / 2.)))
     else:
         R = S
         D = D / 2.  # D is the total distance between the columns
