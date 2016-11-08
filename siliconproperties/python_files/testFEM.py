@@ -109,10 +109,10 @@ def mesh_planar_sensor(x, thickness, resolution=1.):
 #     raise
 
     points_xyz = [
-        [x / 2, -thickness / 2, 0],
-        [x / 2, thickness / 2, 0],
-        [-x / 2, thickness / 2, 0],
-        [-x / 2, -thickness / 2, 0],
+        [x / 2, thickness, 0],
+        [x / 2, 0, 0],
+        [-x / 2, 0, 0],
+        [-x / 2, thickness, 0],
     ]
 
     points = []
@@ -213,10 +213,10 @@ def calculate_planar_sensor_potential(width, pitch, n_pixel, thickness,
 
     # Calculate boundaries
     V_backplane = V_backplane
-    backplane = mesh.getFacesBottom()
+    backplane = mesh.getFacesTop()
 
     V_readout = V_readout
-    readout_plane = mesh.getFacesTop()
+    readout_plane = mesh.getFacesBottom()
 
     electrodes = readout_plane
     bcs = [fipy.FixedValue(value=V_backplane, faces=backplane)]
@@ -232,13 +232,13 @@ def calculate_planar_sensor_potential(width, pitch, n_pixel, thickness,
     return potential
 
 
-def interpolate_potential(potential, smoothing=None):
+def interpolate_potential_old_smooth(potential, smoothing=None):
     x = np.array(potential.mesh.getFaceCenters()[0])
     y = np.array(potential.mesh.getFaceCenters()[1])
     z = np.array(potential.arithmeticFaceValue())
     return SmoothBivariateSpline(x, y, z, s=smoothing, kx=3, ky=3)
 
-def interpolate_potential_2(potential):
+def interpolate_potential(potential):
     points=np.array(potential.mesh.getFaceCenters()).T
     values=np.array(potential.arithmeticFaceValue())
     
@@ -257,24 +257,24 @@ if __name__ == '__main__':
 #     radius = 6.
 #     resolution = 500.
 #     V_readout, V_bias,  = 0, -1
-#     
+#      
 #     potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel, radius, resolution, V_readout, V_bias)
 # #     plot.plot_mesh(potential.mesh)
 # #     viewer = fipy.viewers.Viewer(vars=(potential, ))
 # #     viewer.plot("3D.png")
-# 
+#  
 #     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
 #     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
-#    
+#     
 #     print 'Interpolate'
-# 
+#  
 #     xnew = np.linspace(min_x, max_x, 1000)
 #     ynew = np.linspace(min_y, max_y, 1000)
 #     xnew_plot, ynew_plot = np.meshgrid(xnew, ynew)
-#      
+#       
 #     potential_function = interpolate_potential_2(potential)
 #     print 'Done'
-#      
+#       
 #     plot.plot_3D_sensor(potential_function,
 #                         pitch_x, 
 #                         pitch_y, 
@@ -292,17 +292,17 @@ if __name__ == '__main__':
     pitch = 240
     n_pixel = 1
     thickness = 200
-    resolution = 200.
-    V_backplane, V_readout = -100, 0
+    resolution = 50
+    V_backplane, V_readout = -1, 0
     potential = calculate_planar_sensor_potential(width, pitch, n_pixel, thickness, resolution, V_backplane, V_readout)
 
-#     plot.plot_mesh(potential.mesh)
+#     plot.plot_mesh(potential.mesh, invert_y_axis=True)
  
     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
   
     print 'Interpolate', np.square(abs(V_backplane - V_readout))
-    potential_function = interpolate_potential(potential, smoothing=np.square(abs(V_backplane - V_readout)))
+    potential_function = interpolate_potential(potential)
     plot.plot_planar_sensor(potential_function,
                             width,
                             pitch,
