@@ -11,23 +11,35 @@ def get_weighting_field(x, y, D, S, is_planar=True):
     """
 
     if is_planar:
+
 #         y = D - y  # Electrode at D not at 0
         xbar = np.pi * x / D
-        ybar = np.pi * (y - D) / D
+        ybar = np.pi * (y) / D
         wbar = np.pi * S / D
 
-        # Likely no simpler form possible
-        E_x = np.sin(ybar) / (2. * D) * (1. / (np.cosh(xbar - wbar / 2.) + np.cos(ybar)) 
-                                        - 1. / (np.cosh(xbar + wbar / 2.) + np.cos(ybar)))
-        
-        E_y = 1. / (2 * D) * (-np.sinh(xbar + wbar / 2.) / (np.cosh(xbar + wbar / 2.) + np.cos(ybar)) 
-                             - np.sinh(xbar - wbar / 2.) / (np.cosh(xbar - wbar / 2.) + np.cos(ybar)))
+#         # Likely no simpler form possible
+#         E_x = np.sin(ybar) / (2. * D) * (1. / (np.cosh(xbar - wbar / 2.) + np.cos(ybar)) 
+#                                         - 1. / (np.cosh(xbar + wbar / 2.) + np.cos(ybar)))
+#         
+#         E_y = 1. / (2 * D) * (-np.sinh(- xbar + wbar / 2.) / (np.cosh(- xbar + wbar / 2.) + np.cos(ybar)) 
+#                               -np.sinh(  xbar + wbar / 2.) / (np.cosh(  xbar + wbar / 2.) + np.cos(ybar)))
          
 #         return E_x, E_y
         
         # Not easy to find a more simple form
-        E_y = 1. / (2 * D) * (-np.sinh(- xbar + wbar / 2.) / (np.cosh(- xbar + wbar / 2.) + np.cos(ybar)) 
-                              -np.sinh(  xbar + wbar / 2.) / (np.cosh(  xbar + wbar / 2.) + np.cos(ybar)))
+        
+        
+        
+        denom = (np.cosh(1./2. * (wbar- 2. * xbar)) + np.cos(ybar)) * (np.cosh(1./2. * (wbar + 2. * xbar)) + np.cos(ybar))
+        
+#         print np.sin(ybar) * np.sinh(wbar/2.) * np.sinh(xbar) / denom- E_x
+#         print np.allclose(- np.sinh(wbar/2.) * (np.cos(wbar/2.) + np.cos(ybar)*np.cosh(xbar)) / denom, E_y)
+
+        
+        E_x = - np.sin(ybar) * np.sinh(wbar/2.) * np.sinh(xbar) / denom
+        
+        E_y = np.sinh(wbar/2.) * (np.cosh(wbar/2.) + np.cos(ybar)*np.cosh(xbar)) / denom
+       
         return E_x, E_y
         
 
@@ -59,11 +71,11 @@ if __name__ == '__main__':
     from siliconproperties.python_files.getWeightingPotential import (
         get_weighting_potential)
 
-    thickness = 300.  # [um]
-    width = 40.  # [um]
+    thickness = 1.  # [um]
+    width = 1.  # [um]
 
-    x = np.linspace(-width * 2, width * 2, 100)
-    y = np.linspace(0, thickness, 100)
+    x = np.linspace(-width * 2, width * 2, 200)
+    y = np.linspace(0, thickness, 200)
     xx, yy = np.meshgrid(x, y, sparse=True)
 #     y_1d = y.T[0]
 
@@ -107,51 +119,47 @@ if __name__ == '__main__':
 #     plt.savefig('WeightingField_planar_1D.pdf', layout='tight')
 #     plt.show()
 
-    phi_w = get_weighting_potential(xx, yy, D=thickness, S=width, is_planar=True)
- 
-    # Plot weighting potential with colour and contour lines
-    levels = np.arange(0, 1, 5)
-    plt.imshow(phi_w, extent=[x.min(), x.max(), y.min(), y.max()], origin='lower', cmap=cm.get_cmap('Blues'))
-    plt.contour(x, y, phi_w, 15, colors='black')
 
-    # Plot electrode
-    plt.plot([-width / 2., width / 2.], [0, 0], linewidth=5, color='red')
+#     print get_weighting_field(3., 0.1, D=1., S=1., is_planar=True)
+#     raise
 
-    # Plot weighting field directions
-    x = np.linspace(-width * 2, width * 2, 20)
-    y = np.linspace(0, thickness, 20)
-    xx, yy = np.meshgrid(x, y, sparse=True)
-    E_x, E_y = get_weighting_field(xx, yy, D=thickness, S=width, is_planar=True)
-    phi_w = get_weighting_potential(xx, yy, D=thickness, S=width, is_planar=True)
-    
-    dx, dy = np.diff(x)[0], np.diff(y)[0]
-    E_x_2, E_y_2 = np.gradient(-phi_w, dx, dy)
-
-    speed = np.sqrt(E_x**2 + E_y**2)
-
-    print E_x.shape, E_x_2.shape
-    print np.allclose(E_x, E_x_2)
-    print np.allclose(E_y, E_y_2)
-
-    plt.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='->')
-    plt.streamplot(x, y, E_y_2, E_x_2, density=1.0, color='black', arrowstyle='->')
-    
+#     phi_w = get_weighting_potential(xx, yy, D=thickness, S=width, is_planar=True)
+#  
+#     # Plot weighting potential with colour and contour lines
+#     # BUG in matplotlib: aspect to be set first, otherwise contour plot wrong
+#     plt.gca().set_aspect('equal')
+#     plt.contour(x, y, phi_w, 10, colors='black')
+#     plt.pcolormesh(x, y, phi_w, cmap=cm.get_cmap('Blues'), vmin=phi_w.min(), vmax=phi_w.max())
+#     plt.colorbar()
+#     # Plot electrode
+# #     plt.plot([-width / 2., width / 2.], [0, 0], linewidth=5, color='red')
+# 
+#     # Plot weighting field directions
 #     E_x, E_y = get_weighting_field(xx, yy, D=thickness, S=width, is_planar=True)
-#     E_x, E_y = -E_x, -E_y
-#     plt.streamplot(x, y, E_x, E_y, density=1.0, color='gray')#, arrowstyle='-')
+#     E_x_2, E_y_2 = np.gradient(phi_w, np.diff(x)[0], np.diff(y)[0])
+# 
+#     plt.streamplot(x, y, E_x_2, E_y_2, density=1.0, color='black', arrowstyle='->')
+#     plt.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='->')
+#     print plt.gca().get_data_ratio()
+# 
+#     plt.title('Weighting potential and weighting field direction (planar sensor)')
+#     plt.xlabel('Position [um]')
+#     plt.ylabel('Depth [um]')
+# #     plt.gca().invert_yaxis()
+#     plt.contour(x, y, phi_w, 10, colors='white')
+# #     plt.savefig('WeightingField_planar.pdf', layout='tight')
+#     plt.show()
 
-    plt.title('Weighting potential and weighting field direction (planar sensor)')
-    plt.xlabel('Position [um]')
-    plt.ylabel('Depth [um]')
-    plt.gca().invert_yaxis()
-    plt.gca().set_aspect(1. / plt.gca().get_data_ratio() / 1.618)
-    plt.savefig('WeightingField_planar.pdf', layout='tight')
+    plt.clf()
+    y = np.linspace(0., 1., 100)
+    x = np.zeros_like(y)
+
+    phi_w = get_weighting_potential(x, y, D=1, S=1)
+    
+    plt.plot(y, phi_w)
+    
     plt.show()
-    
-    
-    
-    
-    
+
     raise
 
     radius = 6  # [um]
