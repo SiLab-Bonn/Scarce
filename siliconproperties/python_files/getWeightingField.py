@@ -14,7 +14,7 @@ def get_weighting_field(x, y, D, S, is_planar=True):
 
 #         y = D - y  # Electrode at D not at 0
         xbar = np.pi * x / D
-        ybar = np.pi * (y) / D
+        ybar = np.pi * (y - D) / D
         wbar = np.pi * S / D
 
 #         # Likely no simpler form possible
@@ -77,6 +77,7 @@ if __name__ == '__main__':
     x = np.linspace(-width * 2, width * 2, 200)
     y = np.linspace(0, thickness, 200)
     xx, yy = np.meshgrid(x, y, sparse=True)
+#     xx, yy = xx.T, yy.T
 #     y_1d = y.T[0]
 
 #     # Plot planar weighting field in 1 dim
@@ -123,42 +124,69 @@ if __name__ == '__main__':
 #     print get_weighting_field(3., 0.1, D=1., S=1., is_planar=True)
 #     raise
 
-#     phi_w = get_weighting_potential(xx, yy, D=thickness, S=width, is_planar=True)
-#  
-#     # Plot weighting potential with colour and contour lines
-#     # BUG in matplotlib: aspect to be set first, otherwise contour plot wrong
-#     plt.gca().set_aspect('equal')
-#     plt.contour(x, y, phi_w, 10, colors='black')
-#     plt.pcolormesh(x, y, phi_w, cmap=cm.get_cmap('Blues'), vmin=phi_w.min(), vmax=phi_w.max())
-#     plt.colorbar()
-#     # Plot electrode
-# #     plt.plot([-width / 2., width / 2.], [0, 0], linewidth=5, color='red')
-# 
-#     # Plot weighting field directions
-#     E_x, E_y = get_weighting_field(xx, yy, D=thickness, S=width, is_planar=True)
-#     E_x_2, E_y_2 = np.gradient(phi_w, np.diff(x)[0], np.diff(y)[0])
-# 
-#     plt.streamplot(x, y, E_x_2, E_y_2, density=1.0, color='black', arrowstyle='->')
-#     plt.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='->')
-#     print plt.gca().get_data_ratio()
-# 
-#     plt.title('Weighting potential and weighting field direction (planar sensor)')
-#     plt.xlabel('Position [um]')
-#     plt.ylabel('Depth [um]')
-# #     plt.gca().invert_yaxis()
-#     plt.contour(x, y, phi_w, 10, colors='white')
-# #     plt.savefig('WeightingField_planar.pdf', layout='tight')
-#     plt.show()
+    phi_w = get_weighting_potential(xx, yy, D=thickness, S=width, is_planar=True)
+  
+    # Plot weighting potential with colour and contour lines
+    # BUG in matplotlib: aspect to be set first, otherwise contour plot wrong
+    plt.gca().set_aspect('equal')
+    plt.contour(x, y, phi_w, 10, colors='black')
+    plt.pcolormesh(x, y, phi_w, cmap=cm.get_cmap('Blues'), vmin=phi_w.min(), vmax=phi_w.max())
+    plt.colorbar()
+    # Plot electrode
+    plt.plot([-width / 2., width / 2.], [0, 0], linewidth=5, color='red')
+ 
+    # Plot weighting field directions
+    E_x, E_y = get_weighting_field(xx, yy, D=thickness, S=width, is_planar=True)
+    
+    # Indexing is different here (mixing array indexing and cartesian coordinates)
+    # Similar issue: http://stackoverflow.com/questions/22568256/2d-quiver-plot-matplotlib-and-matlab-output-doesnt-match
+    E_y_2, E_x_2  = np.gradient(-phi_w, np.gradient(y), np.gradient(x))
+ 
+    plt.streamplot(x, y, E_x_2, E_y_2, density=1.0, color='black', arrowstyle='->')
+    plt.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='->')
+ 
+    plt.title('Weighting potential and weighting field direction (planar sensor)')
+    plt.xlabel('Position [um]')
+    plt.ylabel('Depth [um]')
+    plt.gca().invert_yaxis()
+    
+    print np.where(E_x - E_x_2 > 0.001 )
+    print E_x[np.where(E_x - E_x_2 == (E_x - E_x_2).max())], E_x_2[np.where(E_x - E_x_2 == (E_x - E_x_2).max())], x[0], y[75]
+#     plt.savefig('WeightingField_planar.pdf', layout='tight')
+    plt.show()
 
     plt.clf()
     y = np.linspace(0., 1., 100)
-    x = np.zeros_like(y)
-
-    phi_w = get_weighting_potential(x, y, D=1, S=1)
+    x = np.ones_like(y) * 1.
     
-    plt.plot(y, phi_w)
+#     phi_w = get_weighting_potential(x, y, D=1, S=1)
+#     E_x, E_y = get_weighting_field(x, y, D=1, S=1)
+#     E_y_2 = np.gradient(-phi_w, np.gradient(y))
+#     
+#     plt.plot(y, phi_w)
+#     plt.plot(y, E_y)
+#     plt.plot(y, E_y_2)
     
-    plt.show()
+#     y = np.linspace(0., 1., 100)
+#     x = np.linspace(-1., 1., 100)
+#     
+#     xx, yy = np.meshgrid(x, y, sparse=True)#, indexing='ij')
+# #     xx, yy = xx.T, yy.T
+#     
+#     phi_w_2 = get_weighting_potential(xx, yy, D=1, S=1)
+#     E_xx, E_yy = get_weighting_field(xx, yy, D=1, S=1)
+#     E_yy_2, E_xx_2 = np.gradient(-phi_w_2, np.gradient(y), np.gradient(x))
+# #     plt.plot(y, phi_w_2[-1, :])
+# #     plt.plot(y, E_yy[-1, :])
+# #     plt.plot(y, E_yy_2[-1, :])
+#     
+# #     plt.plot(x, phi_w_2[:, 50])
+# #     plt.plot(x, E_yy[:, 50])
+# #     plt.plot(x, E_yy_2[:, 50])
+#     plt.streamplot(x, y, E_xx, E_yy, density=1.0, color='black', arrowstyle='->')
+#     plt.streamplot(x, y, E_xx_2, E_yy_2, density=1.0, color='red', arrowstyle='->')
+#     
+#     plt.show()
 
     raise
 

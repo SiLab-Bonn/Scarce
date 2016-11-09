@@ -1,4 +1,4 @@
-''' Checks the semiempirical functions by comparing to test data. 
+''' Checks the (semi-) empirical functions by comparing to test data. 
 '''
 
 import unittest
