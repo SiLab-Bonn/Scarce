@@ -20,9 +20,9 @@ def get_weighting_potential(x, y, D, S, is_planar=True):
     # Wheighting potential for one pixel
     if is_planar:
         xbar = np.pi * x / D
-        ybar = np.pi * (y - D) / D
+        ybar = np.pi * (y) / D
         wbar = np.pi * S / D
-        return -1. / np.pi * (np.arctan(np.tan(ybar / 2) * np.tanh((xbar + wbar / 2.) / 2)) - 
+        return -1. / np.pi * (np.arctan(np.tan(ybar / 2) * np.tanh((xbar + wbar / 2.) / 2.)) -
                               np.arctan(np.tan(ybar / 2) * np.tanh((xbar - wbar / 2.) / 2.)))
     else:
         R = S
