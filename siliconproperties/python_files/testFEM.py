@@ -16,15 +16,15 @@ from siliconproperties.python_files import plot
 from matplotlib import colors, cm
 
 
-def mesh_3D_sensor(x, y, radius, nD, resolution):
+def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
     
-    def generate_3D_pillar(geom, x, y, radius, nD, resolution):
+    def generate_ro_pillar(geom, x, y, n_pixel_x, n_pixel_y, radius, nD, resolution, x0=0., y0=0.):
         pillars = []
     
         # Create readout pillars
         for pillar in range(nD):
             position = x / nD * (pillar + 1. / 2.) - x / 2.
-            circle = geom.add_circle(x0=[position, 0.0, 0.0],
+            circle = geom.add_circle(x0=[position + x0, y0, 0.0],
                                      radius=radius,
                                      lcar=resolution / 4.,
                                      num_sections=4,
@@ -37,48 +37,71 @@ def mesh_3D_sensor(x, y, radius, nD, resolution):
     
         return pillars
     
-    def generate_3D_pixel(geom, x, y, r, nD, resolution):
-        points = []
-        points.append(geom.add_point([-x/2, r-y/2, 0], lcar=resolution_x))
-        points.append(geom.add_point([-x/2, y/2-r, 0], lcar=resolution_x))
-        
-        points.append(geom.add_point([r-x/2, y/2, 0], lcar=resolution_x))
-        points.append(geom.add_point([-r, y/2, 0], lcar=resolution_x))
-        
-        points.append(geom.add_point([r, y/2, 0], lcar=resolution_x))
-        points.append(geom.add_point([x/2-r, y/2, 0], lcar=resolution_x))
-        
-        points.append(geom.add_point([x/2, y/2-r, 0], lcar=resolution_x))
-        points.append(geom.add_point([x/2, r-y/2, 0], lcar=resolution_x))
-               
-        points.append(geom.add_point([x/2-r, -y/2, 0], lcar=resolution_x))
-        points.append(geom.add_point([r, -y/2, 0], lcar=resolution_x))
-        
-        points.append(geom.add_point([-r, -y/2, 0], lcar=resolution_x))
-        points.append(geom.add_point([r-x/2, -y/2, 0], lcar=resolution_x))
-        
+    def generate_edge_pillars(points, x, y, n_pixel_x, n_pixel_y, x0, y0):
         loop = []
         loop.append(geom.add_line(points[0], points[1]))
-        loop.append(geom.add_circle_sector([points[1], geom.add_point([-x/2, y/2, 0], lcar=resolution_x / 4.), points[2]]))
+        loop.append(geom.add_circle_sector([points[1], geom.add_point([x0-x/2, y0+y/2, 0], lcar=resolution_x / 4.), points[2]]))
         loop.append(geom.add_line(points[2], points[3]))
-        loop.append(geom.add_circle_sector([points[3], geom.add_point([0, y/2, 0], lcar=resolution_x), points[4]]))
+        loop.append(geom.add_circle_sector([points[3], geom.add_point([x0, y0+y/2, 0], lcar=resolution_x), points[4]]))
         
         loop.append(geom.add_line(points[4], points[5]))
-        loop.append(geom.add_circle_sector([points[5], geom.add_point([x/2, y/2, 0], lcar=resolution_x), points[6]]))
+        loop.append(geom.add_circle_sector([points[5], geom.add_point([x0+x/2, y0+y/2, 0], lcar=resolution_x), points[6]]))
         loop.append(geom.add_line(points[6], points[7]))
-        loop.append(geom.add_circle_sector([points[7], geom.add_point([x/2, -y/2, 0], lcar=resolution_x), points[8]]))
+        loop.append(geom.add_circle_sector([points[7], geom.add_point([x0+x/2, y0-y/2, 0], lcar=resolution_x), points[8]]))
         
         loop.append(geom.add_line(points[8], points[9]))
-        loop.append(geom.add_circle_sector([points[9], geom.add_point([0, -y/2, 0], lcar=resolution_x), points[10]]))
+        loop.append(geom.add_circle_sector([points[9], geom.add_point([x0, y0-y/2, 0], lcar=resolution_x), points[10]]))
         
         loop.append(geom.add_line(points[10], points[11]))
-        loop.append(geom.add_circle_sector([points[11], geom.add_point([-x/2, -y/2, 0], lcar=resolution_x), points[0]]))
+        loop.append(geom.add_circle_sector([points[11], geom.add_point([x0-x/2, y0-y/2, 0], lcar=resolution_x), points[0]]))
     
-        line_loop = geom.add_line_loop(loop)
+        return geom.add_line_loop(loop)
+    
+    def generate_edges(pitch_x, pitch_y, n_pixel_x, n_pixel_y, r, x0, y0):
+        points = []
+        # Left edge
+        points.append(geom.add_point([x0-(n_pixel_x - 1./2.)*pitch_x, y0+r-pitch_y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([x0-(n_pixel_x - 1./2.)*pitch_x, y0+pitch_y/2-r, 0], lcar=resolution_x))
         
-        pillars = generate_3D_pillar(geom, x, y, radius=r, nD=2, resolution=resolution_x)
+        # Left, top
+        points.append(geom.add_point([x0+r-(n_pixel_x - 1./2.)*pitch_x, y0+pitch_y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([x0-r, y0+pitch_y/2, 0], lcar=resolution_x))
+        
+        # Right top
+        points.append(geom.add_point([x0+r, y0+pitch_y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([x0+pitch_x/2-r, y0+pitch_y/2, 0], lcar=resolution_x))
+        
+        # Right edge
+        points.append(geom.add_point([x0+pitch_x/2, y0+pitch_y/2-r, 0], lcar=resolution_x))
+        points.append(geom.add_point([x0+pitch_x/2, y0+r-pitch_y/2, 0], lcar=resolution_x))
+               
+        # Right bottom
+        points.append(geom.add_point([x0+pitch_x/2-r, y0-pitch_y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([x0+r, y0-pitch_y/2, 0], lcar=resolution_x))
+        
+        # Left bottom
+        points.append(geom.add_point([x0-r, y0-pitch_y/2, 0], lcar=resolution_x))
+        points.append(geom.add_point([x0-(n_pixel_x - 1./2.)*pitch_x+r, y0-pitch_y/2, 0], lcar=resolution_x))
+        
+        return points
+    
+    def generate_3D_pixel(geom, x, y, n_pixel_x, n_pixel_y, r, nD, resolution, x0=0., y0=0.):
+        
+        points = generate_edges(x, y, 
+                                n_pixel_x, n_pixel_y, 
+                                r, x0, y0)
+        edge_pillars = generate_edge_pillars(points, 
+                                             x, y, 
+                                             n_pixel_x, n_pixel_y, 
+                                             x0, y0)
+        pillars = generate_ro_pillar(geom, 
+                                     x, y, 
+                                     n_pixel_x, n_pixel_y, 
+                                     radius=r, nD=2, 
+                                     resolution=resolution_x, 
+                                     x0=x0, y0=y0)
                 
-        geom.add_plane_surface([line_loop] + pillars)
+        geom.add_plane_surface([edge_pillars] + pillars)
         
         raw_codes = ['lc = %f;' % (resolution_x / 8.),
                  'Field[1] = Attractor;',
@@ -92,10 +115,14 @@ def mesh_3D_sensor(x, y, radius, nD, resolution):
 #         print geom.get_code()
 #         raise
 
+    if n_pixel_x < 1 or n_pixel_y < 1:
+        raise RuntimeError('Invalid parameter n_pixel_x, n_pixel_y = %d, %d' % (n_pixel_x, n_pixel_y))
+
     geom = pg.Geometry()
     resolution_x = x / resolution
 
-    generate_3D_pixel(geom, x, y, radius, nD, resolution)
+    #generate_3D_pixel(geom, x, y, radius, nD, resolution, x0=0, y0=25)
+    generate_3D_pixel(geom, x, y, n_pixel_x, n_pixel_y, radius, nD, resolution, x0=0, y0=0)
 
     return geom
 
@@ -142,15 +169,19 @@ def mesh_planar_sensor(x, thickness, resolution=1.):
     return geom
 
 
-def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel, radius, resolution, V_readout, V_bias, nD=2):
+def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias, nD=2):
     points, cells = pg.generate_mesh(mesh_3D_sensor(x=pitch_x,
                                                         y=pitch_y,
+                                                        n_pixel_x=n_pixel_x, 
+                                                        n_pixel_y=n_pixel_y,
                                                         radius=radius,
                                                         nD=nD,
                                                         resolution=resolution))
                                      
     mio.write('sensor.msh', points, cells)
     mesh = fipy.GmshImporter2D('sensor.msh')
+    
+    plot.plot_mesh(mesh)
     
     potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
     permittivity = 1.
@@ -253,12 +284,12 @@ def interpolate_potential(potential):
 if __name__ == '__main__':
 #     pitch_x = 250.
 #     pitch_y = 50.
-#     n_pixel = 3.
+#     n_pixel_x, n_pixel_y = 1, 1
 #     radius = 6.
-#     resolution = 500.
+#     resolution = 50.
 #     V_readout, V_bias,  = 0, -1
-#      
-#     potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel, radius, resolution, V_readout, V_bias)
+#       
+#     potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias)
 # #     plot.plot_mesh(potential.mesh)
 # #     viewer = fipy.viewers.Viewer(vars=(potential, ))
 # #     viewer.plot("3D.png")
