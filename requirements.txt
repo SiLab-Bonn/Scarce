@@ -1,4 +1,4 @@
-# pysparse
+# pysparse # pypi version not working
 numpy
 scipy
 pygmsh
