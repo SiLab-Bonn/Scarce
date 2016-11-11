@@ -1,3 +1,5 @@
+language: python
+
 sudo: false
 matrix:
   fast_finish: false
@@ -19,7 +21,6 @@ cache:
   directories:
     - $HOME/.cache/pip
 
-install: pip install -U tox coveralls
-language: python
-script: tox
+install: pip install -r requirements.txt -r requirements_tests.txt
+script: nosetests
 after_success: coveralls

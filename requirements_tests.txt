@@ -1,7 +1,8 @@
-tox
-requests
-typing
-flake8
-pylint
+nosetest
 coveralls
-pytest
+#tox
+#requests
+#typing
+#flake8
+#pylint
+#pytest
