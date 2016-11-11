@@ -1,3 +1,4 @@
+pysparse
 numpy
 scipy
 pygmsh

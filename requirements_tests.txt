@@ -1,4 +1,4 @@
-nosetest
+nose
 coveralls
 #tox
 #requests

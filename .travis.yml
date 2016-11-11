@@ -6,21 +6,13 @@ matrix:
   include:
     - python: "2.7.12"
       env: TOXENV=py27
-    - python: "3.4.2"
-      env: TOXENV=py34
-    - python: "3.4.2"
-      env: TOXENV=lint
-    - python: "3.5"
-      env: TOXENV=typing
-    - python: "3.5"
-      env: TOXENV=py35
-  allow_failures:
-    - python: "3.5"
-      env: TOXENV=typing
 cache:
   directories:
     - $HOME/.cache/pip
 
-install: pip install -r requirements.txt -r requirements_tests.txt
+install:
+  - pip install ez_setup
+  - pip install -e git://pysparse.git.sourceforge.net/gitroot/pysparse/pysparse#egg=PySparse 
+  - pip install -r requirements.txt -r requirements_tests.txt
 script: nosetests
 after_success: coveralls
