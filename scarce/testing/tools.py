@@ -7,18 +7,27 @@ import itertools
 import scarce
 
 # Get package path
-package_path = os.path.dirname(scarce.__file__)  # Get the absoulte path of the online_monitor installation
+package_path = os.path.dirname(scarce.__file__)  # Get the absolute path of this software
 FIXTURE_FOLDER = os.path.join(package_path, 'testing/fixtures')
 
 
 def _call_function_with_args(function, **kwargs):
     ''' Calls the function with the given kwargs
-    and returns the result in a numpy array  '''
+    and returns the result in a numpy array. All combinations
+    of functions arguments in a list are used for multiple
+    function calls.'''
 
     # Create all combinations of arguments from list parameters
-    # This is ugly but avoids recursion
-    call_values = []
-    fixed_arguments = []
+    # This is ugly but avoids recursion and does effectively
+    # a nested loop of n parameters:
+    # for par_1 in pars_1:
+    #  for par_2 in pars_2:
+    #    ...
+    #    for par_n in pars_n:
+    #      function(par_1, par_2, ..., par_n)
+
+    call_values = []  # Arguments with permutations
+    fixed_arguments = []  # Constant arguments
     fixed_arguments_pos = []
     for index, values in enumerate(kwargs.values()):
         if isinstance(values, list):
@@ -38,7 +47,7 @@ def _call_function_with_args(function, **kwargs):
         call_args = {key: value for key, value in zip(kwargs.keys(), actual_call_value)}
         data.append(function(**call_args))
 
-    return data
+    return np.array(data)
 
 
 def create_fixture(function, **kwargs):
@@ -74,6 +83,6 @@ def check_with_fixture(function, **kwargs):
     with tb.open_file(os.path.join(FIXTURE_FOLDER, '%s.h5' % str(function.__name__)), 'r') as in_file:
         data_fixture = in_file.root.Data[:]
 
-    data = np.array(_call_function_with_args(function, **kwargs))
+    data = _call_function_with_args(function, **kwargs)
 
     return np.allclose(data_fixture, data)
