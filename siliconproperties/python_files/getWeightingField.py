@@ -148,11 +148,33 @@ if __name__ == '__main__':
     plt.title('Weighting potential and weighting field direction (planar sensor)')
     plt.xlabel('Position [um]')
     plt.ylabel('Depth [um]')
-    plt.gca().invert_yaxis()
     
-    print np.where(E_x - E_x_2 > 0.001 )
-    print E_x[np.where(E_x - E_x_2 == (E_x - E_x_2).max())], E_x_2[np.where(E_x - E_x_2 == (E_x - E_x_2).max())], x[0], y[75]
+    
+#     print np.where(np.logical_or(E_x - E_x_2 > 0.1, E_y - E_y_2 > 0.1))
+#     print E_x[np.where(E_x - E_x_2 == (E_x - E_x_2).max())], E_x_2[np.where(E_x - E_x_2 == (E_x - E_x_2).max())], x[0], y[75]
 #     plt.savefig('WeightingField_planar.pdf', layout='tight')
+    
+    xs, ys = [], []
+    
+    for xi, yi in zip(*np.where(np.logical_or(E_x - E_x_2 > 0.001, E_y - E_y_2 > 0.001))):
+        xs.append(x[xi])
+        ys.append(y[yi])
+        
+        
+    
+    index_x =  10
+    index_y =  100
+    print x[index_x], y[index_y], E_x[index_x,index_y], E_y[index_x, index_y]
+    
+#     speed = np.sqrt(E_x[index_x,index_y]**2 + E_y[index_x, index_y]**2)
+    speed = 1.
+    
+    plt.quiver(x[index_x], y[index_y], E_x[index_x, index_y]/speed, E_y[index_x, index_y]/speed, pivot='mid', color='gray', scale=3., units='xy')
+        
+#     plt.plot(xs, ys, 'o')
+    
+    plt.xlim((-2.2, 2.2))
+#     plt.gca().invert_yaxis()
     plt.show()
 
     plt.clf()
