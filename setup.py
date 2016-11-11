@@ -6,7 +6,7 @@ author = 'David-Leon Pohl'
 author_email = 'pohl@physik.uni-bonn.de'
 
 setup(
-    name='pylandau',
+    name='Scarce',
     version=version,
     description='Charge collection efficiency simulation for irradiated silicon detectors.',
     url='https://github.com/SiLab-Bonn/Scarce',
