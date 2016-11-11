@@ -1,8 +1,8 @@
-# SiliconProperties
+# Scarce
 
-This software package is a collection of functions that describe silicon properties.
-All functions are mentioned with the source, so this package can
-act as a collection of most actual / accurate papers about the different silicon properties.
-
-Each silicon property can be plotted against a parameter.
+Scarce stand for Silicon ChARge Collection Efficiency and is a software
+to calculate the charge collection efficiency of irradiated silicon sensors.
+Planar and 3D electrode configuration are supported.
+Additionally a large collection of (semi-) empiric formulars is provided to
+calculate silicon properties.
 
