@@ -4,7 +4,7 @@ sudo: false
 matrix:
   fast_finish: false
   include:
-    - python: "2.7.12"
+    - python: "2.7"
       env: TOXENV=py27
 cache:
   directories:
