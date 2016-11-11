@@ -12,7 +12,7 @@ cache:
 
 install:
   - pip install ez_setup
-  - pip install -e git://pysparse.git.sourceforge.net/gitroot/pysparse/pysparse#egg=PySparse 
+  # - pip install -e git://pysparse.git.sourceforge.net/gitroot/pysparse/pysparse#egg=PySparse 
   - pip install -r requirements.txt -r requirements_tests.txt
 script: nosetests
 after_success: coveralls
