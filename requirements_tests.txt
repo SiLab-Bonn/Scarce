@@ -1,0 +1,7 @@
+tox
+requests
+typing
+flake8
+pylint
+coveralls
+pytest
