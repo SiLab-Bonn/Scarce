@@ -18,13 +18,6 @@ class Test(unittest.TestCase):
             for planar sensors.
         '''
 
-#         tools.create_fixture(get_weighting_potential,
-#                              x=np.linspace(-200, 200, 200),
-#                              y=np.linspace(0, 250, 200),
-#                              D=[100, 150, 200, 250],
-#                              S=[5, 50, 100, 150, 250],
-#                              is_planar=True)
-
         self.assertTrue(tools.check_with_fixture(fields.get_weighting_potential,
                                                  x=np.linspace(-200, 200, 200),
                                                  y=np.linspace(0, 250, 200),
@@ -37,13 +30,6 @@ class Test(unittest.TestCase):
             for planar sensors.
         '''
 
-#         tools.create_fixture(get_weighting_field,
-#                              x=np.linspace(-200, 200, 200),
-#                              y=np.linspace(0, 250, 200),
-#                              D=[100, 150, 200, 250],
-#                              S=[5, 50, 100, 150, 250],
-#                              is_planar=True)
-
         self.assertTrue(tools.check_with_fixture(fields.get_weighting_field,
                                                  x=np.linspace(-200, 200, 200),
                                                  y=np.linspace(0, 250, 200),
@@ -51,46 +37,31 @@ class Test(unittest.TestCase):
                                                  S=[5, 50, 100, 150, 250],
                                                  is_planar=True))
 
-    @unittest.SkipTest
     def test_w_pot_field_analytic(self):
         ''' Check weighting potential/field of planar sensor.
 
-        The check is if grad(-Phi) = E_w
+        Check if grad(-Phi) = E_w_x, E_w_y
         '''
 
-        width = 100
-        thickness = 200
-        x = np.linspace(-width * 2, width * 2, 100)
-        y = np.linspace(0, thickness, 100)
-        xx, yy = np.meshgrid(x, y, sparse=True)
+        for width in [5., 50, 250]:
+            for thickness in [50., 100., 200.]:
+                x = np.linspace(-width * 2, width * 2, 1000)
+                y = np.linspace(0, thickness, 1000)
+                xx, yy = np.meshgrid(x, y, sparse=True)
+        
+                E_w_x, E_w_y = fields.get_weighting_field(xx, yy, D=thickness, S=width, is_planar=True)
+                Phi_w = fields.get_weighting_potential(xx, yy, D=thickness, S=width, is_planar=True)
+        
+                E_w_x_2, E_w_y_2  = np.gradient(-Phi_w, np.diff(x)[0], np.diff(y)[0], axis=(1, 0))
+                
+                array_1 = np.array([E_w_x, E_w_y])
+                array_2 = np.array([E_w_x_2, E_w_y_2])
 
-        e_w_x, e_w_y = fields.get_weighting_field(xx, yy, D=width, S=thickness, is_planar=True)
-        p_w = fields.get_weighting_potential(xx, yy, D=width, S=thickness, is_planar=True)
+                # Assert that less than 1 % of the field poinst have an error > 1%
+                self.assertLess(tools.compare_arrays(array_1, array_2, threshold=0.01), 0.01) 
 
-        e_w_y_2, e_w_x_2 = np.gradient(-p_w, np.gradient(y), np.gradient(x))
-
-        print e_w_x[10]
-        print e_w_x_2[10]
-
-        self.assertTrue(np.allclose(e_w_x, e_w_x_2))
 
 
 if __name__ == "__main__":
-    #import sys;sys.argv = ['', 'Test.testName']
-    #     unittest.main()
-
-    width = 100
-    thickness = 200
-    x = np.linspace(-width * 2, width * 2, 1000)
-    y = np.linspace(0, thickness, 1000)
-    xx, yy = np.meshgrid(x, y, sparse=True)
-
-    e_w_x, e_w_y = fields.get_weighting_field(xx, yy, D=width, S=thickness, is_planar=True)
-    p_w = fields.get_weighting_potential(xx, yy, D=width, S=thickness, is_planar=True)
-
-    e_w_y_2, e_w_x_2 = np.gradient(-p_w, np.gradient(y), np.gradient(x))
-
-    print e_w_x[10]
-    print e_w_x_2[10]
-
-#     self.assertTrue(np.allclose(e_w_x, e_w_x_2))
+    unittest.main()
+    
