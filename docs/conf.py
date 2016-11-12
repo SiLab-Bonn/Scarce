@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Scarce documentation build configuration file, created by
-# sphinx-quickstart on Fri Nov 11 16:55:18 2016.
+# sphinx-quickstart on Sat Nov 12 11:05:15 2016.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -35,7 +35,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
+    'sphinx.ext.imgmath',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
 ]
