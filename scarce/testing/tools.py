@@ -7,6 +7,28 @@ import itertools
 from scarce import constant
 
 
+def compare_arrays(array_1, array_2, threshold=0.01):
+    ''' Compares two arrays and returns the number of 
+        data points in percent where the value difference
+        in any dimension between the two arrays exceeds 
+        a threshold. 
+        A threshold value of 0.01 corresponds to a relative 
+        error of 1% given by the data of array_1.
+    '''
+    
+    if array_1.shape != array_2.shape:
+        raise ValueError('The shape of the arrays does not match.')
+    
+    bad_selection = np.abs(array_1[0] - array_2[0]) > np.abs(array_1[0] * threshold)
+    
+    for index in range(1, len(bad_selection.shape)):
+        bad_selection = np.logical_or(bad_selection, np.abs(array_1[index] - array_2[index]) > np.abs(array_1[index] * threshold))
+    
+    bad_points = np.where(bad_selection)
+    n_points = array_1.ravel().shape[0] / 2.
+
+    return float(bad_points[0].shape[0]) / n_points
+
 def _call_function_with_args(function, **kwargs):
     ''' Calls the function with the given kwargs
     and returns the result in a numpy array. All combinations
