@@ -7,7 +7,10 @@ from scarce.scripts import plot_properties
 class Test(unittest.TestCase):
 
     def setUp(self):
-        pass
+        if os.getenv('TRAVIS', False):
+            from xvfbwrapper import Xvfb
+            self.vdisplay = Xvfb()
+            self.vdisplay.start()
 
     def tearDown(self):
         filelist = [ f for f in os.listdir(".") if f.endswith(".pdf") ]
