@@ -29,8 +29,8 @@ For more information visit: https://www.continuum.io/downloads
 5. Download Scarce:
 `git checkout https://github.com/SiLab-Bonn/Scarce`
 
-6. Install Scarce in Python develop mode:
-`cd Scarce && python setup.py develop
+6. Install _Scarce_ in Python develop mode:
+`cd Scarce && python setup.py develop`
 
 
 
