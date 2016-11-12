@@ -3,7 +3,7 @@ import numpy as np
 from scarce import silicon
 
 
-def get_weighting_potential(x, y, D, S, is_planar=True):
+def get_weighting_potential(x, y, D, S, W=None, is_planar=True):
     """ Planar sensor:
         From Nuclear Instruments and Methods in Physics Research A 535 (2004)
         554-557, with correction from wbar = pi*w/2/D to wbar = pi*w/D with:
@@ -11,16 +11,21 @@ def get_weighting_potential(x, y, D, S, is_planar=True):
         x [um] is the offset from the middle of the electrode
         y [um] the position in the sensor
         D [um] the sensor thickness
-        S [um] the eletrode width
+        S [um] the pixel pitch
+        W [um] the electrode width
 
         3D sensor:
         Weighting potential for two cylinders with:
-        S [um] is the radius
         D [um] distance between columns
+        S [um] is the radius
+        W number of readout columns
     """
 
     # Wheighting potential for one pixel
     if is_planar:
+        if not W:  # Special case: 100% fill factor, amnalytic solution exists
+            W = S
+
         xbar = np.pi * x / D
         ybar = np.pi * (y - D) / D
         wbar = np.pi * S / D
@@ -30,11 +35,14 @@ def get_weighting_potential(x, y, D, S, is_planar=True):
         R = S
         D = D / 2.  # D is the total distance between the columns
         a = np.sqrt(D * D - R * R)
-        Phi_w = 1. / (4 * np.arccosh(D / R)) * np.log(((x - a) ** 2 + y ** 2) / ((x + a) ** 2 + y ** 2)) + 0.5
+        Phi_w = 1. / (4 * np.arccosh(D / R)) * \
+            np.log(((x - a) ** 2 + y ** 2) / ((x + a) ** 2 + y ** 2)) + 0.5
 
         # Stability
-        Phi_w = np.ma.masked_where(np.sqrt((x + D) * (x + D) + y * y) < R, Phi_w)
-        Phi_w = np.ma.masked_where(np.sqrt((x - D) * (x - D) + y * y) < R, Phi_w)
+        Phi_w = np.ma.masked_where(
+            np.sqrt((x + D) * (x + D) + y * y) < R, Phi_w)
+        Phi_w = np.ma.masked_where(
+            np.sqrt((x - D) * (x - D) + y * y) < R, Phi_w)
         Phi_w = np.ma.masked_where(Phi_w < 0., Phi_w)
         Phi_w = np.ma.masked_where(Phi_w > 1., Phi_w)
 
@@ -66,14 +74,17 @@ def get_weighting_field(x, y, D, S, is_planar=True):
 
         # Not easy to find a more simple form
 
-        denom = (np.cosh(1. / 2. * (wbar - 2. * xbar)) + np.cos(ybar)) * (np.cosh(1. / 2. * (wbar + 2. * xbar)) + np.cos(ybar))
+        denom = (np.cosh(1. / 2. * (wbar - 2. * xbar)) + np.cos(ybar)) * \
+            (np.cosh(1. / 2. * (wbar + 2. * xbar)) + np.cos(ybar))
 
 #         print np.sin(ybar) * np.sinh(wbar/2.) * np.sinh(xbar) / denom- E_x
-#         print np.allclose(- np.sinh(wbar/2.) * (np.cos(wbar/2.) + np.cos(ybar)*np.cosh(xbar)) / denom, E_y)
+# print np.allclose(- np.sinh(wbar/2.) * (np.cos(wbar/2.) +
+# np.cos(ybar)*np.cosh(xbar)) / denom, E_y)
 
         E_x = - np.sin(ybar) * np.sinh(wbar / 2.) * np.sinh(xbar) / denom
 
-        E_y = np.sinh(wbar / 2.) * (np.cosh(wbar / 2.) + np.cos(ybar) * np.cosh(xbar)) / denom
+        E_y = np.sinh(
+            wbar / 2.) * (np.cosh(wbar / 2.) + np.cos(ybar) * np.cosh(xbar)) / denom
 
         return E_x, E_y
     else:
@@ -87,8 +98,10 @@ def get_weighting_field(x, y, D, S, is_planar=True):
         D = D / 2.
         a = np.sqrt(D * D - R * R)
 
-        E_x = a / (np.arccosh(D / R)) * (a ** 2 - x ** 2 + y ** 2) / (((a - x) ** 2 + y ** 2) * ((a + x) ** 2 + y ** 2))
-        E_y = -2 * a / (np.arccosh(D / R)) * (x * y) / (((a - x) ** 2 + y ** 2) * ((a + x) ** 2 + y ** 2))
+        E_x = a / (np.arccosh(D / R)) * (a ** 2 - x ** 2 + y ** 2) / \
+            (((a - x) ** 2 + y ** 2) * ((a + x) ** 2 + y ** 2))
+        E_y = -2 * a / (np.arccosh(D / R)) * (x * y) / \
+            (((a - x) ** 2 + y ** 2) * ((a + x) ** 2 + y ** 2))
 
         E_x = np.ma.masked_where(np.sqrt((x + D) * (x + D) + y * y) < R, E_x)
         E_x = np.ma.masked_where(np.sqrt((x - D) * (x - D) + y * y) < R, E_x)
@@ -117,7 +130,8 @@ def get_electric_field(x, y, V_bias, n_eff, D, S=None, is_planar=True):
 
     if is_planar:
         if S:
-            raise NotImplementedError('The electrode width cannot be set, only full fill factor supported!')
+            raise NotImplementedError(
+                'The electrode width cannot be set, only full fill factor supported!')
         V_dep = silicon.get_depletion_voltage(n_eff, D)  # Depletion voltage
         a = (V_bias - V_dep) / D
         b = -2. * V_dep / (D ** 2)
