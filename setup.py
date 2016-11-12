@@ -5,6 +5,9 @@ version = '0.0.1'
 author = 'David-Leon Pohl'
 author_email = 'pohl@physik.uni-bonn.de'
 
+with open('requirements.txt') as f:
+    required = f.read().splitlines()
+
 setup(
     name='Scarce',
     version=version,
@@ -17,8 +20,9 @@ setup(
     author_email=author_email,
     maintainer_email=author_email,
     packages=find_packages(),
+    install_requires=required,
     include_package_data=True,  # accept all data files and directories matched by MANIFEST.in or found in source control
     package_data={'': ['README.*', 'VERSION'], 'docs': ['*'], 'examples': ['*']},
-    keywords=['Landau', 'Langau', 'PDF'],
+    keywords=['silicon', 'detector', 'CCE', 'charge', 'efficiency'],
     platforms='any'
 )
