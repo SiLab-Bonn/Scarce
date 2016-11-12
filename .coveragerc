@@ -6,6 +6,5 @@ exclude_lines =
 omit = 
     */__init__.py
     scarce/testing/*
-    scarce/scripts/*
     examples/*
     docs/*

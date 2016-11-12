@@ -239,8 +239,8 @@ def plot_trapping():
     plt.yscale('log')
     plt.grid()
     plt.savefig('TrappingTime.pdf', layout='tight')
-
-if __name__ == '__main__':
+    
+def create_plots():
     plot_resistivity()
     plot_depletion_voltage()
     plot_diffusion_potential()
@@ -249,3 +249,6 @@ if __name__ == '__main__':
     plot_get_mobility()
     plot_get_resistivity()
     plot_trapping()
+
+if __name__ == '__main__':
+    create_plots()
