@@ -1,8 +1,6 @@
-import matplotlib.pyplot as plt
+''' Function to geometrically describe and mesh planar and 3D electrode configurations. '''
+
 import pygmsh as pg
-import numpy as np
-from matplotlib.collections import PolyCollection
-from matplotlib import colors, cm
 
 
 def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
