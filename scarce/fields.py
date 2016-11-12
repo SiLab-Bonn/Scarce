@@ -63,23 +63,9 @@ def get_weighting_field(x, y, D, S, is_planar=True):
         ybar = np.pi * (y - D) / D
         wbar = np.pi * S / D
 
-#         # Likely no simpler form possible
-#         E_x = np.sin(ybar) / (2. * D) * (1. / (np.cosh(xbar - wbar / 2.) + np.cos(ybar))
-#                                         - 1. / (np.cosh(xbar + wbar / 2.) + np.cos(ybar)))
-#
-#         E_y = 1. / (2 * D) * (-np.sinh(- xbar + wbar / 2.) / (np.cosh(- xbar + wbar / 2.) + np.cos(ybar))
-#                               -np.sinh(  xbar + wbar / 2.) / (np.cosh(  xbar + wbar / 2.) + np.cos(ybar)))
-
-#         return E_x, E_y
-
         # Not easy to find a more simple form
-
         denom = (np.cosh(1. / 2. * (wbar - 2. * xbar)) + np.cos(ybar)) * \
-            (np.cosh(1. / 2. * (wbar + 2. * xbar)) + np.cos(ybar))
-
-#         print np.sin(ybar) * np.sinh(wbar/2.) * np.sinh(xbar) / denom- E_x
-# print np.allclose(- np.sinh(wbar/2.) * (np.cos(wbar/2.) +
-# np.cos(ybar)*np.cosh(xbar)) / denom, E_y)
+            (np.cosh(1. / 2. * (wbar + 2. * xbar)) + np.cos(ybar)) * D
 
         E_x = - np.sin(ybar) * np.sinh(wbar / 2.) * np.sinh(xbar) / denom
 
