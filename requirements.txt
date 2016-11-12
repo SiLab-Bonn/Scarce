@@ -1,4 +1,4 @@
-# pysparse # pypi version not working
+pysparse # pypi version not working, compile on your own or use conda install -c guyer pysparse=1.3.dev. Good luck!
 numpy
 scipy
 pygmsh

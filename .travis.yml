@@ -18,11 +18,11 @@ before_install:
   - conda update --yes conda
   - conda config --add channels silab
   - conda info -a
-  - conda install --yes numpy pytables scipy matplotlib nose
+  - conda install -c guyer pysparse=1.3.dev  # precompiled pysparse since it is tough to compile
+  - conda install --yes coverage numpy pytables scipy matplotlib nose
 
 install:
-  - pip install ez_setup
-  # - pip install -e git://pysparse.git.sourceforge.net/gitroot/pysparse/pysparse#egg=PySparse 
+  - pip install ez_setup 
   - pip install -r requirements.txt -r requirements_tests.txt
 script: nosetests --with-coverage --cover-package=scarce
 after_success: coveralls
