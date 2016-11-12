@@ -48,7 +48,7 @@ def plot_planar_sensor(potential_function,
                        V_readout, 
                        min_x, max_x, 
                        min_y, max_y,
-                       e_field_function=None):
+                       field_function=None):
 
     # Define plot space
     x = np.linspace(min_x, max_x, 1000)
@@ -68,11 +68,11 @@ def plot_planar_sensor(potential_function,
     plt.colorbar()
     
     # Plot E-Field
-    if e_field_function:
+    if field_function:
         x = np.linspace(min_x, max_x, 20)
         y = np.linspace(min_y, max_y, 20)
         xx, yy = np.meshgrid(x, y, sparse=True)
-        E_x, E_y = e_field_function(xx, yy)
+        E_x, E_y = field_function(xx, yy)
     else:
         E_x, E_y  = np.gradient(-phi, np.diff(x)[0], np.diff(y)[0], axis=(1, 0))
 
@@ -91,7 +91,7 @@ def plot_planar_sensor(potential_function,
     plt.ylabel('Position z [um]', fontsize=22)
     plt.gca().invert_yaxis()
     plt.show()
-    
+
 
 def plot_3D_sensor(potential_function, pitch_x, pitch_y, n_pixel, radius, V_readout, V_bias, 
                    min_x, 
