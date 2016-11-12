@@ -24,5 +24,5 @@ install:
   - pip install ez_setup
   # - pip install -e git://pysparse.git.sourceforge.net/gitroot/pysparse/pysparse#egg=PySparse 
   - pip install -r requirements.txt -r requirements_tests.txt
-script: nosetests
+script: nosetests --with-coverage --cover-package=scarce
 after_success: coveralls
