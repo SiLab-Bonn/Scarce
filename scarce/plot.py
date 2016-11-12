@@ -5,7 +5,8 @@ from matplotlib.collections import PolyCollection
 from matplotlib import colors, cm
 
 
-def plot_mesh(mesh, values=None, invert_y_axis=True):
+def get_mesh_plot(fig, mesh, values=None, invert_y_axis=True):
+    ax = fig.add_subplot(111)
 
     vertexIDs = mesh._orderedCellVertexIDs
     vertexCoords = mesh.vertexCoords
@@ -24,10 +25,10 @@ def plot_mesh(mesh, values=None, invert_y_axis=True):
     collection = PolyCollection(polys)
     #collection.set_linewidth(0.3 * resolution)
     collection.set_facecolors('white')
-    plt.gca().set_aspect(1.)
+    #fig.set_aspect(1.)
     if invert_y_axis:
-        plt.gca().invert_yaxis()
-    plt.gca().axes.add_collection(collection)
+        ax.invert_yaxis()
+    ax.add_collection(collection)
 
     if values:
         pass
@@ -36,9 +37,13 @@ def plot_mesh(mesh, values=None, invert_y_axis=True):
 #         collection.set_facecolors(rgba)
 #         collection.set_edgecolors(rgba)
 
-    plt.plot()
-    plt.show()
+    ax.plot()
 
+
+def plot_mesh(mesh, values=None, invert_y_axis=True):
+    fig = plt.figure()
+    get_mesh_plot(fig, mesh, values=values, invert_y_axis=invert_y_axis)
+    plt.show()
 
 def plot_planar_sensor(potential_function,
                        width,
@@ -149,7 +154,7 @@ if __name__ == '__main__':
     def potential_function(x, y):
         return fields.get_weighting_potential(x, y, D=thickness, S=width, is_planar=True)
     
-    def e_field_function(x, y):
+    def field_function(x, y):
         return fields.get_weighting_field(x, y, D=thickness, S=width, is_planar=True)
     
     e_field_function = None
@@ -164,4 +169,4 @@ if __name__ == '__main__':
                        max_x=width * 2, 
                        min_y=0, 
                        max_y=thickness,
-                       e_field_function=e_field_function)
+                       field_function=field_function)
