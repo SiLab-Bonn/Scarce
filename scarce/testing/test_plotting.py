@@ -1,5 +1,5 @@
 import unittest
-import numpy as np
+import os
 
 from scarce import plot
 from scarce import fields
@@ -8,7 +8,10 @@ from scarce import fields
 class Test(unittest.TestCase):
 
     def setUp(self):
-        pass
+        if os.getenv('TRAVIS', False):
+            from xvfbwrapper import Xvfb
+            self.vdisplay = Xvfb()
+            self.vdisplay.start()
 
     def tearDown(self):
         pass
