@@ -1,6 +1,10 @@
+import fipy
 import numpy as np
+import meshio as mio
 
 from scarce import silicon
+from scarce import geometry
+from scarce import plot
 
 
 def get_weighting_potential(x, y, D, S, W=None, is_planar=True):
@@ -129,3 +133,101 @@ def get_electric_field(x, y, V_bias, n_eff, D, S=None, is_planar=True):
         E_y = E_y * V_bias
 
         return E_x, E_y
+
+
+def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias, nD=2):
+    points, cells = geometry.mesh_3D_sensor(x=pitch_x,
+                                    y=pitch_y,
+                                    n_pixel_x=n_pixel_x, 
+                                    n_pixel_y=n_pixel_y,
+                                    radius=radius,
+                                    nD=nD,
+                                    resolution=resolution)
+                                     
+    mio.write('sensor.msh', points, cells)
+    mesh = fipy.GmshImporter2D('sensor.msh')
+    
+    plot.plot_mesh(mesh)
+    
+#     potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
+#     permittivity = 1.
+#     potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
+#     
+#     bcs = []
+#     allfaces = mesh.getExteriorFaces()
+#     X,Y =  mesh.getFaceCenters()
+#     
+#     # Readout pillars
+#     for pillar in range(nD):
+#         position = pitch_x / nD * (pillar + 1. / 2.) - pitch_x / 2.
+#         ring = allfaces & ( (X-position)**2+(Y)**2 < (radius)**2) 
+#         bcs.append(fipy.FixedValue(value=V_readout,faces=ring))
+#         
+#     # Bias pillars
+#     # Edges
+#     positions = [(- pitch_x / 2., - pitch_y / 2.),
+#                  (+ pitch_x / 2., - pitch_y / 2.),
+#                  (+ pitch_x / 2., + pitch_y / 2.),
+#                  (- pitch_x / 2., + pitch_y / 2.)]
+#     # Sides
+#     positions += [(0, - pitch_y / 2.),
+#                  (0, + pitch_y / 2.)]
+# 
+#     for pos_x, pos_y in positions:
+#         ring = allfaces & ( (X-pos_x)**2+(Y-pos_y)**2 < (radius)**2) 
+#         bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+
+#     # Calculate boundaries
+#     p_pillars = mesh.getFaces()
+#     n_pillars = mesh.getFacesTop()
+# 
+#     electrodes = readout_plane
+#     bcs = [fipy.FixedValue(value=V_backplane, faces=backplane)]
+#     
+#     for pixel in range(n_pixel):
+#         pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
+#         bcs.append(fipy.FixedValue(value=V_readout,
+#                                    faces=electrodes &
+#                                    (X > pixel_position - pitch / 2.) &
+#                                    (X < pixel_position + pitch / 2.)))
+
+#     potential.equation.solve(var=potential, boundaryConditions=bcs)
+#     return potential
+
+if __name__ == '__main__':
+    pitch_x = 250.
+    pitch_y = 50.
+    n_pixel_x, n_pixel_y = 1, 1
+    radius = 6.
+    resolution = 50.
+    V_readout, V_bias,  = 0, -1
+       
+    potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias)
+#     plot.plot_mesh(potential.mesh)
+#     viewer = fipy.viewers.Viewer(vars=(potential, ))
+#     viewer.plot("3D.png")
+  
+#     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
+#     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
+#      
+#     print 'Interpolate'
+#   
+#     xnew = np.linspace(min_x, max_x, 1000)
+#     ynew = np.linspace(min_y, max_y, 1000)
+#     xnew_plot, ynew_plot = np.meshgrid(xnew, ynew)
+#        
+#     potential_function = interpolate_potential_2(potential)
+#     print 'Done'
+#        
+#     plot.plot_3D_sensor(potential_function,
+#                         pitch_x, 
+#                         pitch_y, 
+#                         n_pixel, 
+#                         radius,
+#                         V_bias,
+#                         V_readout, 
+#                         min_x, 
+#                         max_x, 
+#                         min_y,
+#                         max_y
+#                         )

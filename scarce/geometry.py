@@ -53,15 +53,22 @@ def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
 
     def generate_edges(pitch_x, pitch_y, n_pixel_x, n_pixel_y, r, x0, y0):
         points = []
+
+        n_pixel_left = int((n_pixel_x) / 2)
+        n_pixel_right = int((n_pixel_x - 1) / 2)
+        
+        print 'n_pixel_left', n_pixel_left
+        print 'n_pixel_right', n_pixel_right
+        
         # Left edge
         points.append(geom.add_point(
-            [x0 - (n_pixel_x - 1. / 2.) * pitch_x, y0 + r - pitch_y / 2, 0], lcar=resolution_x))
+            [x0 - (n_pixel_left + 1. / 2.) * pitch_x, y0 + r - pitch_y / 2, 0], lcar=resolution_x))
         points.append(geom.add_point(
-            [x0 - (n_pixel_x - 1. / 2.) * pitch_x, y0 + pitch_y / 2 - r, 0], lcar=resolution_x))
+            [x0 - (n_pixel_left + 1. / 2.) * pitch_x, y0 + pitch_y / 2 - r, 0], lcar=resolution_x))
 
         # Left, top
         points.append(geom.add_point(
-            [x0 + r - (n_pixel_x - 1. / 2.) * pitch_x, y0 + pitch_y / 2, 0], lcar=resolution_x))
+            [x0 + r - (n_pixel_left + 1. / 2.) * pitch_x, y0 + pitch_y / 2, 0], lcar=resolution_x))
         points.append(
             geom.add_point([x0 - r, y0 + pitch_y / 2, 0], lcar=resolution_x))
 
@@ -87,7 +94,7 @@ def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
         points.append(
             geom.add_point([x0 - r, y0 - pitch_y / 2, 0], lcar=resolution_x))
         points.append(geom.add_point(
-            [x0 - (n_pixel_x - 1. / 2.) * pitch_x + r, y0 - pitch_y / 2, 0], lcar=resolution_x))
+            [x0 - (n_pixel_left + 1. / 2.) * pitch_x + r, y0 - pitch_y / 2, 0], lcar=resolution_x))
 
         return points
 
@@ -96,6 +103,8 @@ def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
         points = generate_edges(x, y,
                                 n_pixel_x, n_pixel_y,
                                 r, x0, y0)
+        
+        print 'points', points
         edge_pillars = generate_edge_pillars(points,
                                              x, y,
                                              n_pixel_x, n_pixel_y,
@@ -103,7 +112,7 @@ def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
         pillars = generate_ro_pillar(geom,
                                      x, y,
                                      n_pixel_x, n_pixel_y,
-                                     radius=r, nD=2,
+                                     radius=r, nD=nD,
                                      resolution=resolution_x,
                                      x0=x0, y0=y0)
 
@@ -128,7 +137,7 @@ def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
     generate_3D_pixel(
         geom, x, y, n_pixel_x, n_pixel_y, radius, nD, resolution, x0=0, y0=0)
 
-    return geom
+    return pg.generate_mesh(geom)
 
 
 def mesh_planar_sensor(x, thickness, resolution=1.):
@@ -167,3 +176,41 @@ def mesh_planar_sensor(x, thickness, resolution=1.):
 
     geom.add_raw_code(raw_codes)
     return geom
+
+if __name__ == '__main__':
+    pitch_x = 250.
+    pitch_y = 50.
+    n_pixel_x, n_pixel_y = 1, 1
+    radius = 6.
+    resolution = 50.
+    V_readout, V_bias,  = 0, -1
+       
+    potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias)
+#     plot.plot_mesh(potential.mesh)
+#     viewer = fipy.viewers.Viewer(vars=(potential, ))
+#     viewer.plot("3D.png")
+  
+    min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
+    min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
+     
+    print 'Interpolate'
+  
+    xnew = np.linspace(min_x, max_x, 1000)
+    ynew = np.linspace(min_y, max_y, 1000)
+    xnew_plot, ynew_plot = np.meshgrid(xnew, ynew)
+       
+    potential_function = interpolate_potential_2(potential)
+    print 'Done'
+       
+    plot.plot_3D_sensor(potential_function,
+                        pitch_x, 
+                        pitch_y, 
+                        n_pixel, 
+                        radius,
+                        V_bias,
+                        V_readout, 
+                        min_x, 
+                        max_x, 
+                        min_y,
+                        max_y
+                        )
