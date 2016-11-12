@@ -4,11 +4,7 @@ import tables as tb
 import numpy as np
 import itertools
 
-import scarce
-
-# Get package path
-package_path = os.path.dirname(scarce.__file__)  # Get the absolute path of this software
-FIXTURE_FOLDER = os.path.join(package_path, 'testing/fixtures')
+from scarce import constant
 
 
 def _call_function_with_args(function, **kwargs):
@@ -44,7 +40,8 @@ def _call_function_with_args(function, **kwargs):
         actual_call_value = list(call_value)
         for index, fixed_arg_pos in enumerate(fixed_arguments_pos):
             actual_call_value.insert(fixed_arg_pos, fixed_arguments[index])
-        call_args = {key: value for key, value in zip(kwargs.keys(), actual_call_value)}
+        call_args = {
+            key: value for key, value in zip(kwargs.keys(), actual_call_value)}
         data.append(function(**call_args))
 
     return np.array(data)
@@ -66,7 +63,7 @@ def create_fixture(function, **kwargs):
 
     # Store function return values in compressed pytable array
     data = np.array(data)
-    with tb.open_file(os.path.join(FIXTURE_FOLDER, '%s.h5' % str(function.__name__)), 'w') as out_file:
+    with tb.open_file(os.path.join(constant.FIXTURE_FOLDER, '%s.h5' % str(function.__name__)), 'w') as out_file:
         data_array = out_file.create_carray(out_file.root, name='Data',
                                             title='%s return values' % function.__name__, atom=tb.Atom.from_dtype(data.dtype),
                                             shape=data.shape, filters=tb.Filters(complib='blosc', complevel=5, fletcher32=False))
@@ -80,7 +77,7 @@ def check_with_fixture(function, **kwargs):
     function calls.
     '''
 
-    with tb.open_file(os.path.join(FIXTURE_FOLDER, '%s.h5' % str(function.__name__)), 'r') as in_file:
+    with tb.open_file(os.path.join(constant.FIXTURE_FOLDER, '%s.h5' % str(function.__name__)), 'r') as in_file:
         data_fixture = in_file.root.Data[:]
 
     data = _call_function_with_args(function, **kwargs)

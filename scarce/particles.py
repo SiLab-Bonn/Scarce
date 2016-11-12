@@ -2,6 +2,7 @@
 """
 
 import numpy as np
+import os
 from scipy import interpolate
 
 from scarce import constant
@@ -9,7 +10,7 @@ from scarce import constant
 
 def get_attenuation(energy, process='total'):
     """ Interpolates the data from http://physics.nist.gov/cgi-bin/Xcom
-    to return the attenuation length for the given photon energy [MeV] 
+    to return the attenuation length for the given photon energy [MeV]
     in silicon for:
         - compton effect
         - photo effect
@@ -17,7 +18,8 @@ def get_attenuation(energy, process='total'):
         - total
     """
 
-    data = np.loadtxt(fname='AttenuationData.txt',
+    data = np.loadtxt(fname=os.path.join(constant.DATA_FOLDER,
+                                         'AttenuationData.txt'),
                       dtype=np.float,
                       skiprows=11).T
 
@@ -32,11 +34,14 @@ def get_attenuation(energy, process='total'):
     elif 'total' in process.lower():
         y = data[6]
     else:
-        raise AttributeError('Unknown process %s. Try compton, photo, pair, total.', process)
+        raise AttributeError(
+            'Unknown process %s. Try compton, photo, pair, total.', process)
 
     y *= constant.density  # cm2 / g -> 1 / cm
 
-    interpol = interpolate.interp1d(x, y, bounds_error=False, fill_value=np.NaN)  # , kind='quadratic')
+    # , kind='quadratic')
+    interpol = interpolate.interp1d(
+        x, y, bounds_error=False, fill_value=np.NaN)
     y_interpolated = interpol(energy)
 
     return y_interpolated
@@ -127,5 +132,6 @@ def get_dedx(betagamma, thickness, density_correction=True, restricted=True, MP=
     # dedx MP Eloss correction
     if density_correction and restricted and MP:
         kappa = K / 2 * Z / A * mat_length / beta2
-        dedx = kappa * (np.log(2 * me * betagamma2 / I) + np.log(kappa / I) + j - beta2 - delta) / (mat_length)
+        dedx = kappa * (np.log(2 * me * betagamma2 / I) +
+                        np.log(kappa / I) + j - beta2 - delta) / (mat_length)
         return -dedx
