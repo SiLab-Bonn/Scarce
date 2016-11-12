@@ -44,7 +44,6 @@ def plot_planar_sensor(potential_function,
                        width,
                        pitch,
                        n_pixel,
-                       thickness, 
                        V_backplane, 
                        V_readout, 
                        min_x, max_x, 
@@ -60,6 +59,10 @@ def plot_planar_sensor(potential_function,
     phi = potential_function(xx, yy)
 
     # Plot Potential
+    
+    # BUG in matplotlib: aspect to be set to equal, otherwise contour plot wrong aspect ratio
+    # http://stackoverflow.com/questions/28857673/wrong-aspect-ratio-for-contour-plot-with-python-matplotlib
+    plt.gca().set_aspect('equal')
     plt.contour(x, y, phi, 10, colors='black')
     plt.pcolormesh(x, y, phi, cmap=cm.get_cmap('Blues'), vmin=V_backplane, vmax=V_readout)
     plt.colorbar()
@@ -71,14 +74,10 @@ def plot_planar_sensor(potential_function,
         xx, yy = np.meshgrid(x, y, sparse=True)
         E_x, E_y = e_field_function(xx, yy)
     else:
-        E_y, E_x = np.gradient(phi)
-        E_x, E_y = -E_x, -E_y
-        
-    print E_x.shape
+        E_x, E_y  = np.gradient(-phi, np.diff(x)[0], np.diff(y)[0], axis=(1, 0))
+
     plt.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='-')
-    
-#     plt.quiver(x, y, E_x / np.sqrt(E_x ** 2 + E_y ** 2), E_y / np.sqrt(E_x ** 2 + E_y ** 2), pivot='mid', color='gray', scale=30.)
-    
+   
     # Plot pixel background
     plt.gca().add_patch(plt.Rectangle((min_x, plt.ylim()[1]), (max_x - min_x), 0.05*(plt.ylim()[1] - plt.ylim()[0]), color="grey", linewidth=0))
     
@@ -86,15 +85,10 @@ def plot_planar_sensor(potential_function,
     for pixel in range(n_pixel):
         pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
         plt.gca().add_patch(plt.Rectangle((pixel_position - pitch / 2, plt.ylim()[0]), pitch, 0.05*(plt.ylim()[1] - plt.ylim()[0]), color="darkred", linewidth=0))
-#         plt.gca().add_patch(plt.Rectangle(((distance - radius) / 2., plt.ylim()[0]), radius, plt.ylim()[1] - plt.ylim()[0], color="grey"))
-    
-    # Plot backside
-    plt.gca().add_patch(plt.Rectangle((min_x, plt.ylim()[0]), (max_x - min_x), - 0.05*(plt.ylim()[1] - plt.ylim()[0]), color="darkblue", linewidth=0))
     
     plt.ylim((1.05 * min_y, 1.05 * max_y))
     plt.xlabel('Position x/y [um]', fontsize=22)
     plt.ylabel('Position z [um]', fontsize=22)
-    plt.gca().set_aspect(1./5.)
     plt.gca().invert_yaxis()
     plt.show()
     
@@ -147,31 +141,27 @@ def plot_3D_sensor(potential_function, pitch_x, pitch_y, n_pixel, radius, V_read
 
 
 if __name__ == '__main__':
-    from siliconproperties.python_files.getWeightingPotential import (
-        get_weighting_potential)
-    from siliconproperties.python_files.getWeightingField import (
-        get_weighting_field)
+    from scarce import fields
     
     thickness = 200  # [um]
     width = 40  # [um]
 
-    y, x = np.mgrid[0:thickness:100j, -width * 2:width * 2:100j]
-    
     def potential_function(x, y):
-        return get_weighting_potential(x, y, D=thickness, S=width, is_planar=True)
+        return fields.get_weighting_potential(x, y, D=thickness, S=width, is_planar=True)
     
     def e_field_function(x, y):
-        return get_weighting_field(x, y, D=thickness, S=width, is_planar=True)
+        return fields.get_weighting_field(x, y, D=thickness, S=width, is_planar=True)
+    
+    e_field_function = None
     
     plot_planar_sensor(potential_function=potential_function, 
                        width=width, 
                        pitch=width, 
                        n_pixel=1, 
-                       thickness=thickness, 
                        V_backplane=0, 
                        V_readout=1, 
                        min_x=-width * 2, 
                        max_x=width * 2, 
                        min_y=0, 
-                       max_y=thickness)#,
-                       #e_field_function=e_field_function)
+                       max_y=thickness,
+                       e_field_function=e_field_function)
