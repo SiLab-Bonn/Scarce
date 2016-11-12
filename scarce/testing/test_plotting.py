@@ -1,8 +1,7 @@
 import unittest
 import os
 
-from scarce import plot
-from scarce import fields
+from scarce import plot, fields
 
 
 class Test(unittest.TestCase):
@@ -12,6 +11,10 @@ class Test(unittest.TestCase):
             from xvfbwrapper import Xvfb
             self.vdisplay = Xvfb()
             self.vdisplay.start()
+            
+        # To have plt.show() non blocking
+        import matplotlib.pyplot as p
+        p.switch_backend('Agg')
 
     def tearDown(self):
         pass
