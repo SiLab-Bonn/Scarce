@@ -47,12 +47,13 @@ class Test(unittest.TestCase):
             for thickness in [50., 100., 200.]:
                 x = np.linspace(-width * 2, width * 2, 1000)
                 y = np.linspace(0, thickness, 1000)
+#                 y = np.square(np.linspace(0, np.sqrt(thickness), 1000))
                 xx, yy = np.meshgrid(x, y, sparse=True)
         
                 E_w_x, E_w_y = fields.get_weighting_field(xx, yy, D=thickness, S=width, is_planar=True)
                 Phi_w = fields.get_weighting_potential(xx, yy, D=thickness, S=width, is_planar=True)
         
-                E_w_x_2, E_w_y_2  = np.gradient(-Phi_w, np.diff(x)[0], np.diff(y)[0], axis=(1, 0))
+                E_w_x_2, E_w_y_2  = np.gradient(-Phi_w, np.gradient(x), np.gradient(y), axis=(1, 0))
                 
                 array_1 = np.array([E_w_x, E_w_y])
                 array_2 = np.array([E_w_x_2, E_w_y_2])

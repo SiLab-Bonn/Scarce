@@ -58,6 +58,7 @@ def plot_planar_sensor(potential_function,
     # Define plot space
     x = np.linspace(min_x, max_x, 1000)
     y = np.linspace(min_y, max_y, 1000)
+#     y = np.square(np.linspace(np.sqrt(min_y), np.sqrt(max_y), 1000)) TODO: make this work with streamplot
 
     # Interpolate potential to a x,y grid
     xx, yy = np.meshgrid(x, y, sparse=True)
@@ -79,7 +80,7 @@ def plot_planar_sensor(potential_function,
         xx, yy = np.meshgrid(x, y, sparse=True)
         E_x, E_y = field_function(xx, yy)
     else:
-        E_x, E_y  = np.gradient(-phi, np.diff(x)[0], np.diff(y)[0], axis=(1, 0))
+        E_x, E_y  = np.gradient(-phi, np.gradient(x), np.gradient(y), axis=(1, 0))
 
     plt.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='-')
    
@@ -157,7 +158,7 @@ if __name__ == '__main__':
     def field_function(x, y):
         return fields.get_weighting_field(x, y, D=thickness, S=width, is_planar=True)
     
-    e_field_function = None
+    field_function = None
     
     plot_planar_sensor(potential_function=potential_function, 
                        width=width, 
