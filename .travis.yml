@@ -27,5 +27,12 @@ install:
   - pip install -e git://pysparse.git.sourceforge.net/gitroot/pysparse/pysparse#egg=PySparse
   - pip install ez_setup 
   - pip install -r requirements.txt -r requirements_tests.txt
-script: nosetests --with-coverage --cover-package=scarce
-after_success: coveralls
+  - pip install --user travis-sphinx
+
+script: 
+  - nosetests --with-coverage --cover-package=scarce
+  - travis-sphinx build
+
+after_success:
+  - coveralls
+  - travis-sphinx deploy
