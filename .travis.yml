@@ -31,7 +31,7 @@ install:
 
 script: 
   - nosetests --with-coverage --cover-package=scarce
-  - travis-sphinx build
+  - travis-sphinx -o docs build  # put index.html into docs folder as github demands
 
 after_success:
   - coveralls
