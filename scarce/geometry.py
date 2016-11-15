@@ -1,6 +1,13 @@
 ''' Function to geometrically describe and mesh planar and 3D electrode configurations. '''
 
+import numpy as np
+from scipy.interpolate import SmoothBivariateSpline, interp2d
+from scipy.interpolate import griddata
+
+from fipy import GmshImporter2D
 import pygmsh as pg
+import meshio as mio
+import tempfile
 
 
 def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
@@ -140,22 +147,33 @@ def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
     return pg.generate_mesh(geom)
 
 
-def mesh_planar_sensor(x, thickness, resolution=1.):
+def mesh_planar_sensor(n_pixel, width, thickness, resolution=1., filename='sensor.msh'):  # TODO: size independent resolution parameter
+    if n_pixel < 3:
+        raise NotImplementedError('Less than 3 pixels result in wrong boundaries. Choose more pixels!')
+    if not n_pixel % 2:
+        raise NotImplementedError('Chose an odd pixel number (symmetry reasons)')
+    
     geom = pg.Geometry()
+    
+    x = n_pixel * width
+    
     resolution_x = x / resolution
 
     points_xyz = [
         [x / 2, thickness, 0],
         [x / 2, 0, 0],
+        [width * 1.5, 0, 0], # center 3 pixel region, top
+        [-width * 1.5, 0, 0], # center 3 pixel region, top
         [-x / 2, 0, 0],
         [-x / 2, thickness, 0],
+        [-width * 1.5, thickness, 0], # center 3 pixel region, bottom
+        [width * 1.5, thickness, 0], # center 3 pixel region, bottom
     ]
 
+    # Decrease resolution to 1/4 for areas next to the 3 center pixel
     points = []
-    points.append(geom.add_point(points_xyz[0], lcar=resolution_x))
-    points.append(geom.add_point(points_xyz[1], lcar=resolution_x))
-    points.append(geom.add_point(points_xyz[2], lcar=resolution_x))
-    points.append(geom.add_point(points_xyz[3], lcar=resolution_x))
+    for i, point_xyz in enumerate(points_xyz):
+        points.append(geom.add_point(point_xyz, lcar=resolution_x if i in (2, 3, 6, 7) else resolution_x * 4.))
 
     # Create lines
     lines = [geom.add_line(points[i], points[i + 1])
@@ -168,49 +186,114 @@ def mesh_planar_sensor(x, thickness, resolution=1.):
     # Add 1/x1.5 law for the mesh size
     raw_codes = ['lc = %f;' % (resolution_x / 4.),
                  'Field[1] = Attractor;',
-                 'Field[1].EdgesList = {l2};'
+                 'Field[1].EdgesList = {l3};'
                  'Field[1].NNodesByEdge = %d;' % resolution,
                  'Field[2] = MathEval;',
                  'Field[2].F = Sprintf(\"F1^3 + %g\", lc);',
                  'Background Field = 2;\n']
-
+    
     geom.add_raw_code(raw_codes)
-    return geom
+    
+    points, cells = pg.generate_mesh(geom)
+
+    mio.write(filename, points, cells)
+    return GmshImporter2D(filename)
+
+def interpolate_potential_old_smooth(potential, smoothing=None):
+    x = np.array(potential.mesh.getFaceCenters()[0])
+    y = np.array(potential.mesh.getFaceCenters()[1])
+    z = np.array(potential.arithmeticFaceValue())
+    return SmoothBivariateSpline(x, y, z, s=smoothing, kx=3, ky=3)
+
+def interpolate_potential_old_smooth_2(potential):
+    x = np.array(potential.mesh.getFaceCenters()[0])
+    y = np.array(potential.mesh.getFaceCenters()[1])
+    z = np.array(potential.arithmeticFaceValue())
+    return interp2d(x, y, z, kind='cubic')
+
+def interpolate_potential(potential):
+    points=np.array(potential.mesh.getFaceCenters()).T
+    values=np.array(potential.arithmeticFaceValue())
+    
+    def interpolator(grid_x, grid_y):
+        return griddata(points=points, 
+                        values=values, 
+                        xi=(grid_x, grid_y), 
+                        method='cubic',
+                        rescale=False)
+        
+    return interpolator
+
 
 if __name__ == '__main__':
-    pitch_x = 250.
-    pitch_y = 50.
-    n_pixel_x, n_pixel_y = 1, 1
-    radius = 6.
-    resolution = 50.
-    V_readout, V_bias,  = 0, -1
-       
-    potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias)
-#     plot.plot_mesh(potential.mesh)
-#     viewer = fipy.viewers.Viewer(vars=(potential, ))
-#     viewer.plot("3D.png")
+    from scarce import fields, plot
+#     pitch_x = 250.
+#     pitch_y = 50.
+#     n_pixel_x, n_pixel_y = 1, 1
+#     radius = 6.
+#     resolution = 50.
+#     V_readout, V_bias,  = 0, -1
+#        
+#     potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias)
+# #     plot.plot_mesh(potential.mesh)
+# #     viewer = fipy.viewers.Viewer(vars=(potential, ))
+# #     viewer.plot("3D.png")
+#   
+#     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
+#     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
+#      
+#     print 'Interpolate'
+#   
+#     xnew = np.linspace(min_x, max_x, 1000)
+#     ynew = np.linspace(min_y, max_y, 1000)
+#     xnew_plot, ynew_plot = np.meshgrid(xnew, ynew)
+#        
+#     potential_function = interpolate_potential_2(potential)
+#     print 'Done'
+#        
+#     plot.plot_3D_sensor(potential_function,
+#                         pitch_x, 
+#                         pitch_y, 
+#                         n_pixel, 
+#                         radius,
+#                         V_bias,
+#                         V_readout, 
+#                         min_x, 
+#                         max_x, 
+#                         min_y,
+#                         max_y
+#                         )
+
+    width = 200
+    pitch = 240
+    n_pixel = 1
+    thickness = 250
+    resolution = 50
+    V_backplane, V_readout = -1, 0
+    
+    mesh = mesh_planar_sensor(x=width * n_pixel, 
+                               thickness=thickness,
+                                resolution=resolution)
+    potential = fields.calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, V_backplane, V_readout)
+ 
+    
+    plot.plot_mesh(mesh, invert_y_axis=True)
+ 
+#     plot.plot_mesh(potential.mesh, invert_y_axis=True)
   
-    min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
-    min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
-     
-    print 'Interpolate'
-  
-    xnew = np.linspace(min_x, max_x, 1000)
-    ynew = np.linspace(min_y, max_y, 1000)
-    xnew_plot, ynew_plot = np.meshgrid(xnew, ynew)
-       
-    potential_function = interpolate_potential_2(potential)
-    print 'Done'
-       
-    plot.plot_3D_sensor(potential_function,
-                        pitch_x, 
-                        pitch_y, 
-                        n_pixel, 
-                        radius,
-                        V_bias,
-                        V_readout, 
-                        min_x, 
-                        max_x, 
-                        min_y,
-                        max_y
-                        )
+#     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
+#     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
+#    
+#     print 'Interpolate', np.square(abs(V_backplane - V_readout))
+#     potential_function = interpolate_potential(potential)
+#     plot.plot_planar_sensor(potential_function,
+#                             width,
+#                             pitch,
+#                             n_pixel,
+#                             thickness,
+#                             V_backplane, 
+#                             V_readout, 
+#                             min_x, 
+#                             max_x, 
+#                             min_y,
+#                             max_y)
