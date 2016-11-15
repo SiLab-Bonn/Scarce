@@ -13,69 +13,7 @@ from scipy.interpolate import SmoothBivariateSpline, LSQBivariateSpline, Univari
 
 from scarce.plot import plot_mesh
 from matplotlib import colors, cm
-
-
-def generate_3D_pixel(geom, x=250., y=50., radius=6., nD=2, resolution=10.):
-    pillars = []
-
-    # Create readout pillars
-    for pillar in range(nD):
-        position = x / nD * (pillar + 1. / 2.) - x / 2.
-        circle = geom.add_circle(x0=[position, 0.0, 0.0],
-                                 radius=radius,
-                                 lcar=resolution / 2.,
-                                 num_sections=4,
-                                 # If compound==False, the section borders have to be points of the
-                                 # discretization. If using a compound circle, they don't; gmsh can
-                                 # choose by itself where to point the circle points.
-                                 compound=False
-                                 )
-        pillars.append(geom.add_line_loop(circle))
-
-
-def mesh_3D_sensor(x=250., y=50., radius=6., nD=2, resolution=10.):
-    geom = pg.Geometry()
-
-    pillars = []
-
-    generate_3D_pixel(geom, x, y, radius, nD, resolution)
-
-    # Create readout
-    print -y / 2
-    circle_points = []
-    circle_points.append(geom.add_point([-x / 4, -y / 2, 0], lcar=resolution))
-    circle_points.append(geom.add_point([0, y, 0], lcar=resolution))
-    circle_points.append(geom.add_point([x / 4, -y / 2, 0], lcar=resolution))
-#     circle_half = geom.add_circle_sector(circle_points)
-
-    t = [circle_points[0] + circle_points[2]]
-    #circle_half_ll = geom.add_compound_line(circle_points)
-
-    points = []
-
-    points_xyz = [
-        #[-x/4, -y/4, 0],
-        #[x/4, -y/4, 0],
-        #[x/4, -y/2, 0],
-        [x / 2, -y / 2, 0],
-        [x / 2, y / 2, 0],
-        [-x / 2, y / 2, 0],
-        [-x / 2, -y / 2, 0],
-        #[-x/4, -y/2, 0]
-    ]
-    for point in points_xyz:
-        points.append(geom.add_point(point, lcar=resolution))
-
-#     points = t + points
-
-    # Create lines
-    lines = [geom.add_line(points[i], points[i + 1]) for i in range(len(points) - 1)]
-    lines.append(geom.add_line(points[-1], points[0]))
-
-    line_loop = geom.add_line_loop(lines)
-    geom.add_plane_surface([line_loop])
-
-    return geom
+from scarce import geometry
 
 
 def mesh_planar_sensor(x, thickness, resolution=3.):
@@ -123,11 +61,7 @@ def calculate_planar_sensor_potential(width, pitch, n_pixel, thickness, resoluti
     return potential
 
 
-def interpolate_potential(potential, smoothing):
-    x = np.array(potential.mesh.getFaceCenters()[0])
-    y = np.array(potential.mesh.getFaceCenters()[1])
-    z = np.array(potential.arithmeticFaceValue)
-    print x.shape, y.shape, z.shape
+def interpolate_potential(x, y, z, smoothing):
     return SmoothBivariateSpline(x, y, z, s=smoothing, kx=3, ky=3)
 
 if __name__ == '__main__':
@@ -149,7 +83,24 @@ if __name__ == '__main__':
 
     print np.sum(np.square(potential.value))
 #     raise
-    fit = interpolate_potential(potential, smoothing=1)
+    x = np.array(potential.mesh.getFaceCenters()[0])
+    y = np.array(potential.mesh.getFaceCenters()[1])
+    z = np.array(potential.arithmeticFaceValue)
+    
+    potential_inter = geometry.interpolate_potential(potential)
+    xtest = np.linspace(min_x, max_x, 1000)
+    ytest = np.linspace(min_y, max_y, 1000)
+    xxtest, yytest = np.meshgrid(xtest, ytest)
+    zztest = potential_inter(xxtest, yytest)
+    sel = np.isfinite(zztest.ravel())
+    fit_test = interpolate_potential(xxtest.ravel()[sel], yytest.ravel()[sel], zztest.ravel()[sel], smoothing=1000000)
+#     interpolate.RectBivariateSpline(xtest, ytest, zztest)
+    print xtest, ytest, zztest
+#     raise
+    print '_____'
+    print x, y, z
+    raise
+    fit = interpolate_potential(x, y, z, smoothing=100)
 
     # Plot potential
     xnew = np.linspace(min_x, max_x, 1000)
