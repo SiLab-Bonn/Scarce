@@ -1,3 +1,4 @@
+import logging
 import fipy
 import numpy as np
 import meshio as mio
@@ -7,7 +8,84 @@ from scarce import geometry
 from scarce import plot
 
 
-def get_weighting_potential(x, y, D, S, W=None, is_planar=True):
+def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
+    logging.info('Calculating weighting potential')
+    # Mesh validity check
+    mesh_width  = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
+    
+    if mesh_width != width * n_pixel:
+        raise ValueError('The provided mesh width does not correspond to the sensor width')
+    
+    if mesh.getFaceCenters()[1, :].min() != 0:
+        raise ValueError('The provided mesh does not start at 0.')
+    
+    if mesh.getFaceCenters()[1, :].max() != thickness:
+        raise ValueError('The provided mesh does not end at sensor thickness.')
+    
+    potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
+    permittivity = 1.
+    potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
+
+    # Calculate boundaries
+    backplane = mesh.getFacesTop()
+    readout_plane = mesh.getFacesBottom()
+
+    electrodes = readout_plane
+    bcs = [fipy.FixedValue(value=0., faces=backplane)]
+    X, _ = mesh.getFaceCenters()
+    for pixel in range(n_pixel):
+        pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
+        bcs.append(fipy.FixedValue(value=1. if pixel_position == 0. else 0.,
+                                   faces=electrodes &
+                                   (X > pixel_position - pitch / 2.) &
+                                   (X < pixel_position + pitch / 2.)))
+
+    potential.equation.solve(var=potential, boundaryConditions=bcs)
+    return potential
+
+
+def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
+                                      V_backplane, V_readout=0):
+    
+    # Mesh validity check
+    mesh_width  = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
+    if mesh_width != width:
+        raise ValueError('The provided mesh width does not correspond to the sensor width (%d != %d)', 
+                         mesh_width,
+                         width)
+    
+    if mesh.getFaceCenters()[1, :].min() != 0:
+        raise ValueError('The provided mesh does not start at 0.')
+    
+    if mesh.getFaceCenters()[1, :].max() != thickness:
+        raise ValueError('The provided mesh does not end at sensor thickness.')
+    
+    potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
+    permittivity = 1.
+    potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
+
+    # Calculate boundaries
+    V_backplane = V_backplane
+    backplane = mesh.getFacesTop()
+
+    V_readout = V_readout
+    readout_plane = mesh.getFacesBottom()
+
+    electrodes = readout_plane
+    bcs = [fipy.FixedValue(value=V_backplane, faces=backplane)]
+    X, _ = mesh.getFaceCenters()
+    for pixel in range(n_pixel):
+        pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
+        bcs.append(fipy.FixedValue(value=V_readout,
+                                   faces=electrodes &
+                                   (X > pixel_position - pitch / 2.) &
+                                   (X < pixel_position + pitch / 2.)))
+
+    potential.equation.solve(var=potential, boundaryConditions=bcs)
+    return potential
+
+
+def get_weighting_potential_analytic(x, y, D, S, is_planar=True):
     """ Planar sensor:
         From Nuclear Instruments and Methods in Physics Research A 535 (2004)
         554-557, with correction from wbar = pi*w/2/D to wbar = pi*w/D with:
@@ -16,20 +94,15 @@ def get_weighting_potential(x, y, D, S, W=None, is_planar=True):
         y [um] the position in the sensor
         D [um] the sensor thickness
         S [um] the pixel pitch
-        W [um] the electrode width
 
         3D sensor:
         Weighting potential for two cylinders with:
         D [um] distance between columns
         S [um] is the radius
-        W number of readout columns
     """
 
     # Wheighting potential for one pixel
     if is_planar:
-        if not W:  # Special case: 100% fill factor, amnalytic solution exists
-            W = S
-
         xbar = np.pi * x / D
         ybar = np.pi * (y - D) / D
         wbar = np.pi * S / D
@@ -53,7 +126,7 @@ def get_weighting_potential(x, y, D, S, W=None, is_planar=True):
         return Phi_w
 
 
-def get_weighting_field(x, y, D, S, is_planar=True):
+def get_weighting_field_analytic(x, y, D, S, is_planar=True):
     """ From Nuclear Instruments and Methods in Physics Research A 535 (2004)
         554-557, with correction from wbar = pi*w/2/D to wbar = pi*w/D
         with x [um] is the position in the sensor [0:thickness], y [um] the offset from the
@@ -101,7 +174,7 @@ def get_weighting_field(x, y, D, S, is_planar=True):
         return -E_x, -E_y
 
 
-def get_electric_field(x, y, V_bias, n_eff, D, S=None, is_planar=True):
+def get_electric_field_analytic(x, y, V_bias, n_eff, D, S=None, is_planar=True):
     """ Calculates the 2D electric field E_x, E_y [V/um]
 
     Planar sensor:
@@ -128,7 +201,7 @@ def get_electric_field(x, y, V_bias, n_eff, D, S=None, is_planar=True):
         E_y = a - b * y
         return np.zeros_like(E_y), E_y
     else:
-        E_x, E_y = get_weighting_field(x, y, D, S, is_planar=False)
+        E_x, E_y = get_weighting_field_analytic(x, y, D, S, is_planar=False)
         E_x = E_x * V_bias
         E_y = E_y * V_bias
 
