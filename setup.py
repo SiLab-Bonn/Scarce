@@ -20,6 +20,7 @@ setup(
     author_email=author_email,
     maintainer_email=author_email,
     packages=find_packages(),
+    setup_requires=['ez_setup'],
     install_requires=required,
     include_package_data=True,  # accept all data files and directories matched by MANIFEST.in or found in source control
     package_data={'': ['README.*', 'VERSION'], 'docs': ['*'], 'examples': ['*']},

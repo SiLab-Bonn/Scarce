@@ -1,6 +1,6 @@
+ez_setup  # Otherwise fipy will not install
 numpy
 scipy
 pygmsh
 meshio
-ez_setup
 fipy
