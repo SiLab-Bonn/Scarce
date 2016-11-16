@@ -9,7 +9,7 @@ from scarce import constant
 
 def get_depletion_depth(V_bias, n_eff, temperature):
     ''' Depletion depth [um] of silcon with an effective doping concentration n_eff [10^12 /cm^3]
-        at a temperature [K] and reverse bias V_bias [V]. 
+        at a temperature [K] and reverse bias V_bias [V].
 
         Check/citetation of formulars needed!'''
 
@@ -20,7 +20,7 @@ def get_depletion_depth(V_bias, n_eff, temperature):
 
     # Depletion depth [m]
     return np.sqrt(
-        2. * constants.epsilon_0 * epsilon_r * (V_bi + V_bias) / (constants.elementary_charge * n_eff * 10**6))
+        2. * constants.epsilon_0 * epsilon_r * (V_bi + V_bias) / (constants.elementary_charge * n_eff * 10 ** 6))
 
 
 def get_depletion_voltage(n_eff, distance):
@@ -48,10 +48,10 @@ def get_diffusion_potential(n_eff, temperature):
 
     # [10^12/cm^3] empirical fit at K = 300 range
     N_i = 9.38 * 10 ** 7. * \
-        (temperature / 300.)**2 * np.exp(-6884. / temperature)
+        (temperature / 300.) ** 2 * np.exp(-6884. / temperature)
 
     # Diffusion potential in thermal equilibrium [V]
-    return constants.Boltzmann * temperature / constants.elementary_charge * np.log(n_eff**2. / N_i**2)
+    return constants.Boltzmann * temperature / constants.elementary_charge * np.log(n_eff ** 2. / N_i ** 2)
 
 
 def get_eff_acceptor_concentration(fluence, n_eff_0, is_ntype, is_oxygenated):
@@ -162,7 +162,6 @@ def get_resistivity(n_eff, is_n_type=True, temperature=300, e_field=1e3):
 
 
 def get_trapping(fluence, is_electron, paper=1):
-
     ''' Calculate the trapping time tr (e^-(tr) in ns) of charge carriers in
         silicon as a function of the fluence. There was also a dependence on
         the temperature measured, that is omitted here!
@@ -178,13 +177,13 @@ def get_trapping(fluence, is_electron, paper=1):
 
         if is_electron:
             beta = 5.13e-16  # [cm^2/ns]
-            beta_error = 0.16e-16  # [cm^2/ns]
+            # beta_error = 0.16e-16  # [cm^2/ns]
         else:
             beta = 5.04e-16  # [cm^2/ns]
-            beta_error = 0.18e-16  # [cm^2/ns]
+            # beta_error = 0.18e-16  # [cm^2/ns]
 
         tr = 1. / (fluence * beta)
-        tr_error = 1. / (fluence * beta ** 2) * beta_error
+        # tr_error = 1. / (fluence * beta ** 2) * beta_error
 
         return tr
 
@@ -203,13 +202,13 @@ def get_trapping(fluence, is_electron, paper=1):
 
         if is_electron:
             beta = 4.2e-16  # [cm^2/ns]
-            beta_error = 0.3e-16  # [cm^2/ns]
+            # beta_error = 0.3e-16  # [cm^2/ns]
         else:
             beta = 6.1e-16  # [cm^2/ns]
-            beta_error = 0.3e-16  # [cm^2/ns]
+            # beta_error = 0.3e-16  # [cm^2/ns]
 
         tr = 1. / (fluence * beta)
-        tr_error = 1. / (fluence * beta ** 2) * beta_error
+        # tr_error = 1. / (fluence * beta ** 2) * beta_error
 
         return tr
     else:
