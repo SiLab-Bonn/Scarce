@@ -14,7 +14,7 @@ init:
 install:
   # Miniconda setup + necessary external packages
   - set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%  # Miniconda is already installed on appveyor: https://github.com/appveyor/ci/issues/359
-  - conda install --yes cython nose numpy pytables scipy
+  - conda install --yes cython nose numpy pytables scipy matplotlib
   - pip install ez_setup
   - pip install -r requirements.txt
   - python.exe setup.py develop
