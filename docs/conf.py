@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Scarce documentation build configuration file, created by
-# sphinx-quickstart on Sat Nov 12 21:50:37 2016.
+# sphinx-quickstart on Wed Nov 16 17:23:27 2016.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -36,7 +36,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.imgmath',
     'sphinx.ext.ifconfig',
-    'sphinx.ext.viewcode',
+    'sphinx.ext.githubpages',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -88,7 +88,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = []
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
