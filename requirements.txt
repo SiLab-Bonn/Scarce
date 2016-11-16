@@ -1,3 +1,4 @@
+setuptools
 ez_setup  # Otherwise fipy will not install
 numpy
 scipy
