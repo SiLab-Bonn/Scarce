@@ -74,8 +74,15 @@ if __name__ == '__main__':
 
     potential = calculate_planar_sensor_potential(width, pitch, n_pixel, thickness, resolution, V_backplane, V_readout)
 
+    viewer = fipy.MatplotlibStreamViewer(vars=potential.faceGradAverage)
+    viewer.plot()
+    raw_input("Irregular circular mesh. Press <return> to proceed...") 
+    print type(potential)
+#     for i in potential:
+#         print i
 #     plot_mesh(potential.mesh)
 
+    raise
     print 'Interpolate'
 
     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
@@ -86,20 +93,20 @@ if __name__ == '__main__':
     x = np.array(potential.mesh.getFaceCenters()[0])
     y = np.array(potential.mesh.getFaceCenters()[1])
     z = np.array(potential.arithmeticFaceValue)
-    
+
     potential_inter = geometry.interpolate_potential(potential)
     xtest = np.linspace(min_x, max_x, 1000)
     ytest = np.linspace(min_y, max_y, 1000)
     xxtest, yytest = np.meshgrid(xtest, ytest)
     zztest = potential_inter(xxtest, yytest)
     sel = np.isfinite(zztest.ravel())
-    fit_test = interpolate_potential(xxtest.ravel()[sel], yytest.ravel()[sel], zztest.ravel()[sel], smoothing=1000000)
+#     fit_test = interpolate_potential(xxtest.ravel()[sel], yytest.ravel()[sel], zztest.ravel()[sel], smoothing=1000000)
 #     interpolate.RectBivariateSpline(xtest, ytest, zztest)
-    print xtest, ytest, zztest
+#     print xtest, ytest, zztest
+# #     raise
+#     print '_____'
+#     print x, y, z
 #     raise
-    print '_____'
-    print x, y, z
-    raise
     fit = interpolate_potential(x, y, z, smoothing=100)
 
     # Plot potential
