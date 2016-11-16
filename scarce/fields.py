@@ -11,17 +11,17 @@ from scarce import plot
 def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
     logging.info('Calculating weighting potential')
     # Mesh validity check
-    mesh_width  = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
-    
+    mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
+
     if mesh_width != width * n_pixel:
         raise ValueError('The provided mesh width does not correspond to the sensor width')
-    
+
     if mesh.getFaceCenters()[1, :].min() != 0:
         raise ValueError('The provided mesh does not start at 0.')
-    
+
     if mesh.getFaceCenters()[1, :].max() != thickness:
         raise ValueError('The provided mesh does not end at sensor thickness.')
-    
+
     potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
     permittivity = 1.
     potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
@@ -46,20 +46,20 @@ def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
 
 def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
                                       V_backplane, V_readout=0):
-    
+
     # Mesh validity check
-    mesh_width  = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
+    mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
     if mesh_width != width:
-        raise ValueError('The provided mesh width does not correspond to the sensor width (%d != %d)', 
+        raise ValueError('The provided mesh width does not correspond to the sensor width (%d != %d)',
                          mesh_width,
                          width)
-    
+
     if mesh.getFaceCenters()[1, :].min() != 0:
         raise ValueError('The provided mesh does not start at 0.')
-    
+
     if mesh.getFaceCenters()[1, :].max() != thickness:
         raise ValueError('The provided mesh does not end at sensor thickness.')
-    
+
     potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
     permittivity = 1.
     potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
@@ -210,32 +210,32 @@ def get_electric_field_analytic(x, y, V_bias, n_eff, D, S=None, is_planar=True):
 
 def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias, nD=2):
     points, cells = geometry.mesh_3D_sensor(x=pitch_x,
-                                    y=pitch_y,
-                                    n_pixel_x=n_pixel_x, 
-                                    n_pixel_y=n_pixel_y,
-                                    radius=radius,
-                                    nD=nD,
-                                    resolution=resolution)
-                                     
+                                            y=pitch_y,
+                                            n_pixel_x=n_pixel_x,
+                                            n_pixel_y=n_pixel_y,
+                                            radius=radius,
+                                            nD=nD,
+                                            resolution=resolution)
+
     mio.write('sensor.msh', points, cells)
     mesh = fipy.GmshImporter2D('sensor.msh')
-    
+
     plot.plot_mesh(mesh)
-    
+
 #     potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
 #     permittivity = 1.
 #     potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
-#     
+#
 #     bcs = []
 #     allfaces = mesh.getExteriorFaces()
 #     X,Y =  mesh.getFaceCenters()
-#     
+#
 #     # Readout pillars
 #     for pillar in range(nD):
 #         position = pitch_x / nD * (pillar + 1. / 2.) - pitch_x / 2.
-#         ring = allfaces & ( (X-position)**2+(Y)**2 < (radius)**2) 
+#         ring = allfaces & ( (X-position)**2+(Y)**2 < (radius)**2)
 #         bcs.append(fipy.FixedValue(value=V_readout,faces=ring))
-#         
+#
 #     # Bias pillars
 #     # Edges
 #     positions = [(- pitch_x / 2., - pitch_y / 2.),
@@ -245,18 +245,18 @@ def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius
 #     # Sides
 #     positions += [(0, - pitch_y / 2.),
 #                  (0, + pitch_y / 2.)]
-# 
+#
 #     for pos_x, pos_y in positions:
-#         ring = allfaces & ( (X-pos_x)**2+(Y-pos_y)**2 < (radius)**2) 
+#         ring = allfaces & ( (X-pos_x)**2+(Y-pos_y)**2 < (radius)**2)
 #         bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
 
 #     # Calculate boundaries
 #     p_pillars = mesh.getFaces()
 #     n_pillars = mesh.getFacesTop()
-# 
+#
 #     electrodes = readout_plane
 #     bcs = [fipy.FixedValue(value=V_backplane, faces=backplane)]
-#     
+#
 #     for pixel in range(n_pixel):
 #         pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
 #         bcs.append(fipy.FixedValue(value=V_readout,
@@ -273,34 +273,34 @@ if __name__ == '__main__':
     n_pixel_x, n_pixel_y = 1, 1
     radius = 6.
     resolution = 50.
-    V_readout, V_bias,  = 0, -1
-       
+    V_readout, V_bias, = 0, -1
+
     potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias)
 #     plot.plot_mesh(potential.mesh)
 #     viewer = fipy.viewers.Viewer(vars=(potential, ))
 #     viewer.plot("3D.png")
-  
+
 #     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
 #     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
-#      
+#
 #     print 'Interpolate'
-#   
+#
 #     xnew = np.linspace(min_x, max_x, 1000)
 #     ynew = np.linspace(min_y, max_y, 1000)
 #     xnew_plot, ynew_plot = np.meshgrid(xnew, ynew)
-#        
+#
 #     potential_function = interpolate_potential_2(potential)
 #     print 'Done'
-#        
+#
 #     plot.plot_3D_sensor(potential_function,
-#                         pitch_x, 
-#                         pitch_y, 
-#                         n_pixel, 
+#                         pitch_x,
+#                         pitch_y,
+#                         n_pixel,
 #                         radius,
 #                         V_bias,
-#                         V_readout, 
-#                         min_x, 
-#                         max_x, 
+#                         V_readout,
+#                         min_x,
+#                         max_x,
 #                         min_y,
 #                         max_y
 #                         )
