@@ -1,22 +1,17 @@
 import unittest
 import numpy as np
+import os
 from fipy import GmshImporter2D
 
 from scarce.testing import tools
-from scarce import fields, geometry, plot
+from scarce import fields, geometry
 
-import matplotlib.pyplot as plt
-from matplotlib import colors, cm
-
-from scipy.interpolate import RectBivariateSpline, SmoothBivariateSpline, interp2d
 
 class Test(unittest.TestCase):
 
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
+    @classmethod
+    def tearDownClass(cls):
+        os.remove('planar_mesh_tmp_2.msh')
 
     def test_w_potential_analytic(self):
         ''' Check analytic weighting potential calculation
@@ -41,7 +36,7 @@ class Test(unittest.TestCase):
                                                  D=[100, 150, 200, 250],
                                                  S=[5, 50, 100, 150, 250],
                                                  is_planar=True))
-    
+
     def test_w_pot_field_analytic(self):
         ''' Check weighting potential/field of planar sensor.
 
@@ -52,105 +47,126 @@ class Test(unittest.TestCase):
             for thickness in [50., 100., 200.]:
                 x = np.linspace(-width * 2, width * 2, 1000)
                 y = np.linspace(0, thickness, 1000)
-#                 y = np.square(np.linspace(0, np.sqrt(thickness), 1000))
                 xx, yy = np.meshgrid(x, y, sparse=True)
-        
+
                 E_w_x, E_w_y = fields.get_weighting_field_analytic(xx, yy, D=thickness, S=width, is_planar=True)
                 Phi_w = fields.get_weighting_potential_analytic(xx, yy, D=thickness, S=width, is_planar=True)
-        
-                E_w_x_2, E_w_y_2  = np.gradient(-Phi_w, np.gradient(x), np.gradient(y), axis=(1, 0))
-                
+
+                E_w_y_2, E_w_x_2 = np.gradient(-Phi_w, np.gradient(y), np.gradient(x))
+
                 array_1 = np.array([E_w_x, E_w_y])
                 array_2 = np.array([E_w_x_2, E_w_y_2])
 
                 # Assert that less than 1 % of the field poinst have an error > 1%
-                self.assertLess(tools.compare_arrays(array_1, array_2, threshold=0.01), 0.01) 
-    
-    @unittest.SkipTest            
+                self.assertLess(tools.compare_arrays(array_1, array_2, threshold=0.01), 0.01)
+
+    def test_weighting_potential_planar(self):
+        '''  Checks the numerical potential estimation by comparing to correct analytical potential.
+        '''
+
+        # Influences how correct the field for the center pixel(s) is
+        # due to more far away infinite boundary condition
+        n_pixel = 11
+
+        for width in [50., 200.]:
+            for thickness in [50., 250.]:
+                # Analytical solution only existing for pixel width = readout pitch (100% fill factor)
+                pitch = width
+
+                print 'width, thickness', width, thickness
+                geometry.mesh_planar_sensor(
+                    n_pixel=n_pixel,
+                    width=width,
+                    thickness=thickness,
+                    resolution=600. * np.sqrt(width / 50.) * np.sqrt(50. / thickness),
+                    filename='planar_mesh_tmp_2.msh')
+                mesh = GmshImporter2D('planar_mesh_tmp_2.msh')
+
+                potential = fields.calculate_planar_sensor_w_potential(mesh=mesh,
+                                                                       width=width,
+                                                                       pitch=pitch,
+                                                                       n_pixel=n_pixel,
+                                                                       thickness=thickness)
+
+                potential_function = geometry.interpolate_potential(potential)
+
+                def potential_analytic(x, y):
+                    return fields.get_weighting_potential_analytic(x, y, D=thickness, S=width, is_planar=True)
+
+                min_x, max_x = -width * float(n_pixel), width * float(n_pixel)
+                min_y, max_y = 0., thickness
+
+                nx, ny = 1000, 1000
+                x = np.linspace(min_x, max_x, nx)
+                y = np.linspace(min_y, max_y, ny)
+
+                # Create x,y plot grid
+                xx, yy = np.meshgrid(x, y, sparse=True)
+
+                # Evaluate potential on a grid
+                pot_analytic = potential_analytic(xx, yy)
+                pot_numeric = potential_function(xx, yy)
+
+#                 for i in [0, 10, 15, 30, 45]:
+#                     plt.plot(y, pot_analytic.T[nx / 2 + i, :], label='Analytic')
+#                 for i in [0, 10, 15, 30, 45]:
+#                     plt.plot(y, pot_numeric.T[nx / 2 + i, :], label='Numeric')
+#                 plt.legend(loc=0)
+#                 plt.show()
+
+                for i in [-45, -30, -15, -10, 0, 10, 15, 30, 45]:  # Check only at center pixel, edge pixel are not interessting
+                    sel = pot_analytic.T[nx / 2 + i, :] > 0.01
+                    # Check with very tiny and tuned error allowance
+                    self.assertTrue(np.allclose(pot_analytic.T[nx / 2 + i, sel], pot_numeric.T[nx / 2 + i, sel], rtol=0.01, atol=0.005))
+
     def test_weighting_field_planar(self):
         '''  Checks the numerical field estimation by comparing to correct analytical field.
         '''
-        
+
         width = 50.
         # Analytical solution only existing for pixel width = readout pitch (100 % fill factor)
         pitch = width
         thickness = 200.
-        n_pixel = 9
+        n_pixel = 11
 
-#         mesh = geometry.mesh_planar_sensor(
-#                              n_pixel=n_pixel,
-#                              width=width, 
-#                              thickness=thickness, 
-#                              resolution=200)
-         
-#         plot.plot_mesh(mesh)
-#         raise
-        mesh = GmshImporter2D('sensor.msh')
-        
-        potential = fields.calculate_planar_sensor_w_potential(mesh=mesh, 
-                                                 width=width, 
-                                                 pitch=pitch,
-                                                 n_pixel=n_pixel, 
-                                                 thickness=thickness)
+        geometry.mesh_planar_sensor(
+            n_pixel=n_pixel,
+            width=width,
+            thickness=thickness,
+            resolution=350,
+            filename='planar_mesh_tmp_2.msh')
+        mesh = GmshImporter2D('planar_mesh_tmp_2.msh')
 
-        potential_function = geometry.interpolate_potential(potential)
-        
-        def potential_analytic(x, y):
-            return fields.get_weighting_potential_analytic(x, y, D=thickness, S=width, is_planar=True)
-        
-        min_x, max_x=-width * float(n_pixel) / 2., width * float(n_pixel) / 2.
+        potential = fields.calculate_planar_sensor_w_potential(mesh=mesh,
+                                                               width=width,
+                                                               pitch=pitch,
+                                                               n_pixel=n_pixel,
+                                                               thickness=thickness)
+
+        field_function = geometry.calculate_field(potential)
+
+        def field_analytic(x, y):
+            return fields.get_weighting_field_analytic(x, y, D=thickness, S=width, is_planar=True)
+
+        min_x, max_x = -width * float(n_pixel), width * float(n_pixel)
         min_y, max_y = 0., thickness
-        
+
         nx, ny = 1000, 1000
         x = np.linspace(min_x, max_x, nx)
         y = np.linspace(min_y, max_y, ny)
- 
+
         # Create x,y plot grid
-        xx, yy = np.meshgrid(x, y)#, sparse=True)
-        
-#         print potential_function(xx, yy)
-#         raise
-        
-#         potential_function_smooth = RectBivariateSpline(y, x, potential_function(xx, yy).T)
+        xx, yy = np.meshgrid(x, y, sparse=True)
 
-        zz = np.array(potential_function(xx, yy)).ravel()
-#         print z.shape
-#         print type(z)
-#         z=np.zeros((x.shape[0], y.shape[0]))
-#         print x.shape, y.shape, z.shape
+        # Evaluate potential on a grid
+        f_analytic = field_analytic(xx, yy)
+        f_numeric = field_function(xx, yy)
 
-        sel = zz == np.isfinite
-
-        print zz[sel]
-        raise
-        potential_function_smooth = SmoothBivariateSpline(np.array(xx.ravel())[sel], np.array(yy.ravel())[sel], np.array(zz.ravel())[sel], kx=3, ky=3)
-        
-        print potential_function_smooth(x, y)
-         
-        pot_analytic = potential_analytic(xx, yy)
-        plt.plot(y, pot_analytic.T[nx/2 + nx/20, :], label='Analytic')
-          
-        pot_numeric = potential_function(xx, yy)
-        plt.plot(y, pot_numeric.T[nx/2 + nx/20, :], label='Numeric')
-        plt.plot(y, potential_function_smooth(0, y)[:, 0], label='Numeric_smooth')
-        plt.legend(loc=0)
-        plt.show()
-         
-        print np.sum(np.abs(pot_analytic.T[nx/2, :] - pot_numeric.T[nx/2, :]) * np.diff(x)[0])
-        plt.plot(pot_analytic.T[nx/2 + nx/20., :] - pot_numeric.T[nx/2 + nx/20., :])
-        plt.plot(pot_analytic.T[nx/2, :] - pot_numeric.T[nx/2, :])
-        plt.show()        
-
-#         plot.plot_planar_sensor(width=width, 
-#                        pitch=width,
-#                        thickness = thickness,
-#                        n_pixel=n_pixel, 
-#                        V_backplane=0, 
-#                        V_readout=1,
-#                        potential_function=potential_function,
-#                        field_function=None,
-#                        mesh=False)
+        for i in [-45, -30, -15, -10, 0, 10, 15, 30, 45]:  # Check only at center pixel, edge pixel are not interessting
+            sel = f_analytic[0].T[nx / 2 + i, :] > 0.001
+            self.assertTrue(np.allclose(f_analytic[0].T[nx / 2 + i, sel], f_numeric[0].T[nx / 2 + i, sel], rtol=0.01, atol=0.01))
+            sel = f_analytic[1].T[nx / 2 + i, :] > 0.001
+            self.assertTrue(np.allclose(f_analytic[1].T[nx / 2 + i, sel], f_numeric[1].T[nx / 2 + i, sel], rtol=0.01, atol=0.03))
 
 if __name__ == "__main__":
     unittest.main()
-    
