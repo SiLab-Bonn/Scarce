@@ -13,7 +13,7 @@ class Test(unittest.TestCase):
             self.vdisplay.start()
 
     def tearDown(self):
-        filelist = [ f for f in os.listdir(".") if f.endswith(".pdf") ]
+        filelist = [f for f in os.listdir(".") if f.endswith(".pdf")]
         for f in filelist:
             os.remove(f)
 
@@ -21,6 +21,6 @@ class Test(unittest.TestCase):
         ''' Check script to plot all define silicon properties.
         '''
         plot_properties.create_plots()
-        
+
 if __name__ == "__main__":
     unittest.main()
