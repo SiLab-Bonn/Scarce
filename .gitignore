@@ -57,6 +57,3 @@ target/
 # PyDev files
 .project
 .pydevproject
-
-# Docs
-!docs/*
