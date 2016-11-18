@@ -7,7 +7,7 @@ import matplotlib.pylab as plt
 from scarce import silicon
 
 
-def plot_resistivity():
+def plot_depletion_depth():
     V_bias = np.linspace(0, 100., 1000.)
     plt.clf()
     # Plot depletion depth for different bias voltages
@@ -29,6 +29,8 @@ def plot_resistivity():
     plt.grid()
     plt.savefig('DepletionDepth.pdf', layout='tight')
 
+
+def plot_depletion_depth_res():
     # Plot depletion depth as a function of the resistivity
     temperature = 300  # [K]
     e_field = 1e3  # [V/cm]
@@ -140,7 +142,7 @@ def plot_eff_acceptor_concentration():
     plt.savefig('EffectiveAcceptorConcetration.pdf', layout='tight')
 
 
-def plot_get_free_path():
+def plot_free_path():
 
     fluence = np.logspace(12., 15., 1000.)
     plt.clf()
@@ -159,7 +161,7 @@ def plot_get_free_path():
     plt.savefig('MeanFreePath.pdf', layout='tight')
 
 
-def plot_get_mobility():
+def plot_mobility():
 
     e_field = np.logspace(3., 5., 1000.)
     plt.clf()
@@ -203,7 +205,7 @@ def plot_get_mobility():
     plt.savefig('Velocity.pdf', layout='tight')
 
 
-def plot_get_resistivity():
+def plot_resistivity():
     n_eff = np.logspace(11., 15., 1000.)
     plt.clf()
     # Plot trapping rate (1 / s)
@@ -241,13 +243,14 @@ def plot_trapping():
     plt.savefig('TrappingTime.pdf', layout='tight')
     
 def create_plots():
-    plot_resistivity()
+    plot_depletion_depth()
+    plot_depletion_depth_res()
     plot_depletion_voltage()
     plot_diffusion_potential()
     plot_eff_acceptor_concentration()
-    plot_get_free_path()
-    plot_get_mobility()
-    plot_get_resistivity()
+    plot_free_path()
+    plot_mobility()
+    plot_resistivity()
     plot_trapping()
 
 if __name__ == '__main__':
