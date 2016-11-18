@@ -4,6 +4,7 @@ numpy
 scipy
 pygmsh
 meshio
+matplotlib
 
 # Does not install since there is no way to set a installation order 
 # with pip install requirenments (https://github.com/pypa/pip/issues/2362)
