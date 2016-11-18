@@ -1,4 +1,4 @@
-''' Script to plot all silicon properties defined in Scarce.
+''' Script to plot all silicon properties available in Scarce.
 '''
 
 import numpy as np
@@ -241,7 +241,8 @@ def plot_trapping():
     plt.yscale('log')
     plt.grid()
     plt.savefig('TrappingTime.pdf', layout='tight')
-    
+
+
 def create_plots():
     plot_depletion_depth()
     plot_depletion_depth_res()
