@@ -247,7 +247,7 @@ def interpolate_potential(potential, smoothing=None):
         return grid_interpolator
 
 
-def calculate_field(x, y, potential):
+def calculate_field(x, y, potential_function):
     ''' Takes the potential to calculate the field in x, y
     via E_x, E_y = - grad(Potential) 
     with spline interpolation and smoothing.
@@ -255,7 +255,7 @@ def calculate_field(x, y, potential):
     
     xx, yy = np.meshgrid(x, y, sparse=True)
 
-    E_x, E_y = np.gradient(-potential(xx, yy), np.diff(x)[0], np.diff(y)[0])
+    E_x, E_y = np.gradient(-potential_function(xx, yy), np.diff(x)[0], np.diff(y)[0])
     
     # Create spline interpolators for E_x,E_y
     E_x_i = RectBivariateSpline(x, y, E_x, s=0, kx=2, ky=2) 
