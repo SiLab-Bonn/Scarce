@@ -197,71 +197,72 @@ def mesh_planar_sensor(n_pixel, width, thickness, resolution=1., filename='senso
     mio.write(filename, points, cells)
     return GmshImporter2D(filename)
 
-def interpolate_potential(potential, smoothing=None):
-    ''' Interpolates the potential on a grid
-    '''
-    points = np.array(potential.mesh.getFaceCenters()).T
-    values = np.array(potential.arithmeticFaceValue())
 
-    def grid_interpolator(grid_x, grid_y):
-        return griddata(points=points,
-                        values=values,
-                        xi=(grid_x, grid_y),
-                        method='cubic',
-                        rescale=False,
-                        fill_value=np.nan)
-
-    # Smoothing is really buggy in scipy, the only
-    # working way to smooth is apperently to smooth
-    # on a grid, thus mesh points cannot be used directly
-    if smoothing:
-        def interpolate_nan(a):
-            ''' Fills nans with closest non nan value.
-            Might not work for multi dimensional arrays. :TODO:
-            '''
-            mask = np.isnan(a)
-            a[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), a[~mask])
-            return a
-        
-        vertexCoords = potential.mesh.vertexCoords
-        vertexIDs = potential.mesh._orderedCellVertexIDs
-        xCoords = np.take(vertexCoords[0], vertexIDs)
-        yCoords = np.take(vertexCoords[1], vertexIDs)
-         
-        x = np.linspace(xCoords.min(), xCoords.max(), 1000)
-        y = np.linspace(yCoords.min(), yCoords.max(), 1000)
-        
-        # Create x,y plot grid
-        xx, yy = np.meshgrid(x, y, sparse=True)
-        
-        # Interpolate potential on a grid
-        potential_grid = grid_interpolator(xx, yy)
-        
-        # Fill nans otherwise Spline interpolations fails without error...
-        potential_grid = interpolate_nan(potential_grid)
-        
-        # Smooth on the interpolated grid
-        return RectBivariateSpline(x, y, potential_grid.T, s=smoothing, kx=3, ky=3)
-            
-    else:
-        return grid_interpolator
-
-
-def calculate_field(x, y, potential_function):
-    ''' Takes the potential to calculate the field in x, y
-    via E_x, E_y = - grad(Potential) 
-    with spline interpolation and smoothing.
-    '''
-    
-    xx, yy = np.meshgrid(x, y, sparse=True)
-
-    E_x, E_y = np.gradient(-potential_function(xx, yy), np.diff(x)[0], np.diff(y)[0])
-    
-    # Create spline interpolators for E_x,E_y
-    E_x_i = RectBivariateSpline(x, y, E_x, s=0, kx=2, ky=2) 
-    E_y_i = RectBivariateSpline(x, y, E_y, s=0, kx=2, ky=2) 
-        
-    return E_x_i, E_y_i
+# def interpolate_potential(potential, smoothing=None):
+#     ''' Interpolates the potential on a grid
+#     '''
+#     points = np.array(potential.mesh.getFaceCenters()).T
+#     values = np.array(potential.arithmeticFaceValue())
+# 
+#     def grid_interpolator(grid_x, grid_y):
+#         return griddata(points=points,
+#                         values=values,
+#                         xi=(grid_x, grid_y),
+#                         method='cubic',
+#                         rescale=False,
+#                         fill_value=np.nan)
+# 
+#     # Smoothing is really buggy in scipy, the only
+#     # working way to smooth is apperently to smooth
+#     # on a grid, thus mesh points cannot be used directly
+#     if smoothing:
+#         def interpolate_nan(a):
+#             ''' Fills nans with closest non nan value.
+#             Might not work for multi dimensional arrays. :TODO:
+#             '''
+#             mask = np.isnan(a)
+#             a[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), a[~mask])
+#             return a
+#         
+#         vertexCoords = potential.mesh.vertexCoords
+#         vertexIDs = potential.mesh._orderedCellVertexIDs
+#         xCoords = np.take(vertexCoords[0], vertexIDs)
+#         yCoords = np.take(vertexCoords[1], vertexIDs)
+#          
+#         x = np.linspace(xCoords.min(), xCoords.max(), 1000)
+#         y = np.linspace(yCoords.min(), yCoords.max(), 1000)
+#         
+#         # Create x,y plot grid
+#         xx, yy = np.meshgrid(x, y, sparse=True)
+#         
+#         # Interpolate potential on a grid
+#         potential_grid = grid_interpolator(xx, yy)
+#         
+#         # Fill nans otherwise Spline interpolations fails without error...
+#         potential_grid = interpolate_nan(potential_grid)
+#         
+#         # Smooth on the interpolated grid
+#         return RectBivariateSpline(x, y, potential_grid.T, s=smoothing, kx=3, ky=3)
+#             
+#     else:
+#         return grid_interpolator
+# 
+# 
+# def calculate_field(x, y, potential_function):
+#     ''' Takes the potential to calculate the field in x, y
+#     via E_x, E_y = - grad(Potential) 
+#     with spline interpolation and smoothing.
+#     '''
+#     
+#     xx, yy = np.meshgrid(x, y, sparse=True)
+# 
+#     E_x, E_y = np.gradient(-potential_function(xx, yy), np.diff(x)[0], np.diff(y)[0])
+#     
+#     # Create spline interpolators for E_x,E_y
+#     E_x_i = RectBivariateSpline(x, y, E_x, s=0, kx=2, ky=2) 
+#     E_y_i = RectBivariateSpline(x, y, E_y, s=0, kx=2, ky=2) 
+#         
+#     return E_x_i, E_y_i
 
 
 if __name__ == '__main__':
