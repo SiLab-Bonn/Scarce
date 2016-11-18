@@ -133,7 +133,7 @@ class Test(unittest.TestCase):
             n_pixel=n_pixel,
             width=width,
             thickness=thickness,
-            resolution=350,
+            resolution=400,
             filename='planar_mesh_tmp_2.msh')
         mesh = GmshImporter2D('planar_mesh_tmp_2.msh')
 
@@ -143,30 +143,34 @@ class Test(unittest.TestCase):
                                                                n_pixel=n_pixel,
                                                                thickness=thickness)
 
-        field_function = geometry.calculate_field(potential)
-
-        def field_analytic(x, y):
-            return fields.get_weighting_field_analytic(x, y, D=thickness, S=width, is_planar=True)
-
+        # Define field/potential domain
         min_x, max_x = -width * float(n_pixel), width * float(n_pixel)
         min_y, max_y = 0., thickness
 
         nx, ny = 1000, 1000
         x = np.linspace(min_x, max_x, nx)
         y = np.linspace(min_y, max_y, ny)
+        
+        # Smoothing is needed for gradient forming for E-field
+        potential_function = geometry.interpolate_potential(potential, smoothing=0.2)
+        
+        # Calculate E-Field from smoothed potential
+        field_function_x, field_function_y = geometry.calculate_field(x, y, potential_function)
 
+        def field_analytic(x, y):
+            return fields.get_weighting_field_analytic(x, y, D=thickness, S=width, is_planar=True)
+  
         # Create x,y plot grid
         xx, yy = np.meshgrid(x, y, sparse=True)
 
         # Evaluate potential on a grid
         f_analytic = field_analytic(xx, yy)
-        f_numeric = field_function(xx, yy)
+        f_numeric_x = field_function_x(xx, yy)
+        f_numeric_y = field_function_y(xx, yy)
 
         for i in [-45, -30, -15, -10, 0, 10, 15, 30, 45]:  # Check only at center pixel, edge pixel are not interessting
-            sel = f_analytic[0].T[nx / 2 + i, :] > 0.001
-            self.assertTrue(np.allclose(f_analytic[0].T[nx / 2 + i, sel], f_numeric[0].T[nx / 2 + i, sel], rtol=0.01, atol=0.01))
-            sel = f_analytic[1].T[nx / 2 + i, :] > 0.001
-            self.assertTrue(np.allclose(f_analytic[1].T[nx / 2 + i, sel], f_numeric[1].T[nx / 2 + i, sel], rtol=0.01, atol=0.03))
+            self.assertTrue(np.allclose(f_analytic[0].T[nx / 2 + i, :], f_numeric_x[nx / 2 + i, :], rtol=0.01, atol=0.01))
+            self.assertTrue(np.allclose(f_analytic[1].T[nx / 2 + i, :], f_numeric_y[nx / 2 + i, :], rtol=0.01, atol=0.01))
 
 if __name__ == "__main__":
     unittest.main()
