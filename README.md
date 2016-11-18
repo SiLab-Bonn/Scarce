@@ -1,6 +1,7 @@
 # Scarce
 [![Build Status](https://travis-ci.org/SiLab-Bonn/Scarce.svg?branch=master)](https://travis-ci.org/SiLab-Bonn/Scarce)
 [![Build status](https://ci.appveyor.com/api/projects/status/32o1x5kcss45m35d?svg=true)](https://ci.appveyor.com/project/DavidLP/scarce)
+[![Documentation Status](https://readthedocs.org/projects/scarce/badge/?version=latest)](http://scarce.readthedocs.io/en/latest/?badge=latest)
 [![Coverage Status](https://coveralls.io/repos/github/SiLab-Bonn/Scarce/badge.svg?branch=master)](https://coveralls.io/github/SiLab-Bonn/Scarce?branch=master)
 
 _Scarce_ stands for Silicon ChARge Collection Efficiency and is a software
