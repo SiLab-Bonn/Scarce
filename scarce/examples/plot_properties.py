@@ -1,4 +1,4 @@
-''' Script to plot all silicon properties available in Scarce.
+''' This example creates plots for all silicon properties available in Scarce.
 '''
 
 import numpy as np
