@@ -25,7 +25,7 @@ import sphinx_rtd_theme
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-needs_sphinx = '1.4.8'
+needs_sphinx = '1.3.5'
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -35,7 +35,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
-    'sphinx.ext.imgmath',
+    'sphinx.ext.mathbase',
     'sphinx.ext.ifconfig',
     'sphinx.ext.githubpages',
     'matplotlib.sphinxext.plot_directive',
