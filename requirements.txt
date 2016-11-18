@@ -5,3 +5,4 @@ scipy
 pygmsh
 meshio
 fipy
+matplotlib
