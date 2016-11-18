@@ -54,7 +54,8 @@ def plot_planar_sensor(width,
                        V_readout,
                        potential_function=None,
                        field_function=None,
-                       mesh=None):
+                       mesh=None,
+                       title=None):
     fig = plt.figure()
     get_planar_sensor_plot(fig,
                            width,
@@ -65,7 +66,8 @@ def plot_planar_sensor(width,
                            V_readout,
                            potential_function=potential_function,
                            field_function=field_function,
-                           mesh=mesh)
+                           mesh=mesh,
+                           title=title)
     plt.show()
 
 
@@ -78,7 +80,8 @@ def get_planar_sensor_plot(fig,
                            V_readout,
                            potential_function=None,
                            field_function=None,
-                           mesh=None):
+                           mesh=None,
+                           title=None):
 
     ax = fig.add_subplot(111)
 
@@ -122,12 +125,14 @@ def get_planar_sensor_plot(fig,
     for pixel in range(n_pixel):
         pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
         ax.add_patch(Rectangle((pixel_position - pitch / 2, ax.get_ylim()[0]), pitch, 0, color="darkred", linewidth=5))
-        ax.plot([pixel_position - pitch / 2, pixel_position - pitch / 2], [min_y, max_y], '--', color='black', linewidth=4)
-    ax.plot([pixel_position + pitch / 2, pixel_position + pitch / 2], [min_y, max_y], '--', color='black', linewidth=4)  # Last pixel end
+        ax.plot([pixel_position - width / 2, pixel_position - width / 2], [min_y, max_y], '--', color='black', linewidth=4)
+    ax.plot([pixel_position + width / 2, pixel_position + width / 2], [min_y, max_y], '--', color='black', linewidth=4)  # Last pixel end
 
     ax.set_ylim((- 0.02 * (ax.get_ylim()[1] - ax.get_ylim()[0]), 1.02 * max_y))
     ax.set_xlabel('Position x/y [um]', fontsize=22)
     ax.set_ylabel('Position z [um]', fontsize=22)
+    if title:
+        ax.set_title(title)
     ax.invert_yaxis()
 
 
