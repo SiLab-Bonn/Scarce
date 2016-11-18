@@ -1,10 +1,10 @@
 import unittest
 import os
 
-from scarce.scripts import plot_properties
+from scarce.examples import plot_properties
 
 
-class Test(unittest.TestCase):
+class TestExamples(unittest.TestCase):
 
     def setUp(self):
         if os.getenv('TRAVIS', False):
