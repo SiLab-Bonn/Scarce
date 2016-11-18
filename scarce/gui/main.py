@@ -18,23 +18,24 @@ PROJECT_NAME = 'Scarce'
 WIDTH = 1024
 HEIGHT = 768
 
+
 class SensorCanvas(FigureCanvas):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         points, cells = geometry.mesh_3D_sensor(x=250,
-                                    y=50,
-                                    n_pixel_x=1, 
-                                    n_pixel_y=1,
-                                    radius=6,
-                                    nD=2,
-                                    resolution=50)
-                                     
+                                                y=50,
+                                                n_pixel_x=1,
+                                                n_pixel_y=1,
+                                                radius=6,
+                                                nD=2,
+                                                resolution=50)
+
         mio.write('sensor.msh', points, cells)
         mesh = fipy.GmshImporter2D('sensor.msh')
-        
+
         fig = Figure(figsize=(width, height), dpi=dpi)
         plot.get_mesh_plot(fig, mesh)
-        
+
         fig.get_axes()[0].set_aspect('equal')
 
         FigureCanvas.__init__(self, fig)
@@ -47,11 +48,12 @@ class SensorCanvas(FigureCanvas):
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
+
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self)
         self.setWindowTitle(PROJECT_NAME)
         self.init_UI()
-        
+
     def init_UI(self):
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
 
@@ -61,17 +63,17 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         l = QtWidgets.QVBoxLayout(self.main_widget)
         sc = SensorCanvas(self.main_widget, width=50, height=40, dpi=100)
-        
+
         # Add zoom / safe navigation bar
         NavigationToolbar(sc, sc)
-        
+
         l.addWidget(sc)
 
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
 
         self.statusBar().showMessage("Hello and welcome!", 2000)
-        
+
     def menu(self):
         self.file_menu = QtWidgets.QMenu('&File', self)
         self.file_menu.addAction('&Quit', self.fileQuit,
