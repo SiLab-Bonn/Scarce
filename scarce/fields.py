@@ -3,9 +3,115 @@ import fipy
 import numpy as np
 import meshio as mio
 
+from scipy.interpolate import RectBivariateSpline, griddata
+
 from scarce import silicon
 from scarce import geometry
 from scarce import plot
+
+
+class Description(object):
+
+    ''' Class to describe potential and field at any
+        point in space. The numerical potential estimation
+        is used and interpolated to make this possible. The field
+        is derived from a smoothed potential interpolation to minimize
+        numerical instabilities.
+    '''
+
+    def __init__(self, potential, min_x, max_x, min_y, max_y, nx=200, ny=200, smoothing=0.1):
+        self.potential_data = potential
+        self.potential_grid = self.interpolate_potential(self.potential_data)
+        self.smoothing = smoothing
+
+        # Do not calculate field on init, since it is time consuming
+        # and maybe not needed
+        self.potential_smooth = None
+        self.field_x = None
+        self.field_y = None
+
+        self._x = np.linspace(min_x, max_x, nx)
+        self._y = np.linspace(min_y, max_y, ny)
+
+        # Create x,y plot grid
+        self._xx, self._yy = np.meshgrid(self._x, self._y, sparse=True)
+
+    def interpolate_potential(self, potential=None):
+        ''' Interpolates the potential on a grid.
+        '''
+        if potential is None:
+            potential = self.potential_data
+
+        points = np.array(potential.mesh.getFaceCenters()).T
+        values = np.array(potential.arithmeticFaceValue())
+
+        def grid_interpolator(grid_x, grid_y):
+            return griddata(points=points,
+                            values=values,
+                            xi=(grid_x, grid_y),
+                            method='cubic',
+                            rescale=False,
+                            fill_value=np.nan)
+
+        return grid_interpolator
+
+    def get_potential(self, x, y):
+        return self.potential_grid(x, y)
+
+    def get_potential_smooth(self, x, y):
+        if self.potential_smooth is None:
+            self._smooth_potential()
+        return self.potential_smooth(x, y).T
+
+    def get_field(self, x, y):
+        if self.field_x is None or self.field_y is None:
+            self._derive_field()
+        return np.array([self.field_x(x, y).T, self.field_y(x, y).T])
+
+    def _smooth_potential(self, smoothing=None):
+        ''' This function takes the potential grid interpolation
+            and smooths the data points.
+
+            Smoothing is really buggy in scipy, the only
+            working way to smooth is apperently to smooth
+            on a grid, thus mesh points of the potential
+            solution cannot be used directly.
+        '''
+
+        if not smoothing:
+            smoothing = self.smoothing
+
+        def interpolate_nan(a):
+            ''' Fills nans with closest non nan value.
+            Might not work for multi dimensional arrays. :TODO:
+            '''
+            mask = np.isnan(a)
+            a[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), a[~mask])
+            return a
+
+        # Interpolate potential on the grid
+        potential_grid = self.potential_grid(self._xx, self._yy)
+
+        # Fill nans otherwise Spline interpolations fails without error...
+        potential_grid = interpolate_nan(potential_grid)
+
+        # Smooth on the interpolated grid
+        self.potential_smooth = RectBivariateSpline(self._xx, self._yy, potential_grid.T, s=smoothing, kx=3, ky=3)
+
+    def _derive_field(self):
+        ''' Takes the potential to calculate the field in x, y
+        via E_x, E_y = - grad(Potential)
+        with spline interpolation and smoothing.
+        '''
+
+        if not self.potential_smooth:
+            self._smooth_potential()
+
+        E_x, E_y = np.gradient(-self.potential_smooth(self._xx, self._yy), np.diff(self._x)[0], np.diff(self._y)[0])
+
+        # Create spline interpolators for E_x,E_y
+        self.field_x = RectBivariateSpline(self._x, self._y, E_x, s=0, kx=2, ky=2)
+        self.field_y = RectBivariateSpline(self._x, self._y, E_y, s=0, kx=2, ky=2)
 
 
 def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
@@ -45,7 +151,7 @@ def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
 
 
 def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
-                                      V_backplane, V_readout=0):
+                                      n_eff, V_backplane, V_readout=0):
 
     # Mesh validity check
     mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
@@ -174,6 +280,21 @@ def get_weighting_field_analytic(x, y, D, S, is_planar=True):
         return -E_x, -E_y
 
 
+def get_potential_planar_analytic(x, V_bias, n_eff, D):
+    """ Calculates the potential [V] in a planar sensor as a
+        function of the position x between the electrodes [um],
+        the bias voltage V_bias [V], the effective doping
+        concentration n_eff [cm^-3] and the sensor Width D [um].
+        The analytical function from the detector book p. 93 is used.
+    """
+
+    V_dep = silicon.get_depletion_voltage(n_eff, D)  # Depletion voltage
+
+    a = (V_bias - V_dep) / D
+    b = -2. * V_dep / (D ** 2)
+    return (a - b / 2 * x) * x
+
+
 def get_electric_field_analytic(x, y, V_bias, n_eff, D, S=None, is_planar=True):
     """ Calculates the 2D electric field E_x, E_y [V/um]
 
@@ -230,19 +351,19 @@ def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius
 #     allfaces = mesh.getExteriorFaces()
 #     X,Y =  mesh.getFaceCenters()
 #
-#     # Readout pillars
+# Readout pillars
 #     for pillar in range(nD):
 #         position = pitch_x / nD * (pillar + 1. / 2.) - pitch_x / 2.
 #         ring = allfaces & ( (X-position)**2+(Y)**2 < (radius)**2)
 #         bcs.append(fipy.FixedValue(value=V_readout,faces=ring))
 #
-#     # Bias pillars
-#     # Edges
+# Bias pillars
+# Edges
 #     positions = [(- pitch_x / 2., - pitch_y / 2.),
 #                  (+ pitch_x / 2., - pitch_y / 2.),
 #                  (+ pitch_x / 2., + pitch_y / 2.),
 #                  (- pitch_x / 2., + pitch_y / 2.)]
-#     # Sides
+# Sides
 #     positions += [(0, - pitch_y / 2.),
 #                  (0, + pitch_y / 2.)]
 #
@@ -250,7 +371,7 @@ def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius
 #         ring = allfaces & ( (X-pos_x)**2+(Y-pos_y)**2 < (radius)**2)
 #         bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
 
-#     # Calculate boundaries
+# Calculate boundaries
 #     p_pillars = mesh.getFaces()
 #     n_pillars = mesh.getFacesTop()
 #
