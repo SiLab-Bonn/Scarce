@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-from fipy.tools import numerix
 import numpy as np
 from matplotlib.collections import PolyCollection
 from matplotlib.patches import Rectangle
@@ -11,8 +10,8 @@ def get_mesh_plot(fig, mesh, values=None, invert_y_axis=True):
 
     vertexIDs = mesh._orderedCellVertexIDs
     vertexCoords = mesh.vertexCoords
-    xCoords = numerix.take(vertexCoords[0], vertexIDs)
-    yCoords = numerix.take(vertexCoords[1], vertexIDs)
+    xCoords = np.take(vertexCoords[0], vertexIDs)
+    yCoords = np.take(vertexCoords[1], vertexIDs)
 
     polys = []
 
