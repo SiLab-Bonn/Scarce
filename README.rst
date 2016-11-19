@@ -1,23 +1,23 @@
-# Scarce
-[![Build Status](https://travis-ci.org/SiLab-Bonn/Scarce.svg?branch=master)](https://travis-ci.org/SiLab-Bonn/Scarce)
-[![Build status](https://ci.appveyor.com/api/projects/status/32o1x5kcss45m35d?svg=true)](https://ci.appveyor.com/project/DavidLP/scarce)
-[![Documentation Status](https://readthedocs.org/projects/scarce/badge/?version=latest)](http://scarce.readthedocs.io/en/latest/?badge=latest)
-[![Coverage Status](https://coveralls.io/repos/github/SiLab-Bonn/Scarce/badge.svg?branch=master)](https://coveralls.io/github/SiLab-Bonn/Scarce?branch=master)
+===============================================
+Scarce
+===============================================
+|travis-status|  |appveyor-status|  |rtd-status|  |coverage|
 
-_Scarce_ stands for Silicon ChARge Collection Efficiency and is a software
-to calculate the charge collection efficiency of irradiated silicon sensors.
-Planar and 3D electrode configuration are supported.
-Additionally a large collection of (semi-) empiric formulars is provided to
+Scarce stands for Silicon ChARge Collection Efficiency and is a software
+to calculate the charge collection efficiency of irradiated segmented silicon 
+sensors. Planar and 3D electrode configuration are supported.
+Additionally a collection of (semi-) empiric formulars is provided to
 calculate silicon properties.
 
-# Installation
+Installation
+============
 
 Linux is the preferred operating system, since it supports the fast sparse matrix library pysparse. Nevertheless
 one can also get good results in reasonble time under Windows.
 
-## Linux
-So far the installation has been tested with the following environment only:
-- Ubuntu 14.04 LTS 64-bit with Anaconda Python 2.7
+Linux
+-----
+So far the installation has been tested with Ubuntu 14.04 LTS 64-bit and Anaconda Python 2.7 64-bit.
 
 1. Install the mesh creator gmsh:
 `sudo apt-get install gmsh`
@@ -38,9 +38,9 @@ For more information visit: https://www.continuum.io/downloads
 6. Install Scarce in development mode by typing: 
 `cd Scarce && pip setup.py develop`
 
-## Windows
-So far the installation has been tested with the following environment only:
-- Windows 7 with Anaconda Python 2.7
+Windows
+-------
+So far the installation has been tested with Windows 7 64-bit and Anaconda Python 2.7 64-bit.
 
 1. Install the mesh creator gmsh that can be donwloaded here:
 http://gmsh.info/bin/Windows/gmsh-2.14.1-Windows64.zip
@@ -58,5 +58,19 @@ https://github.com/SiLab-Bonn/Scarce/archive/master.zip
 `pip setup.py develop`
 
 
+.. |travis-status| image:: https://travis-ci.org/SiLab-Bonn/scarce.svg?branch=master
+    :target: https://travis-ci.org/SiLab-Bonn/scarce
+    :alt: Build status
+    
+.. |appveyor-status| image:: https://ci.appveyor.com/api/projects/status/32o1x5kcss45m35d?svg=true
+    :target: https://ci.appveyor.com/project/DavidLP/scarce
+    :alt: Build status
 
+.. |rtd-status| image:: https://readthedocs.org/projects/scarce/badge/?version=latest
+    :target: http://scarce.rtfd.org
+    :alt: Documentation
+    
+.. |coverage| image:: https://coveralls.io/repos/github/SiLab-Bonn/Scarce/badge.svg?branch=master
+    :target: https://coveralls.io/github/SiLab-Bonn/Scarce?branch=master
+    :alt: Coverage
 
