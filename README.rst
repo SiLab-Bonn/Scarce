@@ -74,7 +74,7 @@ https://www.continuum.io/downloads#windows
 
 .. code-block:: bash
 
-  conda install numpy pytables scipy matplotlib
+   conda install numpy pytables scipy matplotlib
 
 4. Download Scarce here and unpack to a folder of your choise:
 https://github.com/SiLab-Bonn/Scarce/archive/master.zip
@@ -82,8 +82,8 @@ https://github.com/SiLab-Bonn/Scarce/archive/master.zip
 5. Install Scarce in development mode by typing:
 
 .. code-block:: bash
-   pip setup.py develop
 
+   pip setup.py develop
 
 .. |travis-status| image:: https://travis-ci.org/SiLab-Bonn/scarce.svg?branch=master
     :target: https://travis-ci.org/SiLab-Bonn/scarce
