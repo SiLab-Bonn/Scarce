@@ -3,7 +3,7 @@ Scarce
 ===============================================
 |travis-status|  |appveyor-status|  |rtd-status|  |coverage|
 
-Scarce stands for Silicon ChARge Collection Efficiency and is a software
+Scarce stands for **s**\ ilicon **c**\ h\ **ar**\ ge **c**\ ollection **e**\ fficiency and is a software
 to calculate the charge collection efficiency of irradiated segmented silicon 
 sensors. Planar and 3D electrode configuration are supported.
 Additionally a collection of (semi-) empiric formulars is provided to
