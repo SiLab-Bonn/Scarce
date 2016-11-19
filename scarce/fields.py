@@ -66,7 +66,7 @@ class Description(object):
     def get_field(self, x, y):
         if self.field_x is None or self.field_y is None:
             self._derive_field()
-        return np.array([self.field_x(x, y).T, self.field_y(x, y).T])
+        return [self.field_x(x, y).T, self.field_y(x, y).T]
 
     def _smooth_potential(self, smoothing=None):
         ''' This function takes the potential grid interpolation
@@ -391,12 +391,12 @@ def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius
 if __name__ == '__main__':
     pitch_x = 250.
     pitch_y = 50.
-    n_pixel_x, n_pixel_y = 1, 1
+    n_pixel_x, n_pixel_y = 2, 1
     radius = 6.
     resolution = 50.
     V_readout, V_bias, = 0, -1
 
-    potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias)
+    potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias, nD=2)
 #     plot.plot_mesh(potential.mesh)
 #     viewer = fipy.viewers.Viewer(vars=(potential, ))
 #     viewer.plot("3D.png")
