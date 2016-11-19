@@ -20,42 +20,69 @@ Linux
 So far the installation has been tested with Ubuntu 14.04 LTS 64-bit and Anaconda Python 2.7 64-bit.
 
 1. Install the mesh creator gmsh:
-`sudo apt-get install gmsh`
 
-2. Install Anaconda Python distribution: 
-`wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh` 
+.. code-block:: bash
+   
+   sudo apt-get install gmsh
+
+2. Install Anaconda Python distribution:
+
+.. code-block:: bash
+
+   wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+
 For more information visit: https://www.continuum.io/downloads
 
-3. Install precompiled dependencies: 
-`conda install numpy pytables scipy matplotlib`
+3. Install precompiled dependencies:
+
+.. code-block:: bash
+
+   conda install numpy pytables scipy matplotlib
 
 4. Install dependencies:
-`pip install -e git://pysparse.git.sourceforge.net/gitroot/pysparse/pysparse#egg=PySparse ez_setup`
+
+.. code-block:: bash
+
+   pip install -e git://pysparse.git.sourceforge.net/gitroot/pysparse/pysparse#egg=PySparse ez_setup
 
 5. Download Scarce:
-`git checkout https://github.com/SiLab-Bonn/Scarce`
+
+.. code-block:: bash
+
+   git checkout https://github.com/SiLab-Bonn/Scarce
 
 6. Install Scarce in development mode by typing: 
-`cd Scarce && pip setup.py develop`
+
+.. code-block:: bash
+
+   cd Scarce && pip setup.py develop
 
 Windows
 -------
 So far the installation has been tested with Windows 7 64-bit and Anaconda Python 2.7 64-bit.
 
 1. Install the mesh creator gmsh that can be donwloaded here:
-http://gmsh.info/bin/Windows/gmsh-2.14.1-Windows64.zip
+
+.. code-block:: bash
+
+   http://gmsh.info/bin/Windows/gmsh-2.14.1-Windows64.zip
 
 2. Install 64-bit Anaconda Python 2.7 distribution that can be donwloaded here:
 https://www.continuum.io/downloads#windows
 
-3. Install precompiled dependencies by typing into the command prompt: 
-`conda install numpy pytables scipy matplotlib`
+3. Install precompiled dependencies by typing into the command prompt:
+
+.. code-block:: bash
+
+  conda install numpy pytables scipy matplotlib
 
 4. Download Scarce here and unpack to a folder of your choise:
 https://github.com/SiLab-Bonn/Scarce/archive/master.zip
 
-5. Install Scarce in development mode by typing: 
-`pip setup.py develop`
+5. Install Scarce in development mode by typing:
+
+.. code-block:: bash
+   pip setup.py develop
 
 
 .. |travis-status| image:: https://travis-ci.org/SiLab-Bonn/scarce.svg?branch=master
