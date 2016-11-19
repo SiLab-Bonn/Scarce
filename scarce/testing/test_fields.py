@@ -123,7 +123,7 @@ class Test(unittest.TestCase):
                     sel = pot_analytic.T[nx / 2 + i, :] > 0.01
                     # Check with very tiny and tuned error allowance
                     self.assertTrue(np.allclose(pot_analytic.T[nx / 2 + i, sel], pot_numeric.T[nx / 2 + i, sel], rtol=0.01, atol=0.005))
-    @unittest.SkipTest
+
     def test_weighting_field_planar(self):
         '''  Checks the numerical field estimation by comparing to correct analytical field.
         '''
@@ -152,30 +152,31 @@ class Test(unittest.TestCase):
         min_x, max_x = -width * float(n_pixel), width * float(n_pixel)
         min_y, max_y = 0., thickness
 
+        # Create x,y grid
         nx, ny = 1000, 1000
         x = np.linspace(min_x, max_x, nx)
         y = np.linspace(min_y, max_y, ny)
-
-        # Smoothing is needed for gradient forming for E-field
-        potential_function = geometry.interpolate_potential(potential, smoothing=0.2)
-
-        # Calculate E-Field from smoothed potential
-        field_function_x, field_function_y = geometry.calculate_field(x, y, potential_function)
+        xx, yy = np.meshgrid(x, y, sparse=True)
+        
+        field_description = fields.Description(potential, 
+                                               min_x=min_x, 
+                                               max_x=max_x, 
+                                               min_y=min_y, 
+                                               max_y=max_y, 
+                                               nx=nx, 
+                                               ny=ny, 
+                                               smoothing=0.2)
 
         def field_analytic(x, y):
             return fields.get_weighting_field_analytic(x, y, D=thickness, S=width, is_planar=True)
 
-        # Create x,y plot grid
-        xx, yy = np.meshgrid(x, y, sparse=True)
-
-        # Evaluate potential on a grid
-        f_analytic = field_analytic(xx, yy)
-        f_numeric_x = field_function_x(xx, yy)
-        f_numeric_y = field_function_y(xx, yy)
+        # Evaluate field on a grid
+        f_analytic_x, f_analytic_y = field_analytic(xx, yy)        
+        f_numeric_x, f_numeric_y = field_description.get_field(xx, yy)
 
         for i in [-45, -30, -15, -10, 0, 10, 15, 30, 45]:  # Check only at center pixel, edge pixel are not interessting
-            self.assertTrue(np.allclose(f_analytic[0].T[nx / 2 + i, :], f_numeric_x[nx / 2 + i, :], rtol=0.01, atol=0.01))
-            self.assertTrue(np.allclose(f_analytic[1].T[nx / 2 + i, :], f_numeric_y[nx / 2 + i, :], rtol=0.01, atol=0.01))
+            self.assertTrue(np.allclose(f_analytic_x.T[nx / 2 + i, :], f_numeric_x.T[nx / 2 + i, :], rtol=0.01, atol=0.01))
+            self.assertTrue(np.allclose(f_analytic_y.T[nx / 2 + i, :], f_numeric_y.T[nx / 2 + i, :], rtol=0.01, atol=0.01))
 
 if __name__ == "__main__":
     unittest.main()
