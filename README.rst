@@ -85,8 +85,8 @@ https://github.com/SiLab-Bonn/Scarce/archive/master.zip
 
    pip setup.py develop
 
-.. |travis-status| image:: https://travis-ci.org/SiLab-Bonn/scarce.svg?branch=master
-    :target: https://travis-ci.org/SiLab-Bonn/scarce
+.. |travis-status| image:: https://travis-ci.org/SiLab-Bonn/Scarce.svg?branch=master
+    :target: https://travis-ci.org/SiLab-Bonn/Scarce
     :alt: Build status
     
 .. |appveyor-status| image:: https://ci.appveyor.com/api/projects/status/32o1x5kcss45m35d?svg=true
