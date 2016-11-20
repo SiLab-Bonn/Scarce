@@ -1,23 +1,21 @@
 ===============================================
-Scarce
+Introduction
 ===============================================
 |travis-status|  |appveyor-status|  |rtd-status|  |coverage|
 
 Scarce stands for **s**\ ilicon **c**\ h\ **ar**\ ge **c**\ ollection **e**\ fficiency and is a software
-to calculate the charge collection efficiency of irradiated segmented silicon 
-sensors. Planar and 3D electrode configuration are supported.
-Additionally a collection of (semi-) empiric formulars is provided to
+to calculate the charge collection-efficiency of irradiated and segmented silicon 
+sensors. Planar and 3D electrode configurations are supported.
+Additionally a collection of formulars is provided to
 calculate silicon properties.
 
 Installation
 ============
-
-Linux is the preferred operating system, since it supports the fast sparse matrix library pysparse. Nevertheless
-one can also get good results in reasonble time under Windows.
+The installation works with Linux and Windows. Mac OS might also work.
 
 Linux
 -----
-So far the installation has been tested with Ubuntu 14.04 LTS 64-bit and Anaconda Python 2.7 64-bit.
+This installation has been tested with Ubuntu 14.04 LTS 64-bit and Anaconda Python 2.7 64-bit.
 
 1. Install the mesh creator gmsh:
 
@@ -59,7 +57,7 @@ For more information visit: https://www.continuum.io/downloads
 
 Windows
 -------
-So far the installation has been tested with Windows 7 64-bit and Anaconda Python 2.7 64-bit.
+This installation has been tested with Windows 7 64-bit and Anaconda Python 2.7 64-bit.
 
 1. Install the mesh creator gmsh that can be donwloaded here:
 

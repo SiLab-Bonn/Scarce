@@ -47,6 +47,8 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.viewcode',
     'matplotlib.sphinxext.plot_directive',
+    'sphinxcontrib.napoleon',
+    'sphinx_git'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
