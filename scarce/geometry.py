@@ -8,30 +8,67 @@ import pygmsh as pg
 import meshio as mio
 
 
-def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
+def mesh_3D_sensor(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD, resolution):
+    ''' Create the mesh of a 3D sensor array '''
     
-    def origin_x_offsets(n_pixel_x, x):
-        n_pixel_left = int((n_pixel_x) / 2)
-        n_pixel_right = int((n_pixel_x - 1) / 2)
+    if n_pixel_x < 1 or n_pixel_y < 1:
+        raise RuntimeError(
+            'Invalid parameter n_pixel_x, n_pixel_y = %d, %d' % (n_pixel_x, n_pixel_y))
+    
+    # Global definitions
+    n_pixel_left = int((n_pixel_x) / 2)
+    n_pixel_right = int((n_pixel_x - 1) / 2)
+    n_pixel_top = int((n_pixel_y) / 2)
+    n_pixel_bottom = int((n_pixel_y - 1) / 2)
+    
+    # List with columns that need higher resolution
+    high_res_segments = []
+    
+    def origin_x_offsets():
+        ''' Pixel center offsets in x for the number of pixels in x '''
         
         for i in range(-n_pixel_left, n_pixel_right + 1, 1):
-            yield i * x
-
-    def generate_ro_pillars(geom, x, y, n_pixel_x, n_pixel_y, radius, nD, resolution, x0=0., y0=0.):
+            yield i * width_x
+            
+    def origin_y_offsets():
+        ''' Pixel center offsets in y for the number of pixels in y '''
+        
+        for i in range(-n_pixel_top, n_pixel_bottom + 1, 1):
+            yield i * width_y
+            
+    def side_col_x_offsets():
+        offsets = []
+        for ix0 in origin_x_offsets():
+            for pillar in range(nD):
+                offsets.append(width_x / nD * (pillar + 1.) - width_x / 2. + ix0)
+        return offsets[:-1]  # Last offset is edge column
+    
+    def side_col_y_offsets():
+        offsets = []
+        for iy0 in origin_y_offsets():
+            offsets.append(width_y / 2. + iy0)
+        return offsets[:-1]  # Last offset is edge column
+    
+    def ro_col_offsets():
+        ''' Offsets of the readout columns '''
+        for offset_x in origin_x_offsets():
+            for offset_y in origin_y_offsets():
+                for pillar in range(nD):
+                    yield width_x / nD * (pillar + 1. / 2.) - width_x / 2. + offset_x, offset_y
+                    
+    def bias_col_offsets():
+        ''' Offsets of the bias columns '''
+        for offset_x in side_col_x_offsets():
+            for offset_y in list(origin_y_offsets())[:-1]:
+                yield offset_x, offset_y + width_y / 2.
+            
+    def generate_ro_pillars(geom, radius, resolution, x0=0., y0=0.):
         pillars = []
-        for offset_x in origin_x_offsets(n_pixel_x, x):
-            pillars.extend(generate_ro_pillar_per_pixel(geom, x, y, radius, nD, resolution, x0 + offset_x, y0))
-        return pillars
-
-    def generate_ro_pillar_per_pixel(geom, x, y, radius, nD, resolution, x0, y0):
-        pillars = []
-
-        # Create readout pillars
-        for pillar in range(nD):
-            position = x / nD * (pillar + 1. / 2.) - x / 2.
-            circle = geom.add_circle(x0=[position + x0, y0, 0.0],
+        
+        for position_x, position_y in ro_col_offsets():
+            circle = geom.add_circle(x0=[position_x + x0, position_y + y0, 0.0],
                                      radius=radius,
-                                     lcar=resolution / 4.,
+                                     lcar=resolution,
                                      num_sections=4,
                                      # If compound==False, the section borders have to be points of the
                                      # discretization. If using a compound circle, they don't; gmsh can
@@ -39,165 +76,168 @@ def mesh_3D_sensor(x, y, n_pixel_x, n_pixel_y, radius, nD, resolution):
                                      # circle points.
                                      compound=False
                                      )
+            # Check if circle belongs to center pixel
+            if -width_x / 2. <= position_x + x0 <= width_x / 2. and -width_y / 2. <= position_y + y0 <= width_y / 2.:
+                high_res_segments.extend(circle)
+            
             pillars.append(geom.add_line_loop(circle))
 
         return pillars
-
-    def generate_edge_pillars(points, x, y, n_pixel_x, n_pixel_y, x0, y0):
-        loop = []
-        loop.append(geom.add_line(points[0], points[1]))
-        loop.append(geom.add_circle_sector([points[1], geom.add_point(
-            [x0 - x / 2, y0 + y / 2, 0], lcar=resolution_x), points[2]]))
-        loop.append(geom.add_line(points[2], points[3]))
-        loop.append(geom.add_circle_sector(
-            [points[3], geom.add_point([x0, y0 + y / 2, 0], lcar=resolution_x), points[4]]))
-
-        loop.append(geom.add_line(points[4], points[5]))
-        loop.append(geom.add_circle_sector([points[5], geom.add_point(
-            [x0 + x / 2, y0 + y / 2, 0], lcar=resolution_x), points[6]]))
-        loop.append(geom.add_line(points[6], points[7]))
-        loop.append(geom.add_circle_sector([points[7], geom.add_point(
-            [x0 + x / 2, y0 - y / 2, 0], lcar=resolution_x), points[8]]))
-
-        loop.append(geom.add_line(points[8], points[9]))
-        loop.append(geom.add_circle_sector(
-            [points[9], geom.add_point([x0, y0 - y / 2, 0], lcar=resolution_x), points[10]]))
-
-        loop.append(geom.add_line(points[10], points[11]))
-        loop.append(geom.add_circle_sector([points[11], geom.add_point(
-            [x0 - x / 2, y0 - y / 2, 0], lcar=resolution_x), points[0]]))
-
-        return geom.add_line_loop(loop)
     
-    def generate_edges_new(xl, xr, yb, yt, r):
-        points = []
-        # Left edge
-        points.append(geom.add_point(
-            [xl, yb + r, 0], lcar=resolution_x))
-        points.append(geom.add_point(
-            [xl, yt - r, 0], lcar=resolution_x))
-
-        # Left, top
-        points.append(geom.add_point(
-            [xl + r, yt, 0], lcar=resolution_x))
-        points.append(geom.add_point(
-            [xr - r, yt, 0], lcar=resolution_x))
-
-#         # Right top
-#         points.append(
-#             geom.add_point([xr, yt - r, 0], lcar=resolution_x))
-#         points.append(
-#             geom.add_point([xr, yt + r, 0], lcar=resolution_x))
-# 
-#         # Right edge
-#         points.append(
-#             geom.add_point([x0 + pitch_x / 2, y0 + pitch_y / 2 - r, 0], lcar=resolution_x))
-#         points.append(
-#             geom.add_point([x0 + pitch_x / 2, y0 + r - pitch_y / 2, 0], lcar=resolution_x))
-# 
-#         # Right bottom
-#         points.append(
-#             geom.add_point([x0 + pitch_x / 2 - r, y0 - pitch_y / 2, 0], lcar=resolution_x))
-#         points.append(
-#             geom.add_point([x0 + r, y0 - pitch_y / 2, 0], lcar=resolution_x))
-# 
-#         # Left bottom
-#         points.append(
-#             geom.add_point([x0 - r, y0 - pitch_y / 2, 0], lcar=resolution_x))
-#         points.append(geom.add_point(
-#             [x0 - (n_pixel_left + 1. / 2.) * pitch_x + r, y0 - pitch_y / 2, 0], lcar=resolution_x))
-
-        return points
-
-
-    def generate_edges(pitch_x, pitch_y, n_pixel_x, n_pixel_y, r, x0, y0):
-        points = []
-
-        n_pixel_left = int((n_pixel_x) / 2)
-        n_pixel_right = int((n_pixel_x - 1) / 2)
-
-        print 'n_pixel_left', n_pixel_left
-        print 'n_pixel_right', n_pixel_right
-
-        # Left edge
-        points.append(geom.add_point(
-            [x0 - (n_pixel_left + 1. / 2.) * pitch_x, y0 + r - pitch_y / 2, 0], lcar=resolution_x))
-        points.append(geom.add_point(
-            [x0 - (n_pixel_left + 1. / 2.) * pitch_x, y0 + pitch_y / 2 - r, 0], lcar=resolution_x))
-
-        # Left, top
-        points.append(geom.add_point(
-            [x0 + r - (n_pixel_left + 1. / 2.) * pitch_x, y0 + pitch_y / 2, 0], lcar=resolution_x))
-        points.append(
-            geom.add_point([x0 - r, y0 + pitch_y / 2, 0], lcar=resolution_x))
-
-        # Right top
-        points.append(
-            geom.add_point([x0 + r, y0 + pitch_y / 2, 0], lcar=resolution_x))
-        points.append(
-            geom.add_point([x0 + pitch_x / 2 - r, y0 + pitch_y / 2, 0], lcar=resolution_x))
-
-        # Right edge
-        points.append(
-            geom.add_point([x0 + pitch_x / 2, y0 + pitch_y / 2 - r, 0], lcar=resolution_x))
-        points.append(
-            geom.add_point([x0 + pitch_x / 2, y0 + r - pitch_y / 2, 0], lcar=resolution_x))
-
-        # Right bottom
-        points.append(
-            geom.add_point([x0 + pitch_x / 2 - r, y0 - pitch_y / 2, 0], lcar=resolution_x))
-        points.append(
-            geom.add_point([x0 + r, y0 - pitch_y / 2, 0], lcar=resolution_x))
-
-        # Left bottom
-        points.append(
-            geom.add_point([x0 - r, y0 - pitch_y / 2, 0], lcar=resolution_x))
-        points.append(geom.add_point(
-            [x0 - (n_pixel_left + 1. / 2.) * pitch_x + r, y0 - pitch_y / 2, 0], lcar=resolution_x))
-
-        return points
-
-    def generate_3D_pixel(geom, x, y, n_pixel_x, n_pixel_y, r, nD, resolution, x0=0., y0=0.):
+    def generate_bias_pillars(geom, radius, resolution, x0=0., y0=0.):
+        pillars = []
         
-        n_pixel_left = int((n_pixel_x) / 2)
-        n_pixel_right = int((n_pixel_x - 1) / 2)
+        for position_x, position_y in bias_col_offsets():
+            circle = geom.add_circle(x0=[position_x + x0, position_y + y0, 0.0],
+                                     radius=radius,
+                                     lcar=resolution,
+                                     num_sections=4,
+                                     # If compound==False, the section borders have to be points of the
+                                     # discretization. If using a compound circle, they don't; gmsh can
+                                     # choose by itself where to point the
+                                     # circle points.
+                                     compound=False
+                                     )
+            
+            # Check if circle belongs to center pixel
+            if -width_x / 2. <= position_x + x0 <= width_x / 2. and -width_y / 2. <= position_y + y0 <= width_y / 2.:
+                high_res_segments.extend(circle)
+            
+            pillars.append(geom.add_line_loop(circle))
 
-        points = generate_edges(x, y,
-                                n_pixel_x, n_pixel_y,
-                                r, x0, y0)
+        return pillars
+    
+    def generate_domain_edge(x0_1, x0_2, y0_1, y0_2, r):
+        ''' Generates the perimeter of the pixel array including 1/4 edge and
+        1/2 side columns.
+        '''
 
-        print 'points', points
-        edge_pillars = generate_edge_pillars(points,
-                                             x, y,
-                                             n_pixel_x, n_pixel_y,
-                                             x0, y0)
-        pillars = generate_ro_pillars(geom,
-                                     x, y,
-                                     n_pixel_x, n_pixel_y,
-                                     radius=r, nD=nD,
+        points = []
+        loop = []
+        
+        def add_partial_column(x0, y0, last=False):
+            circle = geom.add_circle_sector(
+                [points[-1] if last else points[-2], geom.add_point([x0, y0, 0], lcar=resolution_x), points[0] if last else points[-1]])
+            
+            # Check if circle belongs to center pixel
+            if -width_x / 2. <= x0 <= width_x / 2. and -width_y / 2. <= y0 <= width_y / 2.:
+                high_res_segments.append(circle)
+                
+            loop.append(circle)
+            
+        def add_side_column(x0_1, x0_2, y0_1, y0_2):
+            ''' Adds a halve circle at the x side of the pixel array.
+            x0_1, x0_2, y0_1, y0_2 are start/end points in x and y.
+            '''
+
+            points.append(geom.add_point(
+                [x0_1, y0_1, 0], lcar=resolution_x))
+            loop.append(geom.add_line(points[-2], points[-1]))
+            points.append(
+                geom.add_point([x0_2, y0_2, 0], lcar=resolution_x))
+            add_partial_column(x0=(x0_1 + x0_2) / 2., y0=(y0_1 + y0_2) / 2.)
+
+        # Left side
+        points.append(geom.add_point(
+            [x0_1, y0_1 + r, 0], lcar=resolution_x))
+        
+        # Left side column halves
+        for iy0 in side_col_y_offsets():      
+            add_side_column(x0_1=x0_1, x0_2=x0_1, y0_1=iy0-r, y0_2=iy0 + r)       
+        
+        points.append(geom.add_point(
+            [x0_1, y0_2 - r, 0], lcar=resolution_x))
+        loop.append(geom.add_line(points[-2], points[-1]))
+        
+        # Left edge, bottom
+        points.append(geom.add_point(
+            [x0_1 + r, y0_2, 0], lcar=resolution_x))
+        add_partial_column(x0=x0_1, y0=y0_2)
+
+        # Bottom side column halve(s)
+        for ix0 in side_col_x_offsets():
+            add_side_column(x0_1=ix0- r, x0_2 =ix0 + r, y0_1=y0_2, y0_2=y0_2)
+        
+        # Close bottom side
+        points.append(geom.add_point(
+            [x0_2 - r, y0_2, 0], lcar=resolution_x))
+        loop.append(geom.add_line(points[-2], points[-1]))
+        
+        # Right edge, bottom
+        points.append(
+            geom.add_point([x0_2, y0_2 - r, 0], lcar=resolution_x))
+        add_partial_column(x0=x0_2, y0=y0_2)
+        
+        # Right side column halve(s)
+        for iy0 in side_col_y_offsets()[::-1]:
+            add_side_column(x0_1=x0_2, x0_2=x0_2, y0_1=iy0+r, y0_2=iy0-r)
+        
+        # Close right side
+        points.append(
+            geom.add_point([x0_2, y0_1 + r, 0], lcar=resolution_x))
+        loop.append(geom.add_line(points[-2], points[-1]))
+        
+        # Right edge, top
+        points.append(
+            geom.add_point([x0_2 - r, y0_1, 0], lcar=resolution_x))
+        add_partial_column(x0=x0_2, y0=y0_1)
+        
+        # Top side column halve(s)
+        for ix0 in side_col_x_offsets()[::-1]:  # return order
+            add_side_column(x0_1=ix0+ r, x0_2 =ix0 - r, y0_1=y0_1, y0_2=y0_1)
+        
+        # Close top side
+        points.append(geom.add_point(
+            [x0_1 + r, y0_1, 0], lcar=resolution_x))
+        loop.append(geom.add_line(points[-2], points[-1]))
+        
+        # Right edge, top; closes loop
+        add_partial_column(x0=x0_1, y0=y0_1, last=True)
+
+        return [geom.add_line_loop(loop)]
+
+    def generate_3D_array(geom, width_x, width_y, r, resolution, x0=0., y0=0.):        
+        pitch_x, pitch_y = width_x, width_y
+        
+        x0_1 = x0 - pitch_x / 2. - n_pixel_left * pitch_x
+        x0_2 = x0 + pitch_x / 2. + n_pixel_right * pitch_x
+        
+        y0_1 = y0 - pitch_y / 2. - n_pixel_top * pitch_y
+        y0_2 = y0 + pitch_y / 2. + n_pixel_bottom * pitch_y
+        
+        # Perimeter of 3D array
+        perimeter = generate_domain_edge(x0_1 = x0_1, 
+                                              x0_2 = x0_2, 
+                                              y0_1 = y0_1, 
+                                              y0_2 = y0_2, 
+                                              r=r)
+        
+        ro_pillars = generate_ro_pillars(geom,
+                                     radius=r,
                                      resolution=resolution_x,
                                      x0=x0, y0=y0)
+        
+        bias_pillars = generate_bias_pillars(geom,
+                             radius=r,
+                             resolution=resolution_x,
+                             x0=x0, y0=y0)
 
-        geom.add_plane_surface([edge_pillars] + pillars)
+        geom.add_plane_surface(perimeter + ro_pillars + bias_pillars)
 
         raw_codes = ['lc = %f;' % (resolution_x / 8.),
                      'Field[1] = Attractor;',
-                     'Field[1].EdgesList = {c1, c2, c3, c4, c5, c6};'
+                     'Field[1].EdgesList = {%s};' % ','.join(high_res_segments),
                      'Field[1].NNodesByEdge = %d;' % resolution,
                      'Field[2] = MathEval;',
                      'Field[2].F = Sprintf(\"F1^3 + %g\", lc);',
                      'Background Field = 2;\n']
         geom.add_raw_code(raw_codes)
 
-    if n_pixel_x < 1 or n_pixel_y < 1:
-        raise RuntimeError(
-            'Invalid parameter n_pixel_x, n_pixel_y = %d, %d' % (n_pixel_x, n_pixel_y))
-
     geom = pg.Geometry()
-    resolution_x = x / resolution
+    resolution_x = width_x / resolution
 
-    generate_3D_pixel(
-        geom, x, y, n_pixel_x, n_pixel_y, radius, nD, resolution, x0=0, y0=0)
+    generate_3D_array(
+        geom, width_x, width_y, radius, resolution, x0=0., y0=0.)
 
     return pg.generate_mesh(geom)
 
