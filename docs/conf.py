@@ -44,7 +44,6 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
-    'sphinx.ext.githubpages',
     'sphinx.ext.viewcode',
     'matplotlib.sphinxext.plot_directive',
     'sphinxcontrib.napoleon',
