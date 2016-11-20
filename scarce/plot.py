@@ -131,7 +131,7 @@ def get_planar_sensor_plot(fig,
     ax.set_xlabel('Position x/y [um]', fontsize=22)
     ax.set_ylabel('Position z [um]', fontsize=22)
     if title:
-        ax.set_title(title)
+        ax.set_title(title, fontsize=22)
     ax.invert_yaxis()
 
 
@@ -185,16 +185,7 @@ def plot_3D_sensor(potential_function, pitch_x, pitch_y, n_pixel, radius, V_read
 if __name__ == '__main__':
     from scarce import fields
 
-    thickness = 200  # [um]
-    width = 250  # [um]
-
-    def potential_function(x, y):
-        return fields.get_weighting_potential_analytic(x, y, D=thickness, S=width, is_planar=True)
-
-    def field_function(x, y):
-        return fields.get_weighting_field_analytic(x, y, D=thickness, S=width, is_planar=True)
-
-    from scarce import geometry
+    thickness = 200
     width = 50
     pitch = 50
     n_pixel = 5
@@ -202,9 +193,11 @@ if __name__ == '__main__':
     resolution = 50
     V_backplane, V_readout = -1, 0
 
-#     mesh=geometry.mesh_planar_sensor(x=width,
-#                                      thickness=thickness,
-#                                      resolution=resolution)
+    def potential_function(x, y):
+        return fields.get_weighting_potential_analytic(x, y, D=thickness, S=width, is_planar=True)
+
+    def field_function(x, y):
+        return fields.get_weighting_field_analytic(x, y, D=thickness, S=width, is_planar=True)
 
     plot_planar_sensor(width=width,
                        pitch=width,
