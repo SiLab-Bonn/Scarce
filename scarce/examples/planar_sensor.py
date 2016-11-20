@@ -1,9 +1,10 @@
-''' Example that creates a planar silicon sensor with a given geometry (thickness, number of pixels, pitch, width) and
-    calculates the weighting potential and fields. For comparison also the analytical result of a planar sensor with
+''' Example that creates a planar silicon sensor with a given geometry (thickness, number of pixels, pitch, width).
+    Calculates the weighting potential and fields. For comparison also the analytical result of a planar sensor with
     100% fill factor (width = pitch) is created.
-
-    It should be noted that with increasing distance from the center pixel the numerical result deviates from the analytical one.
-    This shows that is is important to use several pixels (> 5) to get a proper field description in the center pixel.
+    
+    .. NOTE::
+       It should be noted that with increasing distance from the center pixel the numerical result deviates from the analytical one.
+       This shows that is is important to use several pixels (> 5) to get a proper field description in the center pixel.
 '''
 
 from scarce import fields, plot, geometry
