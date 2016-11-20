@@ -329,9 +329,9 @@ def get_electric_field_analytic(x, y, V_bias, n_eff, D, S=None, is_planar=True):
         return E_x, E_y
 
 
-def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias, nD=2):
-    points, cells = geometry.mesh_3D_sensor(x=pitch_x,
-                                            y=pitch_y,
+def calculate_3D_sensor_w_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, nD=2):
+    points, cells = geometry.mesh_3D_sensor(width_x=pitch_x,
+                                            width_y=pitch_y,
                                             n_pixel_x=n_pixel_x,
                                             n_pixel_y=n_pixel_y,
                                             radius=radius,
@@ -391,12 +391,11 @@ def calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius
 if __name__ == '__main__':
     pitch_x = 250.
     pitch_y = 50.
-    n_pixel_x, n_pixel_y = 2, 1
+    n_pixel_x, n_pixel_y = 3, 3
     radius = 6.
     resolution = 50.
-    V_readout, V_bias, = 0, -1
 
-    potential = calculate_3D_sensor_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, V_readout, V_bias, nD=2)
+    potential = calculate_3D_sensor_w_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, nD=2)
 #     plot.plot_mesh(potential.mesh)
 #     viewer = fipy.viewers.Viewer(vars=(potential, ))
 #     viewer.plot("3D.png")
