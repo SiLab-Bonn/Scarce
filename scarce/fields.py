@@ -46,13 +46,13 @@ The field are derived via:
 import logging
 import fipy
 import numpy as np
-import meshio as mio
 
 from scipy.interpolate import RectBivariateSpline, griddata
+from scipy import constants
 
 from scarce import silicon
 from scarce import geometry
-from scarce import plot
+from scarce import constant
 
 
 class Description(object):
@@ -164,7 +164,7 @@ def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
     '''
     logging.info('Calculating weighting potential')
     # Mesh validity check
-    mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0,:].min()
+    mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
 
     if mesh_width != width * n_pixel:
         raise ValueError('The provided mesh width does not correspond to the sensor width')
@@ -178,6 +178,55 @@ def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
     potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
     permittivity = 1.
     potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
+
+    # Calculate boundaries
+    backplane = mesh.getFacesTop()
+    readout_plane = mesh.getFacesBottom()
+
+    electrodes = readout_plane
+    bcs = [fipy.FixedValue(value=0., faces=backplane)]
+    X, _ = mesh.getFaceCenters()
+    for pixel in range(n_pixel):
+        pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
+        bcs.append(fipy.FixedValue(value=1. if pixel_position == 0. else 0.,
+                                   faces=electrodes &
+                                   (X > pixel_position - pitch / 2.) &
+                                   (X < pixel_position + pitch / 2.)))
+
+    potential.equation.solve(var=potential, boundaryConditions=bcs)
+    return potential
+
+
+def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_eff):
+    ''' Calculates the weighting field of a planar sensor.
+    '''
+    logging.info('Calculating weighting potential')
+    # Mesh validity check
+    mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
+
+    if mesh_width != width * n_pixel:
+        raise ValueError('The provided mesh width does not correspond to the sensor width')
+
+    if mesh.getFaceCenters()[1, :].min() != 0:
+        raise ValueError('The provided mesh does not start at 0.')
+
+    if mesh.getFaceCenters()[1, :].max() != thickness:
+        raise ValueError('The provided mesh does not end at sensor thickness.')
+
+    potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
+    electrons = fipy.CellVariable(mesh=mesh, name='e-')
+    electrons.valence = -1
+    charge = electrons * electrons.valence
+    charge.name = "charge"
+
+    # Uniform charge distribution by setting a uniform concentration of electrons = 1
+    electrons.setValue(n_eff)
+
+    epsilon_r = constant.epsilon_s / constants.epsilon_0
+    print 'epsilon_r', epsilon_r
+    permittivity = 1. #epsilon_r
+
+    potential.equation = (fipy.DiffusionTerm(coeff=permittivity) + charge == 0.)
 
     # Calculate boundaries
     backplane = mesh.getFacesTop()
@@ -353,6 +402,8 @@ def get_potential_planar_analytic(x, V_bias, n_eff, D):
 
     V_dep = silicon.get_depletion_voltage(n_eff, D)  # Depletion voltage
 
+    x = x[::-1]
+
     a = (V_bias - V_dep) / D
     b = -2. * V_dep / (D ** 2)
     return (a - b / 2 * x) * x
@@ -365,7 +416,7 @@ def get_electric_field_analytic(x, y, V_bias, n_eff, D, S=None, is_planar=True):
         Calculates the field E_y[V/um], E_x = 0 in a planar sensor as a
         function of the position x between the electrodes [um],
         the bias voltage V_bias [V], the effective doping
-        concentration n_eff [cm^-3] and the sensor Width D [um].
+        concentration n_eff [10^12 /cm^-3] and the sensor Width D [um].
         The analytical function from the detector book p. 93 is used.
 
     3D sensor:
@@ -390,4 +441,3 @@ def get_electric_field_analytic(x, y, V_bias, n_eff, D, S=None, is_planar=True):
         E_y = E_y * V_bias
 
         return E_x, E_y
-
