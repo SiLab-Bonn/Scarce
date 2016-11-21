@@ -16,6 +16,9 @@ The mesh size determines the quality of the numerical result and can be changed 
 Weighting field of 3D sensor
 =========================================
 .. automodule:: scarce.examples.3D_sensor
+.. image:: _static/Example_3D_numeric_3_3.png
+.. image:: _static/Example_3D_numeric_3_3_zoom.png
+.. image:: _static/Example_3D_numeric_1_1.png
 .. image:: _static/Example_3D_mesh.png
 
 The mesh size determines the quality of the numerical result and can be changed in the example.
