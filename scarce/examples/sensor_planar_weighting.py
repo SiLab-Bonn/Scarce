@@ -1,15 +1,16 @@
 ''' Example that creates a planar silicon sensor with a given geometry (thickness, number of pixels, pitch, width).
     Calculates the weighting potential and fields. For comparison also the analytical result of a planar sensor with
     100% fill factor (width = pitch) is created.
-    
+
     .. NOTE::
-       It should be noted that with increasing distance from the center pixel the numerical result deviates from the analytical one.
+       With increasing distance from the center pixel the numerical result deviates from the analytical one.
        This shows that is is important to use several pixels (> 5) to get a proper field description in the center pixel.
 '''
 
 from scarce import fields, plot, geometry
 
-if __name__ == '__main__':
+
+def sensor_planar():
     # Number of pixels influences how correct the field for the
     # center pixel(s) is due to more far away infinite boundary condition
     n_pixel = 9
@@ -25,7 +26,7 @@ if __name__ == '__main__':
         n_pixel=n_pixel,
         width=width,
         thickness=thickness,
-        resolution=400.,
+        resolution=100.,
         filename='planar_mesh_example.msh')
 
     # Numerically solve the laplace equation on the mesh
@@ -55,8 +56,8 @@ if __name__ == '__main__':
                             V_readout=1,  # Weighting field = 1 at readout
                             potential_function=description.get_potential_smooth,
                             field_function=description.get_field,
-                            mesh=None,  # potential.mesh, # Comment in if you want to see the mesh
-                            title='Planar sensor weighting potential and field, numerical solution')
+                            mesh=potential.mesh,  # Comment in if you want to see the mesh
+                            title='Planar sensor mesh')
 
     # Plot analytical result
     def potential_analytic(x, y):
@@ -70,3 +71,6 @@ if __name__ == '__main__':
                             V_readout=1,  # Weighting field = 1 at readout
                             potential_function=potential_analytic,
                             title='Planar sensor weighting potential and field, analytical solution')
+
+if __name__ == '__main__':
+    sensor_planar()
