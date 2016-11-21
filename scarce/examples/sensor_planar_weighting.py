@@ -56,7 +56,7 @@ def sensor_planar():
                             V_readout=1,  # Weighting field = 1 at readout
                             potential_function=description.get_potential_smooth,
                             field_function=description.get_field,
-                            mesh=potential.mesh,  # Comment in if you want to see the mesh
+                            mesh=None,  # potential.mesh,  # Comment in if you want to see the mesh
                             title='Planar sensor mesh')
 
     # Plot analytical result
