@@ -22,20 +22,37 @@ HEIGHT = 768
 class SensorCanvas(FigureCanvas):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
-        points, cells = geometry.mesh_3D_sensor(x=250,
-                                                y=50,
-                                                n_pixel_x=1,
-                                                n_pixel_y=1,
-                                                radius=6,
-                                                nD=2,
-                                                resolution=50)
+        # Sensor figure
+        fig = Figure(figsize=(width, height), dpi=dpi)
 
+        # Plot 3D sensor array for now
+        width_x, width_y = 250., 50.
+        n_pixel_x, n_pixel_y = 3, 3
+        radius, nD = 6., 2
+        resolution = 10
+        points, cells = geometry.mesh_3D_sensor(width_x=width_x,
+                                                width_y=width_y,
+                                                n_pixel_x=n_pixel_x,
+                                                n_pixel_y=n_pixel_y,
+                                                radius=radius,
+                                                nD=nD,
+                                                resolution=resolution)
         mio.write('sensor.msh', points, cells)
         mesh = fipy.GmshImporter2D('sensor.msh')
+        plot.get_3D_sensor_plot(fig=fig, width_x=width_x,
+                                width_y=width_y,
+                                radius=radius,
+                                nD=nD,
+                                n_pixel_x=n_pixel_x,
+                                n_pixel_y=n_pixel_y,
+                                V_bias=0,
+                                V_readout=1,
+                                potential_function=None,
+                                field_function=None,
+                                mesh=mesh,
+                                title=None)
 
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        plot.get_mesh_plot(fig, mesh)
-
+        # Init figure
         fig.get_axes()[0].set_aspect('equal')
 
         FigureCanvas.__init__(self, fig)
