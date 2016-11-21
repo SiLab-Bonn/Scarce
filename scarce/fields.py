@@ -1,3 +1,48 @@
+r"""The field module calculates the potential and fields of silicon pixel sensors.
+
+Planar and 3D electrode configuration is supported. For simple cases (e.g. planar
+sensor with 100% fill factor) analytical solutions are provided.
+
+For all other cases the solution is determined numerically by solving the potential
+equations on a mesh:
+
+.. math:: \nabla^2 \Phi_w = 0
+   :label: laplace
+
+.. math:: \nabla^2 \Phi = \frac{\rho}{\epsilon}
+   :label: poisson
+
+For the weighting potential equation :eq:`laplace` is solved with the boundary conditions:
+
+.. math::
+
+   \begin{eqnarray}
+      \Phi_w    & = & 0 \\
+      \Phi_{w, r}    & = & 1
+   \end{eqnarray}
+
+The pixel readout electrode(s) are at a potential 1 and all other equipotential pixel parts
+(backside, bias columns, etc.) at a potential V=0.
+
+For the electric potential the equation :eq:`poisson` is solved with the boundary conditions:
+
+.. math::
+
+   \begin{eqnarray}
+      \Phi    & = & V_{bias} \\
+      \Phi_r    & = & V_{readout}
+   \end{eqnarray}
+
+The pixel readout electrode(s) are at a readout potential and all other fixed potential pixel parts
+(backside, bias columns, etc.) are at their potential (e.g. bias potential).
+
+The field are derived via:
+
+.. math::
+   \vec{E} = -\nabla \phi
+
+"""
+
 import logging
 import fipy
 import numpy as np
@@ -115,9 +160,11 @@ class Description(object):
 
 
 def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
+    ''' Calculates the weighting field of a planar sensor.
+    '''
     logging.info('Calculating weighting potential')
     # Mesh validity check
-    mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
+    mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0,:].min()
 
     if mesh_width != width * n_pixel:
         raise ValueError('The provided mesh width does not correspond to the sensor width')
@@ -150,42 +197,58 @@ def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
     return potential
 
 
-def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
-                                      n_eff, V_backplane, V_readout=0):
+def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y, radius, resolution, nD=2):
+    logging.info('Calculating weighting potential')
 
     # Mesh validity check
     mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
-    if mesh_width != width:
-        raise ValueError('The provided mesh width does not correspond to the sensor width (%d != %d)',
-                         mesh_width,
-                         width)
+    mesh_height = mesh.getFaceCenters()[1, :].max() - mesh.getFaceCenters()[1, :].min()
 
-    if mesh.getFaceCenters()[1, :].min() != 0:
-        raise ValueError('The provided mesh does not start at 0.')
+    desc = geometry.SensorDescription3D(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD)
+    min_x, max_x, min_y, max_y = desc.get_array_corners()
 
-    if mesh.getFaceCenters()[1, :].max() != thickness:
-        raise ValueError('The provided mesh does not end at sensor thickness.')
+    if mesh_width != max_x - min_x:
+        raise ValueError('The provided mesh width does not correspond to the sensor width')
+    if mesh_height != max_y - min_y:
+        raise ValueError('The provided mesh height does not correspond to the sensor height')
+    if mesh.getFaceCenters()[0, :].min() != min_x or mesh.getFaceCenters()[0, :].max() != max_x:
+        raise ValueError('The provided mesh has a wrong x position')
+    if mesh.getFaceCenters()[1, :].min() != min_y or mesh.getFaceCenters()[1, :].max() != max_y:
+        raise ValueError('The provided mesh has a wrong y position')
 
     potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
     permittivity = 1.
     potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
 
-    # Calculate boundaries
-    V_backplane = V_backplane
-    backplane = mesh.getFacesTop()
+    bcs = []
+    allfaces = mesh.getExteriorFaces()
+    X, Y = mesh.getFaceCenters()
 
-    V_readout = V_readout
-    readout_plane = mesh.getFacesBottom()
+    desc = geometry.SensorDescription3D(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD)
 
-    electrodes = readout_plane
-    bcs = [fipy.FixedValue(value=V_backplane, faces=backplane)]
-    X, _ = mesh.getFaceCenters()
-    for pixel in range(n_pixel):
-        pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
-        bcs.append(fipy.FixedValue(value=V_readout,
-                                   faces=electrodes &
-                                   (X > pixel_position - pitch / 2.) &
-                                   (X < pixel_position + pitch / 2.)))
+    # Set boundary conditions
+    # Set readout pillars potentials
+    for pos_x, pos_y in desc.get_ro_col_offsets():
+        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+        if desc.position_in_center_pixel(pos_x, pos_y):  # Center pixel, phi = 1
+            bcs.append(fipy.FixedValue(value=1., faces=ring))
+        else:  # Other pixel, phi = 0
+            bcs.append(fipy.FixedValue(value=0., faces=ring))
+
+    # Full bias pillars potentials = 0
+    for pos_x, pos_y in desc.get_center_bias_col_offsets():
+        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+        bcs.append(fipy.FixedValue(value=0., faces=ring))
+
+    # Side bias pillars potentials = 0
+    for pos_x, pos_y in desc.get_side_bias_col_offsets():
+        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+        bcs.append(fipy.FixedValue(value=0., faces=ring))
+
+    # Edge bias pillars potentials = 0
+    for pos_x, pos_y in desc.get_edge_bias_col_offsets():
+        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+        bcs.append(fipy.FixedValue(value=0., faces=ring))
 
     potential.equation.solve(var=potential, boundaryConditions=bcs)
     return potential
@@ -328,99 +391,3 @@ def get_electric_field_analytic(x, y, V_bias, n_eff, D, S=None, is_planar=True):
 
         return E_x, E_y
 
-
-def calculate_3D_sensor_w_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, nD=2):
-    points, cells = geometry.mesh_3D_sensor(width_x=pitch_x,
-                                            width_y=pitch_y,
-                                            n_pixel_x=n_pixel_x,
-                                            n_pixel_y=n_pixel_y,
-                                            radius=radius,
-                                            nD=nD,
-                                            resolution=resolution)
-
-    mio.write('sensor.msh', points, cells)
-    mesh = fipy.GmshImporter2D('sensor.msh')
-
-    plot.plot_mesh(mesh)
-
-#     potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
-#     permittivity = 1.
-#     potential.equation = (fipy.DiffusionTerm(coeff=permittivity) == 0.)
-#
-#     bcs = []
-#     allfaces = mesh.getExteriorFaces()
-#     X,Y =  mesh.getFaceCenters()
-#
-# Readout pillars
-#     for pillar in range(nD):
-#         position = pitch_x / nD * (pillar + 1. / 2.) - pitch_x / 2.
-#         ring = allfaces & ( (X-position)**2+(Y)**2 < (radius)**2)
-#         bcs.append(fipy.FixedValue(value=V_readout,faces=ring))
-#
-# Bias pillars
-# Edges
-#     positions = [(- pitch_x / 2., - pitch_y / 2.),
-#                  (+ pitch_x / 2., - pitch_y / 2.),
-#                  (+ pitch_x / 2., + pitch_y / 2.),
-#                  (- pitch_x / 2., + pitch_y / 2.)]
-# Sides
-#     positions += [(0, - pitch_y / 2.),
-#                  (0, + pitch_y / 2.)]
-#
-#     for pos_x, pos_y in positions:
-#         ring = allfaces & ( (X-pos_x)**2+(Y-pos_y)**2 < (radius)**2)
-#         bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
-
-# Calculate boundaries
-#     p_pillars = mesh.getFaces()
-#     n_pillars = mesh.getFacesTop()
-#
-#     electrodes = readout_plane
-#     bcs = [fipy.FixedValue(value=V_backplane, faces=backplane)]
-#
-#     for pixel in range(n_pixel):
-#         pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
-#         bcs.append(fipy.FixedValue(value=V_readout,
-#                                    faces=electrodes &
-#                                    (X > pixel_position - pitch / 2.) &
-#                                    (X < pixel_position + pitch / 2.)))
-
-#     potential.equation.solve(var=potential, boundaryConditions=bcs)
-#     return potential
-
-if __name__ == '__main__':
-    pitch_x = 250.
-    pitch_y = 50.
-    n_pixel_x, n_pixel_y = 3, 3
-    radius = 6.
-    resolution = 50.
-
-    potential = calculate_3D_sensor_w_potential(pitch_x, pitch_y, n_pixel_x, n_pixel_y, radius, resolution, nD=2)
-#     plot.plot_mesh(potential.mesh)
-#     viewer = fipy.viewers.Viewer(vars=(potential, ))
-#     viewer.plot("3D.png")
-
-#     min_x, max_x = np.min(np.array(potential.mesh.getFaceCenters()[0])), np.max(np.array(potential.mesh.getFaceCenters()[0]))
-#     min_y, max_y = np.min(np.array(potential.mesh.getFaceCenters()[1])), np.max(np.array(potential.mesh.getFaceCenters()[1]))
-#
-#     print 'Interpolate'
-#
-#     xnew = np.linspace(min_x, max_x, 1000)
-#     ynew = np.linspace(min_y, max_y, 1000)
-#     xnew_plot, ynew_plot = np.meshgrid(xnew, ynew)
-#
-#     potential_function = interpolate_potential_2(potential)
-#     print 'Done'
-#
-#     plot.plot_3D_sensor(potential_function,
-#                         pitch_x,
-#                         pitch_y,
-#                         n_pixel,
-#                         radius,
-#                         V_bias,
-#                         V_readout,
-#                         min_x,
-#                         max_x,
-#                         min_y,
-#                         max_y
-#                         )
