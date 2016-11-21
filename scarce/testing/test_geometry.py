@@ -30,7 +30,7 @@ class Test(unittest.TestCase):
         points, _, _, _, _ = meshio.read('planar_mesh_tmp.msh')
 
         self.assertGreater(points.shape[0], 14000)
-        
+
     def test_mesh_3D(self):
         ''' Check if all important combinations of a 3D pixel arrays 
         do not lead to an exception. '''
@@ -38,14 +38,14 @@ class Test(unittest.TestCase):
         for n_pixel_x in [1, 2, 3]:
             for n_pixel_y in [1, 2, 3]:
                 for nD in [1, 2, 3]:
-                    geometry.mesh_3D_sensor(width_x=250, 
-                                            width_y=50, 
-                                            n_pixel_x=n_pixel_x, 
-                                            n_pixel_y=n_pixel_y, 
-                                            radius=6., 
-                                            nD=nD, 
+                    geometry.mesh_3D_sensor(width_x=250,
+                                            width_y=50,
+                                            n_pixel_x=n_pixel_x,
+                                            n_pixel_y=n_pixel_y,
+                                            radius=6.,
+                                            nD=nD,
                                             resolution=10)  # Low res for lower time
-        
+
     def test_potential_interpolation(self):
         pass
 
