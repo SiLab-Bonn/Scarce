@@ -33,11 +33,7 @@ def get_depletion_voltage(n_eff, distance):
         in irradiated silicon'.
     """
 
-    # Constants
-    # Relative permitivity of silicon
-    epsilon_r = constant.epsilon_s / constants.epsilon_0
-
-    return constants.elementary_charge * n_eff / (constants.epsilon_0 * epsilon_r) * distance ** 2. / 2 * 1e6
+    return constants.elementary_charge * n_eff / (constant.epsilon_s) * distance ** 2. / 2 * 1e6
 
 
 def get_diffusion_potential(n_eff, temperature):

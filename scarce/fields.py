@@ -360,10 +360,11 @@ def get_weighting_field_analytic(x, y, D, S, is_planar=True):
         denom = (np.cosh(1. / 2. * (wbar - 2. * xbar)) + np.cos(ybar)) * \
             (np.cosh(1. / 2. * (wbar + 2. * xbar)) + np.cos(ybar)) * D
 
-        E_x = - np.sin(ybar) * np.sinh(wbar / 2.) * np.sinh(xbar) / denom
+        with np.errstate(divide='ignore', invalid='ignore'):
+            E_x = - np.sin(ybar) * np.sinh(wbar / 2.) * np.sinh(xbar) / denom
 
-        E_y = np.sinh(
-            wbar / 2.) * (np.cosh(wbar / 2.) + np.cos(ybar) * np.cosh(xbar)) / denom
+            E_y = np.sinh(
+                wbar / 2.) * (np.cosh(wbar / 2.) + np.cos(ybar) * np.cosh(xbar)) / denom
 
         return E_x, E_y
     else:

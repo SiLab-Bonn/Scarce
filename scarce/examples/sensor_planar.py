@@ -22,7 +22,9 @@ def sensor_planar():
     thickness = 200.
     pitch = width
 
-    n_eff = 0.  # n_eff [cm^-3]
+    n_eff = 1.  # n_eff [cm^-3]
+    
+    V_bias = 1
 
     # Create mesh of the sensor and stores the result
     # The created file can be viewed with any mesh viewer (e.g. gmsh)
@@ -72,10 +74,11 @@ def sensor_planar():
     y = np.linspace(0, thickness, 100)
     x = np.zeros_like(y)
 
-    plt.plot(y, potential_analytic(x, y), label='Analytical laplace solution')
+    plt.plot(y, potential_analytic(x, y), label='Pot, Analytical laplace solution')
 #     plt.plot(y, fields.get_electric_field_analytic(x, y, V_bias=-1, n_eff=1., D=thickness)[1], label='Analytical poisson solution')
-    plt.plot(y, fields.get_potential_planar_analytic(y, V_bias=1, n_eff=n_eff, D=thickness), label='Analytical poisson solution')
-    plt.plot(y, description.get_potential(x, y), label='Numerical solution')
+    plt.plot(y, fields.get_potential_planar_analytic(y, V_bias=V_bias, n_eff=n_eff, D=thickness), label='Pot, analytical poisson solution')
+    plt.plot(y, fields.get_electric_field_analytic(x, y, V_bias=V_bias, n_eff=n_eff, D=thickness)[1], label='Ey, analytical poisson solution')
+#     plt.plot(y, description.get_potential(x, y), label='Pot, Numerical solution')
     plt.legend(loc=0)
     plt.show()
 
