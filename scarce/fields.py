@@ -1,12 +1,8 @@
-r"""The field module calculates the potential and fields of silicon pixel sensors.
+r"""The field module calculates the potentials and fields of silicon pixel sensors.
 
-Planar and 3D electrode configuration is supported. For simple cases (e.g. planar
-sensor with 100% fill factor) analytical solutions are provided.
+The potential is determined numerically by solving these equations on a mesh:
 
-For all other cases the solution is determined numerically by solving the potential
-equations on a mesh:
-
-.. math:: \nabla^2 \Phi_w = 0
+.. math:: \nabla^2 \Phi = 0
    :label: laplace
 
 .. math:: \nabla^2 \Phi = \frac{\rho}{\epsilon}
@@ -17,12 +13,12 @@ For the weighting potential equation :eq:`laplace` is solved with the boundary c
 .. math::
 
    \begin{eqnarray}
-      \Phi_w    & = & 0 \\
-      \Phi_{w, r}    & = & 1
+      \Phi    & = & 0 \\
+      \Phi_r    & = & 1
    \end{eqnarray}
 
 The pixel readout electrode(s) are at a potential 1 and all other equipotential pixel parts
-(backside, bias columns, etc.) at a potential V=0.
+(backside, bias columns, etc.) at 0.
 
 For the electric potential the equation :eq:`poisson` is solved with the boundary conditions:
 
@@ -33,13 +29,17 @@ For the electric potential the equation :eq:`poisson` is solved with the boundar
       \Phi_r    & = & V_{readout}
    \end{eqnarray}
 
-The pixel readout electrode(s) are at a readout potential and all other fixed potential pixel parts
-(backside, bias columns, etc.) are at their potential (e.g. bias potential).
+The pixel readout electrode(s) are at :math:`V_{readout}` potential and the bias parts
+(backside, bias columns, etc.) are at :math:`V_{bias}`.
 
-The field are derived via:
+The field is then derived via:
 
 .. math::
    \vec{E} = -\nabla \phi
+   
+.. NOTE::
+   For simple cases (e.g. planar sensor with 100% fill factor) also analytical solutions are provided.
+   The analytical results are also used to benchmark the numerical results in the automated unit tests.
 
 """
 
@@ -222,9 +222,7 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
     # Uniform charge distribution by setting a uniform concentration of electrons = 1
     electrons.setValue(n_eff)
 
-    epsilon_r = constant.epsilon_s / constants.epsilon_0
-    print 'epsilon_r', epsilon_r
-    permittivity = 1. #epsilon_r
+    permittivity = constant.epsilon_s / 100.  # to F/cm
 
     potential.equation = (fipy.DiffusionTerm(coeff=permittivity) + charge == 0.)
 
@@ -392,20 +390,68 @@ def get_weighting_field_analytic(x, y, D, S, is_planar=True):
         return -E_x, -E_y
 
 
-def get_potential_planar_analytic(x, V_bias, n_eff, D):
-    """ Calculates the potential [V] in a planar sensor as a
-        function of the position x between the electrodes [um],
-        the bias voltage V_bias [V], the effective doping
-        concentration n_eff [cm^-3] and the sensor Width D [um].
-        The analytical function from the detector book p. 93 is used.
+def get_potential_planar_analytic(x, V_bias, V_readout, n_eff, x_dep, D):
+    r""" Calculates the potential in the depletion zone of a planar sensor.
+            
+        Parameters
+        ----------
+        x : array_like
+            Position in the sensor between 0 and `D` in :math:`\mathrm{\mu m}`
+            
+        V_bias : number
+            Bias voltage in volt.
+            
+        V_readout : number
+            Readout voltage in volt.
+            
+        n_eff : number
+            Effective doping concetration in :math:`\mathrm{cm^{-3}}`
+            
+        x_dep : number
+            Depletion zone width in :math:`\mathrm{\mu m}`. 
+            
+        D : number
+            Thickness of the sensor in :math:`\mathrm{\mu m}`
+        
+        Notes
+        -----
+        The formular can be derived from the 1D Poisson equation :eq:`poisson`, wich has
+        the following general solution for :math:`x <= x_{\mathrm{dep}}`:
+
+        .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + \mathrm{const_{p,2}}
+        
+        For the undepleted region :math:`x > x_{\mathrm{dep}}` there is no spacecharge (:math:`\rho = 0`).
+        Thus the generel solution of the 1D Laplace equation :eq:`laplace` can be used here:
+        
+        .. math:: \Phi_l = \mathrm{const_{l,1}} x + \mathrm{const_{l,2}}
+        
+        These boundary conditions have to be satisfied:
+
+          1. .. math:: \Phi_p(0) = V_{\mathrm{readout}}
+          2. .. math:: \Phi_l(D) = V_{\mathrm{bias}}
+          3. .. math:: \Phi_p(x_{\mathrm{dep}}) = \Phi_l(x_{\mathrm{dep}})
+          4. .. math:: \frac{\partial}{\partial x} \Phi_p(x_{\mathrm{dep}}) = \frac{\partial}{\partial x} \Phi_l(x_{\mathrm{dep}})
+          
+        The following simultaneous equations follow:
+        
+          1. .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}} = \frac{V_{\mathrm{dep}}}{D^2} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}}
+          2. .. math:: \Phi_l = (x - D)\mathrm{const_{l,1}} + V_{\mathrm{bias}}
+          3. .. math:: \frac{V_{\mathrm{dep}}}{D^2} x_{\mathrm{dep}}^2 + \mathrm{const_{p,1}} x_{\mathrm{dep}} + V_{\mathrm{readout}} = (x_{\mathrm{dep}} - D)\cdot \mathrm{const_{l,1}} + V_{\mathrm{bias}}
+          4. .. math:: 2 \frac{V_{\mathrm{dep}}}{D^2} x_{\mathrm{dep}} + \mathrm{const_{p,1}} = \mathrm{const_{l,1}}
+          
+        From 3. and 4. follows:
+          
+          1. .. math:: \mathrm{const_{p,1}} = \frac{V_{\mathrm{bias}} - V_{\mathrm{readout}}}{D} + \frac{x_{\mathrm{dep}}V_{\mathrm{dep}}}{D^2} \left(\frac{x_{\mathrm{dep}}}{D} - 2\right)
+          2. .. math:: \mathrm{const_{l,1}} = \frac{V_{\mathrm{bias}} - V_{\mathrm{readout}}}{D} + \frac{x_{\mathrm{dep}}^2V_{\mathrm{dep}}}{D^3}
+
     """
 
-    V_dep = silicon.get_depletion_voltage(n_eff, D)  # Depletion voltage
+    V_dep = silicon.get_depletion_voltage(n_eff, x_dep)  # Depletion voltage
 
     x = x[::-1]
 
-    a = (V_bias - V_dep) / D
-    b = -2. * V_dep / (D ** 2)
+    a = (V_bias - V_dep) / x_dep
+    b = -2. * V_dep / (x_dep ** 2)
     return (a - b / 2 * x) * x
 
 
