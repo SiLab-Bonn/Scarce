@@ -417,7 +417,8 @@ def get_potential_planar_analytic(x, V_bias, V_readout, n_eff, x_dep, D):
         Notes
         -----
         The formular can be derived from the 1D Poisson equation :eq:`poisson`, wich has
-        the following general solution for :math:`x <= x_{\mathrm{dep}}`:
+        the following general solution for :math:`x <= x_{\mathrm{dep}}` with the full depletion
+        assumption:
 
         .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + \mathrm{const_{p,2}}
         
@@ -431,19 +432,19 @@ def get_potential_planar_analytic(x, V_bias, V_readout, n_eff, x_dep, D):
           1. .. math:: \Phi_p(0) = V_{\mathrm{readout}}
           2. .. math:: \Phi_l(D) = V_{\mathrm{bias}}
           3. .. math:: \Phi_p(x_{\mathrm{dep}}) = \Phi_l(x_{\mathrm{dep}})
-          4. .. math:: \frac{\partial}{\partial x} \Phi_p(x_{\mathrm{dep}}) = \frac{\partial}{\partial x} \Phi_l(x_{\mathrm{dep}})
+          4. .. math:: \frac{\partial}{\partial x} \Phi_p(x_{\mathrm{dep}}) = 0
+          5. .. math:: \frac{\partial}{\partial x} \Phi_l(x_{\mathrm{dep}}) = 0
           
         The following simultaneous equations follow:
         
           1. .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}} = \frac{V_{\mathrm{dep}}}{D^2} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}}
           2. .. math:: \Phi_l = (x - D)\mathrm{const_{l,1}} + V_{\mathrm{bias}}
           3. .. math:: \frac{V_{\mathrm{dep}}}{D^2} x_{\mathrm{dep}}^2 + \mathrm{const_{p,1}} x_{\mathrm{dep}} + V_{\mathrm{readout}} = (x_{\mathrm{dep}} - D)\cdot \mathrm{const_{l,1}} + V_{\mathrm{bias}}
-          4. .. math:: 2 \frac{V_{\mathrm{dep}}}{D^2} x_{\mathrm{dep}} + \mathrm{const_{p,1}} = \mathrm{const_{l,1}}
+          4. .. math:: 2\frac{V_{\mathrm{dep}}}{D^2} x_{\mathrm{dep}}^2 + \mathrm{const_{p,1}} = 0
+          5. .. math:: \mathrm{const_{l,1}} = 0
           
-        From 3. and 4. follows:
-          
-          1. .. math:: \mathrm{const_{p,1}} = \frac{V_{\mathrm{bias}} - V_{\mathrm{readout}}}{D} + \frac{x_{\mathrm{dep}}V_{\mathrm{dep}}}{D^2} \left(\frac{x_{\mathrm{dep}}}{D} - 2\right)
-          2. .. math:: \mathrm{const_{l,1}} = \frac{V_{\mathrm{bias}} - V_{\mathrm{readout}}}{D} + \frac{x_{\mathrm{dep}}^2V_{\mathrm{dep}}}{D^3}
+        With the solution:
+        TBD
 
     """
 
