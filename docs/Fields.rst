@@ -25,7 +25,7 @@ Methods
 
 .. autofunction:: scarce.fields.get_weighting_field_analytic
 
-.. autofunction:: scarce.fields.get_potential_planar_analytic
+.. autofunction:: scarce.fields.get_potential_planar_analytic_1D
 
 .. autofunction:: scarce.fields.get_electric_field_analytic
 

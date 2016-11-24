@@ -23,6 +23,15 @@ Weighting field of 3D sensor
 
 The mesh size determines the quality of the numerical result and can be changed in the example.
 
+1D potential in a planar silicon sensor
+=========================================
+.. automodule:: scarce.examples.potential_1D
+.. image:: _static/Example_1D_potential_partially_depleted.png
+.. image:: _static/Example_1D_potential_fully_depleted.png
+
+:: NOTE:
+   The determination of the depletion zone is not straight forward with the available solvers.
+
 Silicon propteries
 =========================================
 .. automodule:: scarce.examples.plot_properties
