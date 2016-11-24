@@ -391,7 +391,7 @@ def get_weighting_field_analytic(x, y, D, S, is_planar=True):
         return -E_x, -E_y
 
 
-def get_potential_planar_analytic(x, V_bias, V_readout, epsilon, n_eff, x_dep, D):
+def get_potential_planar_analytic(x, V_bias, V_readout, epsilon, n_eff, D):
     r""" Calculates the potential in the depletion zone of a planar sensor.
 
         Parameters
@@ -427,7 +427,7 @@ def get_potential_planar_analytic(x, V_bias, V_readout, epsilon, n_eff, x_dep, D
 
         .. math:: \Phi_l = \mathrm{const_{l,1}} x + \mathrm{const_{l,2}}
 
-        These boundary conditions have to be satisfied:
+        For an underdepleted sensor (:math:`x_{\mathrm{dep}} <= D`) these boundary conditions have to be satisfied:
 
           1. .. math:: \Phi_p(0) = V_{\mathrm{readout}}
           2. .. math:: \Phi_l(D) = V_{\mathrm{bias}}
@@ -437,10 +437,10 @@ def get_potential_planar_analytic(x, V_bias, V_readout, epsilon, n_eff, x_dep, D
 
         The following simultaneous equations follow:
 
-          1. .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}} = \frac{V_{\mathrm{dep}}}{D^2} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}}
+          1. .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}}
           2. .. math:: \Phi_l = (x - D)\cdot \mathrm{const_{l,1}} + V_{\mathrm{bias}}
-          3. .. math:: \frac{V_{\mathrm{dep}}}{D^2} x_{\mathrm{dep}}^2 + \mathrm{const_{p,1}} x_{\mathrm{dep}} + V_{\mathrm{readout}} = (x_{\mathrm{dep}} - D)\cdot \mathrm{const_{l,1}} + V_{\mathrm{bias}}
-          4. .. math:: 2\frac{V_{\mathrm{dep}}}{D^2} x_{\mathrm{dep}} + \mathrm{const_{p,1}} = 0
+          3. .. math:: \frac{\rho}{2\epsilon} x_{\mathrm{dep}}^2 + \mathrm{const_{p,1}} x_{\mathrm{dep}} + V_{\mathrm{readout}} = (x_{\mathrm{dep}} - D)\cdot \mathrm{const_{l,1}} + V_{\mathrm{bias}}
+          4. .. math:: \frac{\rho}{\epsilon} x_{\mathrm{dep}} + \mathrm{const_{p,1}} = 0
           5. .. math:: \mathrm{const_{l,1}} = 0
 
         With the solution:
@@ -450,27 +450,59 @@ def get_potential_planar_analytic(x, V_bias, V_readout, epsilon, n_eff, x_dep, D
             \Phi(x) = 
             \left\{ 
             \begin{array}{ll}
-                  \frac{V_{\mathrm{dep}}}{D^2} x^2 - 2\frac{V_{\mathrm{dep}}}{D^2} x_{\mathrm{dep}} x + V_{\mathrm{readout}} & x\leq x_{\mathrm{dep}} \\
+                  \frac{\rho}{2\epsilon} x^2 - \frac{\rho}{\epsilon} x_{\mathrm{dep}} x + V_{\mathrm{readout}} & x\leq x_{\mathrm{dep}} \\
                   V_{\mathrm{bias}} & x > x_{\mathrm{dep}}
             \end{array}
             \right.
 
-        with :math:`x_{\mathrm{dep}} = D \cdot\sqrt{\frac{V_{\mathrm{readout}} - V_{\mathrm{bias}}}{V_{\mathrm{dep}}}}`
+        with :math:`x_{\mathrm{dep}} = \sqrt{\frac{2\epsilon}{\rho}(V_{\mathrm{readout}} - V_{\mathrm{bias})}}`
 
+        If the sensor is fully depleted (:math:`x_{\mathrm{dep}} > D`) only :math:`\Phi_p` has to be solved with the following boundary conditions:
+        
+        1. .. math:: \Phi_p(0) = V_{\mathrm{readout}}
+        2. .. math:: \Phi_p(D) = V_{\mathrm{bias}}
 
+        The following simultaneous equations follow:
+        
+        1. .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}}
+        2. .. math:: \Phi_p(D) = \frac{\rho}{2\epsilon} D^2 + \mathrm{const_{p,1}} D + V_{\mathrm{readout}} = V_{\mathrm{bias}}
+          
+        With the solution:
+          
+          .. math::
+        
+             \Phi(x) = \frac{\rho}{2\epsilon} x^2 + \left(\frac{V_{\mathrm{bias}} - V_{\mathrm{readout}}}{D} - \frac{\rho}{2\epsilon} D\right) x + V_{\mathrm{readout}}
+             
+        For the generell solution follows:
+        
+        .. math::
+
+            \Phi(x) = 
+            \left\{ 
+            \begin{array}{ll}
+                  \frac{\rho}{2\epsilon} x^2 - \frac{\rho}{\epsilon} x_{\mathrm{dep}} x + V_{\mathrm{readout}} & x_{\mathrm{dep}} \leq D, x\leq x_{\mathrm{dep}} \\
+                  V_{\mathrm{bias}} & x_{\mathrm{dep}} \leq D, x > x_{\mathrm{dep}} \\
+                  \frac{\rho}{2\epsilon} x^2 + \left(\frac{V_{\mathrm{bias}} - V_{\mathrm{readout}}}{D} - \frac{\rho}{2\epsilon} D\right) x + V_{\mathrm{readout}} & x_{\mathrm{dep}} > D \\
+                  \frac{\rho}{2\epsilon} x^2 - \frac{\rho}{2\epsilon} D \left(\frac{x_{\mathrm{dep}}^2}{D^2} + 1\right) x + V_{\mathrm{readout}} & x_{\mathrm{dep}} > D
+            \end{array}
+            \right.     
+             
+        with :math:`x_{\mathrm{dep}} = \sqrt{\frac{2\epsilon}{\rho}(V_{\mathrm{readout}} - V_{\mathrm{bias})}}`
+             
     """
 
-    # FIXME: for testing
-    V_dep = n_eff / (2. * epsilon) * D ** 2
-
-    V = np.ones_like(x) * V_bias
-
-#     x_dep = D * np.sqrt((V_readout - V_bias) / V_dep)
     
-    print 'V_dep', V_dep
-    print 'x_dep', x_dep
-
-    V[x <= x_dep] = V_dep / D ** 2 * x ** 2 - 2 * V_dep / D * x + V_readout
+    epsilon = 1.
+    x_dep = np.sqrt(2. * epsilon / n_eff * (V_readout - V_bias))
+    
+    # Init result array
+    V = np.ones_like(x) * V_bias
+    
+    if x_dep <= D:  # Underdepleted case
+        # Set spacecharge region only since not depleted area is already at V_bias
+        V[x <= x_dep] = n_eff / (2. * epsilon) * x[x <= x_dep] ** 2 - n_eff / epsilon * x_dep * x[x <= x_dep] + V_readout
+    else:  # Full depleted case
+        V = n_eff / (2. * epsilon) * x ** 2 - n_eff / (2. * epsilon) * D * (x_dep ** 2 / D ** 2 + 1) * x + V_readout
 
     return V
 
