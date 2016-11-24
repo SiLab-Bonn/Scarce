@@ -27,11 +27,11 @@ nx = L / dx
 n_eff = 1. # 0.02
 # raise
 
-V_bias = -1.
+V_bias = -0.5
 
 V_read = -0
 
-Vbias = None
+
 depletion_depth = L / 1.
 
 mesh = fipy.Grid1D(dx=np.ones((nx,)) * dx, nx=nx)
@@ -47,7 +47,7 @@ L = X.max()
 potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
 
 permittivity = 1.
-
+epsilon = permittivity
 
 electrons = fipy.CellVariable(mesh=mesh, name='e-')
 electrons.valence = -1
@@ -62,10 +62,11 @@ charge.name = "charge"
 potential.equation = (fipy.DiffusionTerm(coeff=permittivity) + charge == 0)
 
 potential.constrain(V_read, mesh.facesLeft)
-potential.constrain(V_bias, mesh.facesRight)
 
-# if Vbias is not None:
-#     potential.constrain(Vbias, mesh.facesRight)
+x_dep = np.sqrt(2. * epsilon / n_eff * (V_read - V_bias))
+
+if x_dep >= L:
+    potential.constrain(V_bias, mesh.facesRight)
 
 potential.equation.solve(var=potential)
 
@@ -74,7 +75,7 @@ analytical = fipy.CellVariable(mesh=mesh, name="analytical solution")
 
 def analytic_solution(x):
 
-    return n_eff / (2. * permittivity) * (x ** 2) - n_eff / (permittivity) * L * x
+    return n_eff / (2. * permittivity) * (x ** 2) - n_eff / (permittivity) * x_dep * x
 
     return (x ** 2) / 2 - 2 * x
 
@@ -93,7 +94,7 @@ def a_sol(x, V_bias, V_dep, x_dep, D, V_read=0.):
 import matplotlib.pyplot as plt
 
 
-epsilon = permittivity
+
 x_dep = depletion_depth
 
 V_dep = n_eff / (2. * epsilon) * x_dep
@@ -101,10 +102,10 @@ print V_dep
 
 V = a_sol(X, V_bias=V_bias, V_dep=V_dep, x_dep=x_dep, D=L, V_read=V_read)
 
-V_2 = fields.get_potential_planar_analytic(X, V_bias=V_bias, V_readout=V_read, epsilon=epsilon, n_eff=n_eff, x_dep=L, D=L)
-
-plt.plot(X, V, '--', label='analytic')
-
+V_2 = fields.get_potential_planar_analytic(X, V_bias=V_bias, V_readout=V_read, epsilon=epsilon, n_eff=n_eff, D=L)
+V_3 = analytic_solution(X)
+# plt.plot(X, V, '--', label='analytic')
+# plt.plot(X, V_3, '--', label='analytic old')
 plt.plot(X, V_2, '--', label='analytic new')
 print mesh.getFaceCenters().shape
 plt.plot(np.array(mesh.getFaceCenters()[0, :]), np.array(potential.arithmeticFaceValue()), '-', label='numeric')
