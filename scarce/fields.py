@@ -391,7 +391,7 @@ def get_weighting_field_analytic(x, y, D, S, is_planar=True):
         return -E_x, -E_y
 
 
-def get_potential_planar_analytic(x, V_bias, V_readout, epsilon, n_eff, D):
+def get_potential_planar_analytic_1D(x, V_bias, V_readout, n_eff, D):
     r""" Calculates the potential in the depletion zone of a planar sensor.
 
         Parameters
@@ -407,9 +407,6 @@ def get_potential_planar_analytic(x, V_bias, V_readout, epsilon, n_eff, D):
 
         n_eff : number
             Effective doping concetration in :math:`\mathrm{cm^{-3}}`
-
-        x_dep : number
-            Depletion zone width in :math:`\mathrm{\mu m}`.
 
         D : number
             Thickness of the sensor in :math:`\mathrm{\mu m}`
@@ -447,8 +444,8 @@ def get_potential_planar_analytic(x, V_bias, V_readout, epsilon, n_eff, D):
 
           .. math::
 
-            \Phi(x) = 
-            \left\{ 
+            \Phi(x) =
+            \left\{
             \begin{array}{ll}
                   \frac{\rho}{2\epsilon} x^2 - \frac{\rho}{\epsilon} x_{\mathrm{dep}} x + V_{\mathrm{readout}} & x\leq x_{\mathrm{dep}} \\
                   V_{\mathrm{bias}} & x > x_{\mathrm{dep}}
@@ -458,63 +455,52 @@ def get_potential_planar_analytic(x, V_bias, V_readout, epsilon, n_eff, D):
         with :math:`x_{\mathrm{dep}} = \sqrt{\frac{2\epsilon}{\rho}(V_{\mathrm{readout}} - V_{\mathrm{bias})}}`
 
         If the sensor is fully depleted (:math:`x_{\mathrm{dep}} > D`) only :math:`\Phi_p` has to be solved with the following boundary conditions:
-        
+
         1. .. math:: \Phi_p(0) = V_{\mathrm{readout}}
         2. .. math:: \Phi_p(D) = V_{\mathrm{bias}}
 
         The following simultaneous equations follow:
-        
+
         1. .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}}
         2. .. math:: \Phi_p(D) = \frac{\rho}{2\epsilon} D^2 + \mathrm{const_{p,1}} D + V_{\mathrm{readout}} = V_{\mathrm{bias}}
-          
+
         With the solution:
-          
+
           .. math::
-        
+
              \Phi(x) = \frac{\rho}{2\epsilon} x^2 + \left(\frac{V_{\mathrm{bias}} - V_{\mathrm{readout}}}{D} - \frac{\rho}{2\epsilon} D\right) x + V_{\mathrm{readout}}
-             
+
         For the generell solution follows:
-        
+
         .. math::
 
-            \Phi(x) = 
-            \left\{ 
+            \Phi(x) =
+            \left\{
             \begin{array}{ll}
                   \frac{\rho}{2\epsilon} x^2 - \frac{\rho}{\epsilon} x_{\mathrm{dep}} x + V_{\mathrm{readout}} & x_{\mathrm{dep}} \leq D, x\leq x_{\mathrm{dep}} \\
                   V_{\mathrm{bias}} & x_{\mathrm{dep}} \leq D, x > x_{\mathrm{dep}} \\
-                  \frac{\rho}{2\epsilon} x^2 + \left(\frac{V_{\mathrm{bias}} - V_{\mathrm{readout}}}{D} - \frac{\rho}{2\epsilon} D\right) x + V_{\mathrm{readout}} & x_{\mathrm{dep}} > D \\
                   \frac{\rho}{2\epsilon} x^2 - \frac{\rho}{2\epsilon} D \left(\frac{x_{\mathrm{dep}}^2}{D^2} + 1\right) x + V_{\mathrm{readout}} & x_{\mathrm{dep}} > D
             \end{array}
-            \right.     
-             
+            \right.
+
         with :math:`x_{\mathrm{dep}} = \sqrt{\frac{2\epsilon}{\rho}(V_{\mathrm{readout}} - V_{\mathrm{bias})}}`
-             
+
     """
 
-    
-    epsilon = 1.
-    x_dep = np.sqrt(2. * epsilon / n_eff * (V_readout - V_bias))
-    
+    rho = n_eff * constants.elementary_charge * 1e-6  # from n_eff in cm^3 to n_eff in m^3
+
+    x_dep = np.sqrt(2. * constant.epsilon_s / rho * (V_readout - V_bias))
+
     # Init result array
     V = np.ones_like(x) * V_bias
-    
+
     if x_dep <= D:  # Underdepleted case
         # Set spacecharge region only since not depleted area is already at V_bias
-        V[x <= x_dep] = n_eff / (2. * epsilon) * x[x <= x_dep] ** 2 - n_eff / epsilon * x_dep * x[x <= x_dep] + V_readout
+        V[x <= x_dep] = rho / (2. * constant.epsilon_s) * x[x <= x_dep] ** 2 - rho / constant.epsilon_s * x_dep * x[x <= x_dep] + V_readout
     else:  # Full depleted case
-        V = n_eff / (2. * epsilon) * x ** 2 - n_eff / (2. * epsilon) * D * (x_dep ** 2 / D ** 2 + 1) * x + V_readout
+        V = rho / (2. * constant.epsilon_s) * x ** 2 - rho / (2. * constant.epsilon_s) * D * (x_dep ** 2 / D ** 2 + 1) * x + V_readout
 
     return V
-
-
-def get_potential_planar_analytic_old(x, V_bias, V_readout, n_eff, x_dep, D):
-    V_dep = silicon.get_depletion_voltage(n_eff, x_dep)  # Depletion voltage
-
-    x = x[::-1]
-
-    a = (V_bias - V_dep) / x_dep
-    b = -2. * V_dep / (x_dep ** 2)
-    return (a - b / 2 * x) * x
 
 
 def get_electric_field_analytic(x, y, V_bias, n_eff, D, S=None, is_planar=True):
