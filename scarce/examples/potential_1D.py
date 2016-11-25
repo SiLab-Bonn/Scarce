@@ -35,17 +35,17 @@ def calculate_potential(mesh, rho, epsilon, L, V_read, V_bias, x_dep):
     charge = electrons * electrons.valence
     charge.name = "charge"
 
-    if x_dep >= L:  # Full depleted sensor
-        potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) + charge == 0)
-        potential.constrain(V_read, mesh.facesLeft)
-        potential.constrain(V_bias, mesh.facesRight)
-    else:  # Partially depleted sensor
-        # A depletion zone within the bulk requires an internal boundary condition
-        # http://www.ctcms.nist.gov/fipy/documentation/USAGE.html#applying-internal-boundary-conditions
-        large_value = 1e+15
-        mask = mesh.x > x_dep
-        potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) - fipy.ImplicitSourceTerm(mask * large_value) + mask * large_value * V_bias + charge == 0)
-        potential.constrain(V_read, mesh.facesLeft)
+    # A depletion zone within the bulk requires an internal boundary condition
+    # Internal boundary conditions seem to challenge fipy, see:
+    # http://www.ctcms.nist.gov/fipy/documentation/USAGE.html#applying-internal-boundary-conditions
+
+    large_value = 1e+15  # Hack for optimizer
+
+    mask = mesh.x > x_dep
+    potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) - fipy.ImplicitSourceTerm(mask * large_value) + mask * large_value * V_bias + charge == 0)
+
+    potential.constrain(V_read, mesh.facesLeft)
+    potential.constrain(V_bias, mesh.facesRight)
 
     potential.equation.solve(var=potential)
 
