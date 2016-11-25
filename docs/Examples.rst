@@ -29,9 +29,6 @@ The mesh size determines the quality of the numerical result and can be changed 
 .. image:: _static/Example_1D_potential_partially_depleted.png
 .. image:: _static/Example_1D_potential_fully_depleted.png
 
-:: NOTE:
-   The determination of the depletion zone is not straight forward with the available solvers.
-
 Silicon propteries
 =========================================
 .. automodule:: scarce.examples.plot_properties
