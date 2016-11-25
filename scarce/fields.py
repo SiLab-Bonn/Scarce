@@ -64,9 +64,9 @@ class Description(object):
         numerical instabilities.
     '''
 
-    def __init__(self, potential, min_x, max_x, min_y, max_y, nx=200, ny=200, smoothing=0.1):
+    def __init__(self, potential, min_x, max_x, min_y, max_y, nx=202, ny=200, smoothing=0.1):
         self.potential_data = potential
-        self.potential_grid = self.interpolate_potential(self.potential_data)
+        self.potential_grid_inter = self.interpolate_potential(self.potential_data)
         self.smoothing = smoothing
 
         # Do not calculate field on init, since it is time consuming
@@ -80,6 +80,10 @@ class Description(object):
 
         # Create x,y plot grid
         self._xx, self._yy = np.meshgrid(self._x, self._y, sparse=True)
+
+        # Potential on a grid with Nan set to closest correct value
+        self.potential_grid = self.potential_grid_inter(self._xx, self._yy)
+        self.potential_grid = self._interpolate_nan(self.potential_grid)
 
     def interpolate_potential(self, potential=None):
         ''' Interpolates the potential on a grid.
@@ -100,8 +104,20 @@ class Description(object):
 
         return grid_interpolator
 
+    def get_potential_minimum(self, axis=None):
+        ''' Returns the minimum potential value
+        '''
+        return self.potential_grid.min(axis=axis)
+
+    def get_potential_minimum_pos_y(self):
+        ''' Returns the position in the array with
+            the potential minimum
+        '''
+
+        return self._y[np.argmin(self.potential_grid, axis=0)]
+
     def get_potential(self, x, y):
-        return self.potential_grid(x, y)
+        return self.potential_grid_inter(x, y)
 
     def get_potential_smooth(self, x, y):
         if self.potential_smooth is None:
@@ -126,22 +142,8 @@ class Description(object):
         if not smoothing:
             smoothing = self.smoothing
 
-        def interpolate_nan(a):
-            ''' Fills nans with closest non nan value.
-            Might not work for multi dimensional arrays. :TODO:
-            '''
-            mask = np.isnan(a)
-            a[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), a[~mask])
-            return a
-
-        # Interpolate potential on the grid
-        potential_grid = self.potential_grid(self._xx, self._yy)
-
-        # Fill nans otherwise Spline interpolations fails without error...
-        potential_grid = interpolate_nan(potential_grid)
-
         # Smooth on the interpolated grid
-        self.potential_smooth = RectBivariateSpline(self._xx, self._yy, potential_grid.T, s=smoothing, kx=3, ky=3)
+        self.potential_smooth = RectBivariateSpline(self._xx, self._yy, self.potential_grid.T, s=smoothing, kx=3, ky=3)
 
     def _derive_field(self):
         ''' Takes the potential to calculate the field in x, y
@@ -157,6 +159,14 @@ class Description(object):
         # Create spline interpolators for E_x,E_y
         self.field_x = RectBivariateSpline(self._x, self._y, E_x, s=0, kx=2, ky=2)
         self.field_y = RectBivariateSpline(self._x, self._y, E_y, s=0, kx=2, ky=2)
+
+    def _interpolate_nan(self, a):
+        ''' Fills nans with closest non nan value.
+        Might not work well for multi dimensional arrays. :TODO:
+        '''
+        mask = np.isnan(a)
+        a[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), a[~mask])
+        return a
 
 
 def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
@@ -197,51 +207,109 @@ def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
     return potential
 
 
-def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_eff):
+def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_eff, V_bias, V_readout):
     ''' Calculates the weighting field of a planar sensor.
     '''
     logging.info('Calculating weighting potential')
+
     # Mesh validity check
-    mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
+    min_x = float(mesh.getFaceCenters()[0, :].min())
+    max_x = float(mesh.getFaceCenters()[0, :].max())
+    min_y = float(mesh.getFaceCenters()[1, :].min())
+    max_y = float(mesh.getFaceCenters()[1, :].max())
+
+    mesh_width = max_x - min_x
 
     if mesh_width != width * n_pixel:
         raise ValueError('The provided mesh width does not correspond to the sensor width')
 
-    if mesh.getFaceCenters()[1, :].min() != 0:
+    if min_y != 0:
         raise ValueError('The provided mesh does not start at 0.')
 
-    if mesh.getFaceCenters()[1, :].max() != thickness:
+    if max_y != thickness:
         raise ValueError('The provided mesh does not end at sensor thickness.')
 
-    potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
-    electrons = fipy.CellVariable(mesh=mesh, name='e-')
-    electrons.valence = -1
-    charge = electrons * electrons.valence
-    charge.name = "charge"
+    def calculate_potential(mesh, rho, epsilon, L, V_read, V_bias, x_dep):
+        potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
+        electrons = fipy.CellVariable(mesh=mesh, name='e-')
+        electrons.valence = -1
+        charge = electrons * electrons.valence
+        charge.name = "charge"
 
-    # Uniform charge distribution by setting a uniform concentration of electrons = 1
-    electrons.setValue(n_eff)
+        # Uniform charge distribution by setting a uniform concentration of electrons = 1
+        electrons.setValue(rho_scale)
+        potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) + charge == 0.)
 
-    permittivity = constant.epsilon_s / 100.  # to F/cm
+        # Calculate boundaries
+        backplane = mesh.getFacesTop()
+        readout_plane = mesh.getFacesBottom()
 
-    potential.equation = (fipy.DiffusionTerm(coeff=permittivity) + charge == 0.)
+        electrodes = readout_plane
+        bcs = [fipy.FixedValue(value=V_bias, faces=backplane)]
+        X, _ = mesh.getFaceCenters()
+        for pixel in range(n_pixel):
+            pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
+            bcs.append(fipy.FixedValue(value=V_readout if pixel_position == 0. else 0.,
+                                       faces=electrodes &
+                                       (X > pixel_position - pitch / 2.) &
+                                       (X < pixel_position + pitch / 2.)))
 
-    # Calculate boundaries
-    backplane = mesh.getFacesTop()
-    readout_plane = mesh.getFacesBottom()
+        potential.equation.solve(var=potential, boundaryConditions=bcs)
+        return potential
 
-    electrodes = readout_plane
-    bcs = [fipy.FixedValue(value=0., faces=backplane)]
-    X, _ = mesh.getFaceCenters()
-    for pixel in range(n_pixel):
-        pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
-        bcs.append(fipy.FixedValue(value=1. if pixel_position == 0. else 0.,
-                                   faces=electrodes &
-                                   (X > pixel_position - pitch / 2.) &
-                                   (X < pixel_position + pitch / 2.)))
+    def get_potential(mesh, rho, epsilon, L, V_read, V_bias, max_iter=10):
+        r''' Solves the poisson equation for different depletion depths until the minimum
+        potential equals the bias potential. At this point the depletion width is correctly
+        calculated.
+        '''
+        x_dep_new = L  # Start with full depletion assumption
+        for i in range(max_iter):
+            potential = calculate_potential(mesh,
+                                            rho=rho,
+                                            epsilon=epsilon,
+                                            L=L,
+                                            V_read=V_read,
+                                            V_bias=V_bias,
+                                            x_dep=x_dep_new)
 
-    potential.equation.solve(var=potential, boundaryConditions=bcs)
-    return potential
+            X, Y = mesh.getFaceCenters()
+
+            x_dep_new = X[np.where(potential == potential.min())][0]
+
+            description = Description(potential,
+                                      min_x=min_x,
+                                      max_x=max_x,
+                                      min_y=min_y,
+                                      max_y=max_y)
+
+            print description.get_potential_minimum(axis=0)
+            print description.get_potential_minimum(axis=0).shape
+
+            print description.get_potential_minimum_pos_y().shape
+
+            print description.get_potential_minimum_pos_y()
+
+            return potential
+
+            if (i == 0 and np.allclose(potential.min(), V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential.min(), V_bias)):
+                return potential
+
+        raise RuntimeError('Depletion region in underdepleted sensor could not be determined')
+
+    # The field scales with rho / epsilon, thus scale to proper value to
+    # counteract numerical instabilities
+    rho = constants.elementary_charge * n_eff * (1e-4) ** 3  # Charge density in C / um3
+    epsilon = constant.epsilon_s * 1e-6  # Permitticity of silicon in F/um
+    epsilon_scaled = 1.
+    rho_scale = rho / epsilon
+
+    return get_potential(mesh,
+                         rho=rho_scale,
+                         epsilon=epsilon_scaled,
+                         L=thickness,
+                         V_read=V_readout,
+                         V_bias=V_bias,
+                         max_iter=10)
 
 
 def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y, radius, resolution, nD=2):
