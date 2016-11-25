@@ -73,7 +73,6 @@ class Test(unittest.TestCase):
                 # Analytical solution only existing for pixel width = readout pitch (100% fill factor)
                 pitch = width
 
-                print 'width, thickness', width, thickness
                 geometry.mesh_planar_sensor(
                     n_pixel=n_pixel,
                     width=width,
@@ -112,6 +111,7 @@ class Test(unittest.TestCase):
                 pot_analytic = potential_analytic(xx, yy)
                 pot_numeric = potential_description.get_potential(xx, yy)
 
+#                 import matplotlib.pyplot as plt
 #                 for i in [0, 10, 15, 30, 45]:
 #                     plt.plot(y, pot_analytic.T[nx / 2 + i, :], label='Analytic')
 #                 for i in [0, 10, 15, 30, 45]:
@@ -157,21 +157,21 @@ class Test(unittest.TestCase):
         x = np.linspace(min_x, max_x, nx)
         y = np.linspace(min_y, max_y, ny)
         xx, yy = np.meshgrid(x, y, sparse=True)
-        
-        field_description = fields.Description(potential, 
-                                               min_x=min_x, 
-                                               max_x=max_x, 
-                                               min_y=min_y, 
-                                               max_y=max_y, 
-                                               nx=nx, 
-                                               ny=ny, 
+
+        field_description = fields.Description(potential,
+                                               min_x=min_x,
+                                               max_x=max_x,
+                                               min_y=min_y,
+                                               max_y=max_y,
+                                               nx=nx,
+                                               ny=ny,
                                                smoothing=0.2)
 
         def field_analytic(x, y):
             return fields.get_weighting_field_analytic(x, y, D=thickness, S=width, is_planar=True)
 
         # Evaluate field on a grid
-        f_analytic_x, f_analytic_y = field_analytic(xx, yy)        
+        f_analytic_x, f_analytic_y = field_analytic(xx, yy)
         f_numeric_x, f_numeric_y = field_description.get_field(xx, yy)
 
         for i in [-45, -30, -15, -10, 0, 10, 15, 30, 45]:  # Check only at center pixel, edge pixel are not interessting
