@@ -7,7 +7,7 @@ from scarce.testing import tools
 from scarce import fields, geometry
 
 
-class Test(unittest.TestCase):
+class TestFields(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):

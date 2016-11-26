@@ -5,7 +5,7 @@ import meshio
 from scarce import geometry
 
 
-class Test(unittest.TestCase):
+class TestGeometry(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):

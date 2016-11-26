@@ -4,7 +4,7 @@ import os
 from scarce import plot, fields
 
 
-class Test(unittest.TestCase):
+class TestPlotting(unittest.TestCase):
 
     def setUp(self):
         if os.getenv('TRAVIS', False):

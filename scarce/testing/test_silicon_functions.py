@@ -8,7 +8,7 @@ from scarce import silicon
 from scarce.testing import tools
 
 
-class Test(unittest.TestCase):
+class TestSilicon(unittest.TestCase):
 
     def test_depletion_depth(self):
         self.assertTrue(tools.check_with_fixture(silicon.get_depletion_depth,
