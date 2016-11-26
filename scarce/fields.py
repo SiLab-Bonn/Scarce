@@ -245,8 +245,7 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
         # http://www.ctcms.nist.gov/fipy/documentation/USAGE.html#applying-internal-boundary-conditions
     
         large_value = 1e+15  # Hack for optimizer
-    
-        print 'x_dep[0]',x_dep[0]
+
         mask = mesh.y > x_dep[0]
         potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) - fipy.ImplicitSourceTerm(mask * large_value) + mask * large_value * V_bias + charge == 0)
         
@@ -269,16 +268,16 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
         solver.solve(potential, equation=potential.equation, boundaryConditions=bcs)
         return potential
 
-    def get_potential(mesh, rho, epsilon, L, V_read, V_bias, max_iter=10):
+    def get_potential(max_iter):
         r''' Solves the poisson equation for different depletion depths until the minimum
         potential equals the bias potential. At this point the depletion width is correctly
         calculated.
         '''
         
         nx = 202
-        x_dep_new = np.ones(shape=(nx,)) * L # Start with full depletion assumption
+        x_dep = np.ones(shape=(nx,)) * thickness # Start with full depletion assumption
         for i in range(max_iter):
-            potential = calculate_potential(x_dep=x_dep_new)
+            potential = calculate_potential(x_dep=x_dep)
 
             X, Y = mesh.getFaceCenters()
 
@@ -288,9 +287,6 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
                                       min_y=min_y,
                                       max_y=max_y)
 
-            potential_min = description.get_potential_minimum()
-            x_dep_new = description.get_potential_minimum_pos_y()
-
             import matplotlib.pyplot as plt
             y = np.linspace(0, thickness, 100)
             plt.plot(y, description.get_potential(np.zeros_like(y), y), '-', label='Pot, Numerical solution')
@@ -299,8 +295,13 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
             plt.legend(loc=0)
             plt.show()
 
-            if (i == 0 and np.allclose(potential_min, V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential_min, V_bias)):
+            potential_min = description.get_potential_minimum()
+            x_dep_new = description.get_potential_minimum_pos_y()
+
+            if (i == 0 and np.allclose(potential_min, V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential_min, V_bias)) or x_dep_new[0] > x_dep[0]:
                 return potential
+
+            x_dep = x_dep_new
 
         raise RuntimeError('Depletion region in underdepleted sensor could not be determined')
 
@@ -311,16 +312,10 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
     epsilon_scaled = 1.
     rho_scale = rho / epsilon
 
-    return get_potential(mesh,
-                         rho=rho_scale,
-                         epsilon=epsilon_scaled,
-                         L=thickness,
-                         V_read=V_readout,
-                         V_bias=V_bias,
-                         max_iter=10)
+    return get_potential(max_iter=10)
     
 
-def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y, radius, resolution, nD=2):
+def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y, radius, nD=2):
     logging.info('Calculating weighting potential')
 
     # Mesh validity check
