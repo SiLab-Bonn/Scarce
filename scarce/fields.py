@@ -53,6 +53,7 @@ from scipy import constants
 from scarce import silicon
 from scarce import geometry
 from scarce import constant
+from scarce import solver
 
 
 class Description(object):
@@ -203,7 +204,7 @@ def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
                                    (X > pixel_position - pitch / 2.) &
                                    (X < pixel_position + pitch / 2.)))
 
-    potential.equation.solve(var=potential, boundaryConditions=bcs)
+    solver.solve(potential, equation=potential.equation, boundaryConditions=bcs)
     return potential
 
 
@@ -229,7 +230,7 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
     if max_y != thickness:
         raise ValueError('The provided mesh does not end at sensor thickness.')
 
-    def calculate_potential(mesh, rho, epsilon, L, V_read, V_bias, x_dep):
+    def calculate_potential(x_dep):
         potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
         electrons = fipy.CellVariable(mesh=mesh, name='e-')
         electrons.valence = -1
@@ -238,7 +239,18 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
 
         # Uniform charge distribution by setting a uniform concentration of electrons = 1
         electrons.setValue(rho_scale)
-        potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) + charge == 0.)
+        
+        # A depletion zone within the bulk requires an internal boundary condition
+        # Internal boundary conditions seem to challenge fipy, see:
+        # http://www.ctcms.nist.gov/fipy/documentation/USAGE.html#applying-internal-boundary-conditions
+    
+        large_value = 1e+15  # Hack for optimizer
+    
+        print 'x_dep[0]',x_dep[0]
+        mask = mesh.y > x_dep[0]
+        potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) - fipy.ImplicitSourceTerm(mask * large_value) + mask * large_value * V_bias + charge == 0)
+        
+        # potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) + charge == 0.)
 
         # Calculate boundaries
         backplane = mesh.getFacesTop()
@@ -254,7 +266,7 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
                                        (X > pixel_position - pitch / 2.) &
                                        (X < pixel_position + pitch / 2.)))
 
-        potential.equation.solve(var=potential, boundaryConditions=bcs)
+        solver.solve(potential, equation=potential.equation, boundaryConditions=bcs)
         return potential
 
     def get_potential(mesh, rho, epsilon, L, V_read, V_bias, max_iter=10):
@@ -262,19 +274,13 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
         potential equals the bias potential. At this point the depletion width is correctly
         calculated.
         '''
-        x_dep_new = L  # Start with full depletion assumption
+        
+        nx = 202
+        x_dep_new = np.ones(shape=(nx,)) * L # Start with full depletion assumption
         for i in range(max_iter):
-            potential = calculate_potential(mesh,
-                                            rho=rho,
-                                            epsilon=epsilon,
-                                            L=L,
-                                            V_read=V_read,
-                                            V_bias=V_bias,
-                                            x_dep=x_dep_new)
+            potential = calculate_potential(x_dep=x_dep_new)
 
             X, Y = mesh.getFaceCenters()
-
-            x_dep_new = X[np.where(potential == potential.min())][0]
 
             description = Description(potential,
                                       min_x=min_x,
@@ -282,16 +288,18 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
                                       min_y=min_y,
                                       max_y=max_y)
 
-            print description.get_potential_minimum(axis=0)
-            print description.get_potential_minimum(axis=0).shape
+            potential_min = description.get_potential_minimum()
+            x_dep_new = description.get_potential_minimum_pos_y()
 
-            print description.get_potential_minimum_pos_y().shape
+            import matplotlib.pyplot as plt
+            y = np.linspace(0, thickness, 100)
+            plt.plot(y, description.get_potential(np.zeros_like(y), y), '-', label='Pot, Numerical solution')
+            plt.plot(y, description.get_potential_smooth(0., y)[:, 0], '--', label='Pot, Numerical solution smooth')
+            plt.plot([description.get_potential_minimum_pos_y()[50], description.get_potential_minimum_pos_y()[50]], plt.ylim()) 
+            plt.legend(loc=0)
+            plt.show()
 
-            print description.get_potential_minimum_pos_y()
-
-            return potential
-
-            if (i == 0 and np.allclose(potential.min(), V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential.min(), V_bias)):
+            if (i == 0 and np.allclose(potential_min, V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential_min, V_bias)):
                 return potential
 
         raise RuntimeError('Depletion region in underdepleted sensor could not be determined')
@@ -310,7 +318,7 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
                          V_read=V_readout,
                          V_bias=V_bias,
                          max_iter=10)
-
+    
 
 def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y, radius, resolution, nD=2):
     logging.info('Calculating weighting potential')
@@ -365,7 +373,7 @@ def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y
         ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
         bcs.append(fipy.FixedValue(value=0., faces=ring))
 
-    potential.equation.solve(var=potential, boundaryConditions=bcs)
+    solver.solve(potential, equation=potential.equation, boundaryConditions=bcs)
     return potential
 
 
