@@ -10,7 +10,7 @@ import numpy as np
 import fipy
 import matplotlib.pyplot as plt
 
-from scarce import constant, fields, silicon
+from scarce import constant, fields, silicon, solver
 from scipy import constants
 
 
@@ -46,8 +46,8 @@ def calculate_potential(mesh, rho, epsilon, L, V_read, V_bias, x_dep):
 
     potential.constrain(V_read, mesh.facesLeft)
     potential.constrain(V_bias, mesh.facesRight)
-
-    potential.equation.solve(var=potential)
+    
+    solver.solve(potential, equation=potential.equation)
 
     return potential
 
@@ -70,7 +70,7 @@ def get_potential(mesh, rho, epsilon, L, V_read, V_bias, max_iter=10):
         X = np.array(mesh.getFaceCenters()[0, :])
         x_dep_new = X[np.where(potential == potential.min())][0]
 
-        if (i == 0 and np.allclose(potential.min(), V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential.min(), V_bias)):
+        if (i == 0 and np.allclose(potential.min(), V_bias, rtol=1.e-3)) or (i > 0 and np.allclose(potential.min(), V_bias)):
             return potential
 
     raise RuntimeError('Depletion region in underdepleted sensor could not be determined')
