@@ -37,7 +37,7 @@ For more information visit: https://www.continuum.io/downloads
 
    conda install numpy pytables scipy matplotlib
 
-4. Install dependencies:
+4. Install sparse matrix solver (optional, increases speed):
 
 .. code-block:: bash
 
