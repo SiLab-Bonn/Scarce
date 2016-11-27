@@ -142,9 +142,19 @@ class Description(object):
 
         if not smoothing:
             smoothing = self.smoothing
+            
+        # Scale potential to make interpolation independent of bias
+        v_min = np.nanmin(self.potential_grid)
+        v_max = np.nanmax(self.potential_grid)
+        
+        # Scale potential to be within 0 .. 1
+        potential_scaled = (self.potential_grid - v_min) / (v_max - v_min)
+        
+        def interpolator(x, y):
+            return RectBivariateSpline(self._xx, self._yy, potential_scaled.T, s=smoothing, kx=3, ky=3)(x, y) * (v_max - v_min) + v_min
 
         # Smooth on the interpolated grid
-        self.potential_smooth = RectBivariateSpline(self._xx, self._yy, self.potential_grid.T, s=smoothing, kx=3, ky=3)
+        self.potential_smooth = interpolator
 
     def _derive_field(self):
         ''' Takes the potential to calculate the field in x, y
@@ -298,10 +308,13 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
             potential_min = description.get_potential_minimum()
             x_dep_new = description.get_potential_minimum_pos_y()
 
-            if (i == 0 and np.allclose(potential_min, V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential_min, V_bias)) or x_dep_new[0] > x_dep[0]:
+            if (i == 0 and np.allclose(potential_min, V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential_min, V_bias)) or x_dep_new[0] >= x_dep[0]:
+                potential.depletion = x_dep
                 return potential
 
-            x_dep = x_dep_new
+            # Set the new depletion depth, can only be smaller
+            # Otherwise numerical instability
+            x_dep[x_dep_new < x_dep] = x_dep_new[x_dep_new < x_dep]
 
         raise RuntimeError('Depletion region in underdepleted sensor could not be determined')
 
