@@ -30,15 +30,14 @@ class SensorCanvas(FigureCanvas):
         n_pixel_x, n_pixel_y = 3, 3
         radius, nD = 6., 2
         resolution = 10
-        points, cells = geometry.mesh_3D_sensor(width_x=width_x,
+        mesh = geometry.mesh_3D_sensor(width_x=width_x,
                                                 width_y=width_y,
                                                 n_pixel_x=n_pixel_x,
                                                 n_pixel_y=n_pixel_y,
                                                 radius=radius,
                                                 nD=nD,
                                                 resolution=resolution)
-        mio.write('sensor.msh', points, cells)
-        mesh = fipy.GmshImporter2D('sensor.msh')
+
         plot.get_3D_sensor_plot(fig=fig, width_x=width_x,
                                 width_y=width_y,
                                 radius=radius,
