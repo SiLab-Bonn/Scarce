@@ -31,7 +31,6 @@ def sensor_3D():
                                                        n_pixel_x,
                                                        n_pixel_y,
                                                        radius,
-                                                       resolution,
                                                        nD=nD)
 
     # Describe the 3D sensor array
