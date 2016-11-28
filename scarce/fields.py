@@ -47,7 +47,7 @@ import logging
 import fipy
 import numpy as np
 
-from scipy.interpolate import RectBivariateSpline, griddata
+from scipy.interpolate import interp1d, RectBivariateSpline, griddata
 from scipy import constants
 
 from scarce import silicon
@@ -76,10 +76,14 @@ class Description(object):
         self.field_x = None
         self.field_y = None
 
+        # Do not calculate depletion boundaries on init
+        # since it is time consuming and maybe not needed
+        self.depletion_region = None
+
         self._x = np.linspace(min_x, max_x, nx)
         self._y = np.linspace(min_y, max_y, ny)
 
-        # Create x,y plot grid
+        # Create sparse x,y plot grid
         self._xx, self._yy = np.meshgrid(self._x, self._y, sparse=True)
 
         # Potential on a grid with Nan set to closest correct value
@@ -117,6 +121,32 @@ class Description(object):
 
         return self._y[np.argmin(self.potential_grid, axis=0)]
 
+    def get_depletion(self, x):
+        ''' Returns the depletion boundary at x.
+            For planar sensors only!
+        '''
+        if not self.depletion_region:
+            try:
+                self.depletion_region = interp1d(x=self.potential_data.depletion[0],
+                                                 y=self.potential_data.depletion[1],
+                                                 kind='cubic'
+                                                 )
+            except AttributeError:
+                raise RuntimeError('The data does not have depletion information.')
+        return self.depletion_region(x)
+
+    def get_depletion_mask(self, x=None, y=None):
+        ''' Returns true for all points outside of the depletion zone
+        '''
+        if x is None or y is None:
+            x = self.potential_data.mesh.x
+            y = self.potential_data.mesh.y
+
+        mask = np.zeros_like(x, dtype=np.bool)
+        mask[y > self.get_depletion(x)] = True
+
+        return mask
+
     def get_potential(self, x, y):
         return self.potential_grid_inter(x, y)
 
@@ -142,14 +172,14 @@ class Description(object):
 
         if not smoothing:
             smoothing = self.smoothing
-            
+
         # Scale potential to make interpolation independent of bias
         v_min = np.nanmin(self.potential_grid)
         v_max = np.nanmax(self.potential_grid)
-        
+
         # Scale potential to be within 0 .. 1
         potential_scaled = (self.potential_grid - v_min) / (v_max - v_min)
-        
+
         def interpolator(x, y):
             return RectBivariateSpline(self._xx, self._yy, potential_scaled.T, s=smoothing, kx=3, ky=3)(x, y) * (v_max - v_min) + v_min
 
@@ -218,9 +248,44 @@ def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
     return potential
 
 
-def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_eff, V_bias, V_readout):
-    ''' Calculates the weighting field of a planar sensor.
+def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_eff, V_bias, V_readout, V_bi=0):
+    ''' Calculates the potential of a planar sensor.
+
+        Parameters
+        ----------
+        mesh : fipy.Gmsh2D
+               Mesh where to solve the issue
+
+        width : number
+            Width of one pixel in :math:`\mathrm{\mu m}`
+
+        pitch : number
+            The width of the readout electrode in :math:`\mathrm{\mu m}`
+
+        n_pixel : int
+            Number of pixels
+
+        thickness : number
+            Thickness of the sensor in :math:`\mathrm{\mu m}`
+
+        n_eff : number
+            Effective doping concentration in :math:`\mathrm{\frac{1}{cm^3}}`
+
+        V_bias : number
+            Bias voltage in Volt
+
+        V_readout : number
+            Readout voltage in Volt
+
+        V_bi : number
+            Build in voltage. Can be calculated by scarce.silicon.get_diffusion_potential
+
+        Notes
+        -----
+        So far the depletion zone in the case of a underdepleted sensor is only calculated
+        as a constant y boundary. This is wrong for pixels with low fill factor.
     '''
+
     logging.info('Calculating weighting potential')
 
     # Mesh validity check
@@ -240,7 +305,11 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
     if max_y != thickness:
         raise ValueError('The provided mesh does not end at sensor thickness.')
 
-    def calculate_potential(x_dep):
+    # Simply add build in potential to bias potential, although that might be not correct
+    # The analytic formular does it like this
+    V_bias += V_bi
+
+    def calculate_potential(depletion_mask=None, y_dep_new=None):
         potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
         electrons = fipy.CellVariable(mesh=mesh, name='e-')
         electrons.valence = -1
@@ -249,17 +318,19 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
 
         # Uniform charge distribution by setting a uniform concentration of electrons = 1
         electrons.setValue(rho_scale)
-        
+
         # A depletion zone within the bulk requires an internal boundary condition
         # Internal boundary conditions seem to challenge fipy, see:
         # http://www.ctcms.nist.gov/fipy/documentation/USAGE.html#applying-internal-boundary-conditions
-    
-        large_value = 1e+15  # Hack for optimizer
 
-        mask = mesh.y > x_dep[0]
-        potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) - fipy.ImplicitSourceTerm(mask * large_value) + mask * large_value * V_bias + charge == 0)
-        
-        # potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) + charge == 0.)
+        large_value = 1e+10  # Hack for optimizer
+
+        if depletion_mask is not None:
+            # FIXME: generic boundary not working
+            depletion_mask = np.logical_and(potential.mesh.y > y_dep_new[0], potential.mesh.y > y_dep_new[0])
+            potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) + charge * ~depletion_mask == fipy.ImplicitSourceTerm(depletion_mask * large_value) - depletion_mask * large_value * V_bias)
+        else:
+            potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) + charge == 0.)
 
         # Calculate boundaries
         backplane = mesh.getFacesTop()
@@ -283,38 +354,45 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
         potential equals the bias potential. At this point the depletion width is correctly
         calculated.
         '''
-        
-        nx = 202
-        x_dep = np.ones(shape=(nx,)) * thickness # Start with full depletion assumption
-        for i in range(max_iter):
-            potential = calculate_potential(x_dep=x_dep)
 
-            X, Y = mesh.getFaceCenters()
+        nx = 202
+        y_dep = np.ones(shape=(nx,)) * thickness  # Start with full depletion assumption
+        description = None
+
+        for i in range(max_iter):
+            # First solution with full depletion assumption
+            depletion_mask = None if i == 0 else description.get_depletion_mask()
+
+            potential = calculate_potential(depletion_mask=depletion_mask, y_dep_new=y_dep if i == 0 else y_dep_new)
 
             description = Description(potential,
                                       min_x=min_x,
                                       max_x=max_x,
                                       min_y=min_y,
-                                      max_y=max_y)
+                                      max_y=max_y,
+                                      nx=nx,
+                                      ny=1000)
 
-            import matplotlib.pyplot as plt
-            y = np.linspace(0, thickness, 100)
-            plt.plot(y, description.get_potential(np.zeros_like(y), y), '-', label='Pot, Numerical solution')
-            plt.plot(y, description.get_potential_smooth(0., y)[:, 0], '--', label='Pot, Numerical solution smooth')
-            plt.plot([description.get_potential_minimum_pos_y()[50], description.get_potential_minimum_pos_y()[50]], plt.ylim()) 
-            plt.legend(loc=0)
-            plt.show()
+#             import matplotlib.pyplot as plt
+#             y = np.linspace(0, thickness, 100)
+#             plt.plot(y, description.get_potential(np.zeros_like(y), y), '-', label='Pot, Numerical solution')
+#             plt.plot(y, description.get_potential_smooth(0., y)[:, 0], '--', label='Pot, Numerical solution smooth')
+#             plt.plot([description.get_potential_minimum_pos_y()[50], description.get_potential_minimum_pos_y()[50]], plt.ylim())
+#             plt.legend(loc=0)
+#             plt.show()
 
             potential_min = description.get_potential_minimum()
-            x_dep_new = description.get_potential_minimum_pos_y()
+            y_dep_new = description.get_potential_minimum_pos_y()
 
-            if (i == 0 and np.allclose(potential_min, V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential_min, V_bias)) or x_dep_new[0] >= x_dep[0]:
-                potential.depletion = x_dep
+            if (i == 0 and np.allclose(potential_min, V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential_min, V_bias)) or y_dep_new[0] >= y_dep[0]:
+                potential.depletion = [description._x, y_dep]
                 return potential
 
             # Set the new depletion depth, can only be smaller
-            # Otherwise numerical instability
-            x_dep[x_dep_new < x_dep] = x_dep_new[x_dep_new < x_dep]
+            # Otherwise it is numerical instability
+            y_dep[y_dep_new < y_dep] = y_dep_new[y_dep_new < y_dep]
+
+            potential.depletion = [description._x, y_dep]
 
         raise RuntimeError('Depletion region in underdepleted sensor could not be determined')
 
@@ -326,7 +404,7 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
     rho_scale = rho / epsilon
 
     return get_potential(max_iter=10)
-    
+
 
 def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y, radius, nD=2):
     logging.info('Calculating weighting potential')
