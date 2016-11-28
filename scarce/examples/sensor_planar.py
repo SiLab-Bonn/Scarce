@@ -3,13 +3,13 @@
     100% fill factor (width = pitch) is created.
 
     .. NOTE::
-       With increasing distance from the center pixel the numerical result deviates from the analytical one.
-       This shows that is is important to use several pixels (> 5) to get a proper field description in the center pixel.
+       The calculation of the depletion region is simplified and not fully correct if the depletion is not at a contant y position
+       in the sensor (e.g. for pixels with small fill factor).
 '''
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scarce import fields, plot, geometry
+from scarce import fields, plot, geometry, silicon
 
 
 def sensor_planar():
@@ -19,13 +19,16 @@ def sensor_planar():
 
     # Geometry of one pixel
     width = 50.
-    thickness = 200.
-    pitch = width
+    thickness = 300.
+    pitch = 45.
 
-    n_eff = 1e11  # n_eff [cm^-3]
+    n_eff = 5e12  # n_eff [cm^-3]
+    temperature = 300
 
-    V_bias = -0.5
+    # Potentials
+    V_bias = -160.
     V_readout = 0.
+    V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
     # Create mesh of the sensor and stores the result
     # The created file can be viewed with any mesh viewer (e.g. gmsh)
@@ -44,68 +47,35 @@ def sensor_planar():
                                                          thickness=thickness,
                                                          n_eff=n_eff,
                                                          V_bias=V_bias,
-                                                         V_readout=V_readout)
+                                                         V_readout=V_readout,
+                                                         V_bi=V_bi)
 
-    # Describe the result to be able to obtain field/potential at any point in space
+    min_x = float(mesh.getFaceCenters()[0, :].min())
+    max_x = float(mesh.getFaceCenters()[0, :].max())
     description = fields.Description(potential,
-                                     min_x=-width * float(n_pixel),
-                                     max_x=width * float(n_pixel),
+                                     min_x=min_x,
+                                     max_x=max_x,
                                      min_y=0,
-                                     max_y=thickness,
-                                     nx=200 * n_pixel,
-                                     ny=200,
-                                     smoothing=0.1
-                                     )
-
-# Plot numerical result
-#     plot.plot_planar_sensor(width=width,
-#                             pitch=pitch,
-#                             thickness=thickness,
-#                             n_pixel=n_pixel,
-# V_backplane=0,  # Weighting field = 0 at backplane
-# V_readout=1,  # Weighting field = 1 at readout
-#                             potential_function=description.get_potential_smooth,
-#                             field_function=description.get_field,
-# mesh=potential.mesh,  # Comment in if you want to see the mesh
-#                             title='Planar sensor mesh')
+                                     max_y=thickness)
 
     # Get analytical result
     def potential_analytic(x, y):
         return fields.get_weighting_potential_analytic(x, y, D=thickness, S=width, is_planar=True)
 
-    # Plot analytical / numerical result
+    # Plot analytical / numerical result with depletion region in 1D
     y = np.linspace(0, thickness, 100)
     x = np.zeros_like(y)
-
-    xx, yy = np.meshgrid(x, y, sparse=True)
-    pot_numeric = description.get_potential(xx, yy)
-
-#     print description.get_potential_smooth(xx, yy)[50, :]
-
-    min_x = float(mesh.getFaceCenters()[0, :].min())
-    max_x = float(mesh.getFaceCenters()[0, :].max())
-    description = fields.Description(potential,
-                                      min_x=min_x,
-                                      max_x=max_x,
-                                      min_y=0,
-                                      max_y=thickness)
-            
-    print description.get_potential_minimum(axis=0)
-    print description.get_potential_minimum(axis=0).shape
-    
-    print description.get_potential_minimum_pos_y().shape
-    
-    print description.get_potential_minimum_pos_y()
-
-    plt.plot(y, fields.get_potential_planar_analytic_1D(y, V_bias=V_bias, V_readout=V_readout, n_eff=n_eff, D=thickness), label='Pot, analytical poisson solution')
-#     plt.plot(y, fields.get_electric_field_analytic(x, y, V_bias=V_bias, n_eff=n_eff, D=thickness)[1], label='Ey, analytical poisson solution')
-    plt.plot(y, description.get_potential(x, y), label='Pot, Numerical solution')
-    plt.plot(y, description.get_potential_smooth(0., y)[:, 0], '--', label='Pot, Numerical solution smooth')
-    plt.plot([description.get_potential_minimum_pos_y()[50], description.get_potential_minimum_pos_y()[50]], plt.ylim()) 
+    plt.plot(y, description.get_potential(x, y), label='Potential, numerical', linewidth=2)
+    pot_masked = np.ma.masked_array(description.get_potential(x, y), mask=description.get_depletion_mask(x, y), linewidth=2)
+    plt.plot(y, pot_masked, label='Potential, numerical, depleted', linewidth=2)
+    plt.plot([description.get_depletion(x[50]), description.get_depletion(x[50])], plt.ylim(), label='Depletion, numerical ', linewidth=2)
+    plt.plot(y, fields.get_potential_planar_analytic_1D(y, V_bias=V_bias + V_bi, V_readout=V_readout, n_eff=n_eff, D=thickness), '--', label='Potential, analytical', linewidth=2)
+    plt.plot([silicon.get_depletion_depth(np.abs(V_bias), n_eff / 1e12, temperature), silicon.get_depletion_depth(np.abs(V_bias), n_eff / 1e12, temperature)], plt.ylim(), '--', label='Depletion, analytical', linewidth=2)
     plt.legend(loc=0)
+    plt.title('Potential in a not fully depleted planar sensor')
     plt.show()
 
-    # Plot numerical result
+    # Plot numerical result in 2D
     plot.plot_planar_sensor(width=width,
                             pitch=pitch,
                             thickness=thickness,
@@ -114,17 +84,9 @@ def sensor_planar():
                             V_readout=V_readout,  # Weighting field = 1 at readout
                             potential_function=description.get_potential,
                             field_function=description.get_field,
+                            depletion_function=description.get_depletion,
                             mesh=None,  # potential.mesh,  # Comment in if you want to see the mesh
-                            title='Planar sensor mesh')
-
-#     plot.plot_planar_sensor(width=width,
-# pitch=width,  # Analytical solution exist only for pitch =width (100% fill factor)
-#                             thickness=thickness,
-#                             n_pixel=n_pixel,
-# V_backplane=0,  # Weighting field = 0 at backplane
-# V_readout=1,  # Weighting field = 1 at readout
-#                             potential_function=potential_analytic,
-#                             title='Planar sensor weighting potential and field, analytical solution')
+                            title='Planar sensor potential')
 
 if __name__ == '__main__':
     sensor_planar()
