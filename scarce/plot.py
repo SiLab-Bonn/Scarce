@@ -126,12 +126,12 @@ def get_planar_sensor_plot(fig,
         phi = potential_function(xx, yy)
 
         if depletion_function:  # Mask potential in not depleted region, otherwise contour plot goes crazy
-            phi_masked = np.ma.masked_array(phi, mask=get_depletion_mask(depletion_function, xx, yy))
+            phi = np.ma.masked_array(phi, mask=get_depletion_mask(depletion_function, xx, yy))
 
         # BUG in matplotlib: aspect to be set to equal, otherwise contour plot wrong aspect ratio
         # http://stackoverflow.com/questions/28857673/wrong-aspect-ratio-for-contour-plot-with-python-matplotlib
         ax.set_aspect('equal')
-        ax.contour(x, y, phi_masked, 10, colors='black')
+        ax.contour(x, y, phi, 10, colors='black')
         cmesh = ax.pcolormesh(x, y, phi, cmap=cm.get_cmap('Blues'), vmin=V_backplane, vmax=V_readout)
         cax = fig.add_axes([ax.get_position().xmax, 0.1, 0.05, ax.get_position().ymax - ax.get_position().ymin])
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
