@@ -55,6 +55,7 @@ def plot_planar_sensor(width,
                        V_readout,
                        potential_function=None,
                        field_function=None,
+                       depletion_function=None,
                        mesh=None,
                        title=None):
     fig = plt.figure()
@@ -67,6 +68,7 @@ def plot_planar_sensor(width,
                            V_readout,
                            potential_function=potential_function,
                            field_function=field_function,
+                           depletion_function=depletion_function,
                            mesh=mesh,
                            title=title)
     plt.show()
@@ -81,6 +83,7 @@ def get_planar_sensor_plot(fig,
                            V_readout,
                            potential_function=None,
                            field_function=None,
+                           depletion_function=None,
                            mesh=None,
                            title=None):
 
@@ -97,13 +100,38 @@ def get_planar_sensor_plot(fig,
     # Create x,y plot grid
     xx, yy = np.meshgrid(x, y, sparse=True)
 
+    def get_depletion_mask(depletion_function, x, y):
+        ''' Returns true for all points outside of the depletion zone.
+            If x, y in a sparse array representation are handled correctly.
+        '''
+
+        if x.shape != y.shape:  # Shapes do not fit
+            if x.shape != y.T.shape:   # Sparse meshgrid assumption
+                raise RuntimeError('The point representation in x,y in neither a grid nor a sparse grid.')
+            x_dense, y_dense = np.meshgrid(x[0, :], y[:, 0], sparse=False)
+        else:
+            x_dense, y_dense = x, y
+
+        mask = np.zeros_like(x_dense, dtype=np.bool)
+        mask[y_dense > depletion_function(x_dense)] = True
+
+        return mask
+
+    if depletion_function:
+        ax.plot(x, depletion_function(x), '-', color='black', linewidth=4)
+        ax.plot(x, depletion_function(x), '--', color='blue', linewidth=4, label='Depletion')
+
     if potential_function:
         # Plot Potential
         phi = potential_function(xx, yy)
+
+        if depletion_function:  # Mask potential in not depleted region, otherwise contour plot goes crazy
+            phi_masked = np.ma.masked_array(phi, mask=get_depletion_mask(depletion_function, xx, yy))
+
         # BUG in matplotlib: aspect to be set to equal, otherwise contour plot wrong aspect ratio
         # http://stackoverflow.com/questions/28857673/wrong-aspect-ratio-for-contour-plot-with-python-matplotlib
         ax.set_aspect('equal')
-        ax.contour(x, y, phi, 10, colors='black')
+        ax.contour(x, y, phi_masked, 10, colors='black')
         cmesh = ax.pcolormesh(x, y, phi, cmap=cm.get_cmap('Blues'), vmin=V_backplane, vmax=V_readout)
         cax = fig.add_axes([ax.get_position().xmax, 0.1, 0.05, ax.get_position().ymax - ax.get_position().ymin])
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
@@ -111,6 +139,10 @@ def get_planar_sensor_plot(fig,
     # Plot E-Field
     if field_function:
         E_x, E_y = field_function(xx, yy)
+        if depletion_function:  # Do not plot field in not depleted region, since it is 0
+            E_x = np.ma.masked_array(E_x, mask=get_depletion_mask(depletion_function, xx, yy))
+            E_y = np.ma.masked_array(E_y, mask=get_depletion_mask(depletion_function, xx, yy))
+
         ax.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='-')
     elif potential_function:
         E_y, E_x = np.gradient(-phi, np.gradient(y), np.gradient(x))
@@ -246,16 +278,13 @@ if __name__ == '__main__':
     radius, nD = 6., 2
     resolution = 10
 
-    points, cells = geometry.mesh_3D_sensor(width_x=width_x,
-                                            width_y=width_y,
-                                            n_pixel_x=n_pixel_x,
-                                            n_pixel_y=n_pixel_y,
-                                            radius=radius,
-                                            nD=nD,
-                                            resolution=resolution)
-
-    mio.write('sensor.msh', points, cells)
-    mesh = fipy.GmshImporter2D('sensor.msh')
+    mesh = geometry.mesh_3D_sensor(width_x=width_x,
+                                   width_y=width_y,
+                                   n_pixel_x=n_pixel_x,
+                                   n_pixel_y=n_pixel_y,
+                                   radius=radius,
+                                   nD=nD,
+                                   resolution=resolution)
 
     plot_3D_sensor(width_x=width_x,
                    width_y=width_y,
