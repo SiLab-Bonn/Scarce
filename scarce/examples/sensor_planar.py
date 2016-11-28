@@ -2,9 +2,9 @@
     Calculates the electrical potential and fields. For comparison also the analytical result of a planar sensor with
     100% fill factor (width = pitch) is created.
 
-    .. NOTE::
-       The calculation of the depletion region is simplified and not fully correct if the depletion is not at a contant y position
-       in the sensor (e.g. for pixels with small fill factor).
+    .. WARNING::
+       The calculation of the depletion region is simplified. If the depletion is not at a contant y position
+       in the sensor (e.g. for pixels with small fill factor) it deviates from the correct solution.
 '''
 
 import numpy as np
@@ -73,6 +73,9 @@ def sensor_planar():
     plt.plot([silicon.get_depletion_depth(np.abs(V_bias), n_eff / 1e12, temperature), silicon.get_depletion_depth(np.abs(V_bias), n_eff / 1e12, temperature)], plt.ylim(), '--', label='Depletion, analytical', linewidth=2)
     plt.legend(loc=0)
     plt.title('Potential in a not fully depleted planar sensor')
+    plt.xlabel('Position [um]')
+    plt.xlabel('Potential [V]')
+    plt.grid()
     plt.show()
 
     # Plot numerical result in 2D
