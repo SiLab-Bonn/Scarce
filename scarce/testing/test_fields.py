@@ -179,7 +179,7 @@ class TestFields(unittest.TestCase):
         for i in [-45, -30, -15, -10, 0, 10, 15, 30, 45]:  # Check only at center pixel, edge pixel are not interessting
             self.assertTrue(np.allclose(f_analytic_x.T[nx / 2 + i, :], f_numeric_x.T[nx / 2 + i, :], rtol=0.01, atol=0.01))
             self.assertTrue(np.allclose(f_analytic_y.T[nx / 2 + i, :], f_numeric_y.T[nx / 2 + i, :], rtol=0.01, atol=0.01))
-            
+
     def test_potential_smoothing(self):
         '''  Checks the smoothing of the potential to be independent of the potential values.
         '''
@@ -195,48 +195,48 @@ class TestFields(unittest.TestCase):
         x = np.linspace(min_x, max_x, nx)
         y = np.linspace(min_y, max_y, ny)
         xx, yy = np.meshgrid(x, y, sparse=True)
-        
+
         # Load potential solution to save time
-        potential = dump.read(filename = os.path.join(constant.FIXTURE_FOLDER, 'potential.sc'))
-        
+        potential = dump.read(filename=os.path.join(constant.FIXTURE_FOLDER, 'potential.sc'))
+
         def upcale_potential(potential, V_readout, V_bias):
             ''' Scales potential to [V_bias, V_readout] to simulate other bias settings
             '''
             return ((potential - np.nanmin(potential)) / (np.nanmax(potential) - np.nanmin(potential))) * (V_readout - V_bias) + V_readout
-        
+
         def downscale_potential(potential):
             ''' Scales potential to [0, 1] to make the smoothing result comparible
             '''
             return (potential - np.nanmin(potential)) / (np.nanmax(potential) - np.nanmin(potential))
 
         potential_descr = fields.Description(potential,
-                                                   min_x=min_x,
-                                                   max_x=max_x,
-                                                   min_y=min_y,
-                                                   max_y=max_y,
-                                                   nx=nx,
-                                                   ny=ny)
-        
+                                             min_x=min_x,
+                                             max_x=max_x,
+                                             min_y=min_y,
+                                             max_y=max_y,
+                                             nx=nx,
+                                             ny=ny)
+
         # Expected result for the std. smoothing value and a potential between 0 and 1
         pot_numeric = downscale_potential(potential_descr.get_potential_smooth(xx, yy))
-        
+
         for V_bias in [-100, -1000]:
             for V_readout in [50, 0, -50]:
                 # Create fake data with different bias by upscaling
                 potential_scaled = upcale_potential(potential, V_readout, V_bias)
                 # Describe upscaled data
                 potential_descr_scaled = fields.Description(potential_scaled,
-                                                   min_x=min_x,
-                                                   max_x=max_x,
-                                                   min_y=min_y,
-                                                   max_y=max_y,
-                                                   nx=nx,
-                                                   ny=ny)
-                # Downscale smoothed potential for comparison     
+                                                            min_x=min_x,
+                                                            max_x=max_x,
+                                                            min_y=min_y,
+                                                            max_y=max_y,
+                                                            nx=nx,
+                                                            ny=ny)
+                # Downscale smoothed potential for comparison
                 pot_numeric_2 = downscale_potential(potential_descr_scaled.get_potential_smooth(xx, yy))
-        
+
                 self.assertTrue(np.allclose(pot_numeric, pot_numeric_2, equal_nan=True))
-        
+
 
 if __name__ == "__main__":
     unittest.main()
