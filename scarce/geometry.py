@@ -1,6 +1,7 @@
 ''' Function to geometrically describe and mesh planar and 3D electrode configurations. '''
 
 import logging
+import numpy as np
 
 from fipy import GmshImporter2D
 import pygmsh as pg
@@ -77,7 +78,9 @@ class SensorDescription3D(object):
         return offsets[:-1]  # Last offset is edge column
 
     def get_ro_col_offsets(self):
-        ''' Offsets of the readout columns in x,y '''
+        ''' Offsets of the readout columns in x,y.
+            They are always full columns.
+        '''
 
         for offset_x in self.get_pixel_x_offsets():
             for offset_y in self.get_pixel_y_offsets():
@@ -120,20 +123,24 @@ class SensorDescription3D(object):
         return zip(offsets_x, offsets_y)
 
     def get_edge_bias_col_offsets(self):
-        ''' Offsets of the side bias columns in x,y '''
+        ''' Offsets of the edge bias columns in x,y '''
 
         offsets_x, offsets_y = [], []
         min_x, max_x, min_y, max_y = self.get_array_corners()
 
+        # Top, left
         offsets_x.append(min_x)
         offsets_y.append(min_y)
 
+        # Top, right
         offsets_x.append(max_x)
         offsets_y.append(min_y)
 
+        # Bottom, right
         offsets_x.append(min_x)
         offsets_y.append(max_y)
 
+        # Bottom, left
         offsets_x.append(max_x)
         offsets_y.append(max_y)
 
@@ -141,6 +148,23 @@ class SensorDescription3D(object):
 
     def position_in_center_pixel(self, x, y):
         return -self.width_x / 2. <= x + self.x0 <= self.width_x / 2. and -self.width_y / 2. <= y + self.y0 <= self.width_y / 2.
+
+    def position_in_column(self, x, y):
+        ''' Returns a mask with the shape of x wich is true if x and y is within a column radius.
+            All columns that are full within the bulk (no edge, corner columns) are used.
+        '''
+
+        x, y = np.atleast_1d(x), np.atleast_1d(y)  # To make this function work with single numbers instead of arrays
+
+        mask = np.zeros_like(x)
+
+        for x_col, y_col in self.get_ro_col_offsets():
+            mask[np.sqrt((x - x_col) ** 2 + (y - y_col) ** 2) < self.radius] = True
+
+        for x_col, y_col in self.get_center_bias_col_offsets():
+            mask[np.sqrt((x - x_col) ** 2 + (y - y_col) ** 2) < self.radius] = True
+
+        return mask
 
 
 def mesh_3D_sensor(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD, resolution, filename='sensor.msh'):
