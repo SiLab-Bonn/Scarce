@@ -254,7 +254,7 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
         Parameters
         ----------
         mesh : fipy.Gmsh2D
-               Mesh where to solve the issue
+               Mesh where to solve the poisson equation
 
         width : number
             Width of one pixel in :math:`\mathrm{\mu m}`
@@ -406,6 +406,124 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
     return get_potential(max_iter=10)
 
 
+def calculate_3D_sensor_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y, radius, nD, n_eff, V_bias, V_readout, V_bi=0):
+    ''' Calculates the potential of a planar sensor.
+
+        Parameters
+        ----------
+        mesh : fipy.Gmsh2D
+               Mesh where to solve the poisson equation
+
+        width_x : number
+                  Width in x of one pixel in :math:`\mathrm{\mu m}`
+
+        width_y : number
+                  Width in y of one pixel in :math:`\mathrm{\mu m}`
+
+        n_pixel_x : int
+            Number of pixels in x
+
+        n_pixel_y : int
+            Number of pixels in y
+
+        radius : number
+                  Radius of the columns in :math:`\mathrm{\mu m}`
+
+        nD : number
+                Number of readout columns per pixel
+
+        n_eff : number
+            Effective doping concentration in :math:`\mathrm{\frac{1}{cm^3}}`
+
+        V_bias : number
+            Bias voltage in Volt
+
+        V_readout : number
+            Readout voltage in Volt
+
+        V_bi : number
+            Build in voltage. Can be calculated by scarce.silicon.get_diffusion_potential
+
+        Notes
+        -----
+        So far the depletion zone cannot be calculated and always a fully depleted sensor is assumed.
+    '''
+
+    logging.info('Calculating potential')
+
+    # Mesh validity check
+    mesh_width = mesh.getFaceCenters()[0, :].max() - mesh.getFaceCenters()[0, :].min()
+    mesh_height = mesh.getFaceCenters()[1, :].max() - mesh.getFaceCenters()[1, :].min()
+
+    desc = geometry.SensorDescription3D(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD)
+    min_x, max_x, min_y, max_y = desc.get_array_corners()
+
+    if mesh_width != max_x - min_x:
+        raise ValueError('The provided mesh width does not correspond to the sensor width')
+    if mesh_height != max_y - min_y:
+        raise ValueError('The provided mesh height does not correspond to the sensor height')
+    if mesh.getFaceCenters()[0, :].min() != min_x or mesh.getFaceCenters()[0, :].max() != max_x:
+        raise ValueError('The provided mesh has a wrong x position')
+    if mesh.getFaceCenters()[1, :].min() != min_y or mesh.getFaceCenters()[1, :].max() != max_y:
+        raise ValueError('The provided mesh has a wrong y position')
+
+    # The field scales with rho / epsilon, thus scale to proper value to
+    # counteract numerical instabilities
+    rho = constants.elementary_charge * n_eff * (1e-4) ** 3  # Charge density in C / um3
+    epsilon = constant.epsilon_s * 1e-6  # Permitticity of silicon in F/um
+    epsilon_scaled = 1.
+    rho_scale = rho / epsilon
+
+    # Define cell variables
+    potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
+    electrons = fipy.CellVariable(mesh=mesh, name='e-')
+    electrons.valence = -1
+    charge = electrons * electrons.valence
+    charge.name = "charge"
+
+    # Uniform charge distribution by setting a uniform concentration of electrons = 1
+    electrons.setValue(rho_scale)
+
+    # Set boundary condition
+    bcs = []
+    allfaces = mesh.getExteriorFaces()
+    X, Y = mesh.getFaceCenters()
+
+    # Simply add build in potential to bias potential, although that might be not correct
+    # The analytic formular does it like this
+    V_bias += V_bi
+
+    # Set boundary conditions
+    # Set readout pillars potentials
+    for pos_x, pos_y in desc.get_ro_col_offsets():
+        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+        bcs.append(fipy.FixedValue(value=V_readout, faces=ring))
+
+    # Full bias pillars potentials = V_bias
+    for pos_x, pos_y in desc.get_center_bias_col_offsets():
+        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+        bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+
+    # Side bias pillars potentials = V_bias
+    for pos_x, pos_y in desc.get_side_bias_col_offsets():
+        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+        bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+
+    # Edge bias pillars potentials = V_bias
+    for pos_x, pos_y in desc.get_edge_bias_col_offsets():
+        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+        bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+
+    potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) + charge == 0.)
+    solver.solve(potential, equation=potential.equation, boundaryConditions=bcs)
+
+    if not np.isclose(potential.arithmeticFaceValue().min(), V_bias, rtol=0.05, atol=0.01):
+        print potential.arithmeticFaceValue().min(), V_bias
+        raise NotImplementedError('The 3D sensor does not seem to be fully depleted, this is not supported yet!')
+
+    return potential
+
+
 def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y, radius, nD=2):
     logging.info('Calculating weighting potential')
 
@@ -432,8 +550,6 @@ def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y
     bcs = []
     allfaces = mesh.getExteriorFaces()
     X, Y = mesh.getFaceCenters()
-
-    desc = geometry.SensorDescription3D(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD)
 
     # Set boundary conditions
     # Set readout pillars potentials
