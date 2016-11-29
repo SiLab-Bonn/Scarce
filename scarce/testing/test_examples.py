@@ -6,6 +6,7 @@ from scarce.examples import sensor_planar_weighting
 from scarce.examples import sensor_3D_weighting
 from scarce.examples import potential_1D
 from scarce.examples import sensor_planar
+from scarce.examples import sensor_3D
 
 
 class TestExamples(unittest.TestCase):
@@ -35,7 +36,7 @@ class TestExamples(unittest.TestCase):
         '''
         sensor_planar_weighting.sensor_planar()
 
-    def test_3D_sensor(self):
+    def test_3D_sensor_weighting(self):
         ''' Check example to create 3D weighting potential/field.
         '''
         sensor_3D_weighting.sensor_3D()
@@ -49,6 +50,11 @@ class TestExamples(unittest.TestCase):
         ''' Check example to create a 2D planar sensor.
         '''
         sensor_planar.sensor_planar()
+
+    def test_3D_sensor(self):
+        ''' Check example to create 3D potential/field.
+        '''
+        sensor_3D.sensor_3D()
 
 if __name__ == "__main__":
     unittest.main()
