@@ -56,7 +56,7 @@ def sensor_3D():
                         potential_function=field_description.get_potential_smooth,
                         field_function=field_description.get_field,
                         mesh=None,  # potential.mesh, # Comment in if you want to see the mesh
-                        title='Weighting potential and field of a 3D sensor, 3x3 pixel matrix, numerical solution')
+                        title='Weighting potential and field of a 3D sensor, %dx%d pixel matrix, numerical solution' % (n_pixel_x, n_pixel_y))
 
 if __name__ == '__main__':
     sensor_3D()
