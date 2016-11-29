@@ -132,7 +132,7 @@ def get_planar_sensor_plot(fig,
         # http://stackoverflow.com/questions/28857673/wrong-aspect-ratio-for-contour-plot-with-python-matplotlib
         ax.set_aspect('equal')
         ax.contour(x, y, phi, 10, colors='black')
-        cmesh = ax.pcolormesh(x, y, phi, cmap=cm.get_cmap('Blues'), vmin=V_backplane, vmax=V_readout)
+        cmesh = ax.pcolormesh(x - np.diff(x)[0] / 2., y - np.diff(y)[0] / 2., phi, cmap=cm.get_cmap('Blues'), vmin=V_backplane, vmax=V_readout)
         cax = fig.add_axes([ax.get_position().xmax, 0.1, 0.05, ax.get_position().ymax - ax.get_position().ymin])
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
 
@@ -207,8 +207,8 @@ def get_3D_sensor_plot(fig,
     min_x, max_x, min_y, max_y = desc.get_array_corners()
 
     # Define plot space
-    x = np.linspace(min_x, max_x, 1000)
-    y = np.linspace(min_y, max_y, 1000)
+    x = np.linspace(min_x, max_x, max(width_x * n_pixel_x, width_y * n_pixel_y))  # >= 0.5 um resolution
+    y = np.linspace(min_y, max_y, max(width_x * n_pixel_x, width_y * n_pixel_y))  # >= 0.5 um resolution
 
     # Create x,y plot grid
     xx, yy = np.meshgrid(x, y, sparse=True)
@@ -217,11 +217,29 @@ def get_3D_sensor_plot(fig,
     # http://stackoverflow.com/questions/28857673/wrong-aspect-ratio-for-contour-plot-with-python-matplotlib
     ax.set_aspect('equal')
 
+    def get_column_mask(x, y):
+        ''' Returns true for points inside a column.
+            X, y as a sparse array representation are handled correctly.
+        '''
+
+        if x.shape != y.shape:  # Shapes do not fit
+            if x.shape != y.T.shape:   # Sparse meshgrid assumption
+                raise RuntimeError('The point representation in x,y in neither a grid nor a sparse grid.')
+            x_dense, y_dense = np.meshgrid(x[0, :], y[:, 0], sparse=False)
+        else:
+            x_dense, y_dense = x, y
+        # Reduce radius to prevent aliasing at round column edges
+        return desc.position_in_column(x_dense, y_dense)
+
     if potential_function:
         # Plot Potential
         phi = potential_function(xx, yy)
-        ax.contour(x, y, phi, 10, colors='black')
-        cmesh = ax.pcolormesh(x, y, phi, cmap=cm.get_cmap('Blues'), vmin=V_bias, vmax=V_readout)
+
+        # Mask potential in columns, otherwise contour plot goes crazy
+        phi_masked = np.ma.masked_array(phi, mask=get_column_mask(xx, yy))
+
+        ax.contour(x, y, phi_masked, 10, colors='black')
+        cmesh = ax.pcolormesh(x - np.diff(x)[0] / 2., y - np.diff(y)[0] / 2., phi, cmap=cm.get_cmap('Blues'), vmin=V_bias, vmax=V_readout)
         cax = fig.add_axes([ax.get_position().xmax, 0.1, 0.05, ax.get_position().ymax - ax.get_position().ymin])
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
 
