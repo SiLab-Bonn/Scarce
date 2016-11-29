@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import os
-from fipy import GmshImporter2D
+
 from fipy.tools import dump
 
 from scarce.testing import tools
@@ -75,13 +75,12 @@ class TestFields(unittest.TestCase):
                 # Analytical solution only existing for pixel width = readout pitch (100% fill factor)
                 pitch = width
 
-                geometry.mesh_planar_sensor(
+                mesh = geometry.mesh_planar_sensor(
                     n_pixel=n_pixel,
                     width=width,
                     thickness=thickness,
                     resolution=600. * np.sqrt(width / 50.) * np.sqrt(50. / thickness),
                     filename='planar_mesh_tmp_2.msh')
-                mesh = GmshImporter2D('planar_mesh_tmp_2.msh')
 
                 potential = fields.calculate_planar_sensor_w_potential(mesh=mesh,
                                                                        width=width,
@@ -136,13 +135,12 @@ class TestFields(unittest.TestCase):
         thickness = 200.
         n_pixel = 11
 
-        geometry.mesh_planar_sensor(
+        mesh = geometry.mesh_planar_sensor(
             n_pixel=n_pixel,
             width=width,
             thickness=thickness,
             resolution=400,
             filename='planar_mesh_tmp_2.msh')
-        mesh = GmshImporter2D('planar_mesh_tmp_2.msh')
 
         potential = fields.calculate_planar_sensor_w_potential(mesh=mesh,
                                                                width=width,
