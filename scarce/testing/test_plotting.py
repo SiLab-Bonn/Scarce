@@ -1,7 +1,7 @@
 import unittest
 import os
 
-from scarce import plot, fields
+from scarce import plot, fields, geometry
 
 
 class TestPlotting(unittest.TestCase):
@@ -16,8 +16,9 @@ class TestPlotting(unittest.TestCase):
         import matplotlib.pyplot as p
         p.switch_backend('Agg')
 
-    def tearDown(self):
-        pass
+    @classmethod
+    def tearDownClass(cls):
+        os.remove('planar_mesh_tmp_3.msh')
 
     def test_plot_planar(self):
         ''' Check plotting of planar sensor.
@@ -52,6 +53,15 @@ class TestPlotting(unittest.TestCase):
                                 V_readout=1,
                                 field_function=None)
 
+    def test_plot_mesh(self):
+        mesh = geometry.mesh_planar_sensor(
+            n_pixel=5,
+            width=50.,
+            thickness=100.,
+            resolution=100.,
+            filename='planar_mesh_tmp_3.msh')
+
+        plot.plot_mesh(mesh)
 
 if __name__ == "__main__":
     unittest.main()
