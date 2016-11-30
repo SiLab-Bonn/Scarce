@@ -36,7 +36,7 @@ The field is then derived via:
 
 .. math::
    \vec{E} = -\nabla \phi
-   
+
 .. NOTE::
    For simple cases (e.g. planar sensor with 100% fill factor) also analytical solutions are provided.
    The analytical results are also used to benchmark the numerical results in the automated unit tests.
@@ -358,12 +358,13 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness, n_
         nx = 202
         y_dep = np.ones(shape=(nx,)) * thickness  # Start with full depletion assumption
         description = None
+        y_dep_new = y_dep
 
         for i in range(max_iter):
             # First solution with full depletion assumption
             depletion_mask = None if i == 0 else description.get_depletion_mask()
 
-            potential = calculate_potential(depletion_mask=depletion_mask, y_dep_new=y_dep if i == 0 else y_dep_new)
+            potential = calculate_potential(depletion_mask=depletion_mask, y_dep_new=y_dep_new)
 
             description = Description(potential,
                                       min_x=min_x,
