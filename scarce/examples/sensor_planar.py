@@ -58,10 +58,6 @@ def sensor_planar():
                                      min_y=0,
                                      max_y=thickness)
 
-    # Get analytical result
-    def potential_analytic(x, y):
-        return fields.get_weighting_potential_analytic(x, y, D=thickness, S=width, is_planar=True)
-
     # Plot analytical / numerical result with depletion region in 1D
     y = np.linspace(0, thickness, 100)
     x = np.zeros_like(y)
