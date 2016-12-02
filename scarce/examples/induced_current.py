@@ -9,7 +9,8 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scarce import fields, plot, geometry, silicon, tools
+from scarce import fields, plot, geometry, silicon, tools, solver
+
 
 
 def induced_current():
@@ -30,16 +31,16 @@ def induced_current():
     V_readout = 0.
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
-# Create mesh of the sensor and stores the result
-# The created file can be viewed with any mesh viewer (e.g. gmsh)
+#     # Create mesh of the sensor and stores the result
+#     # The created file can be viewed with any mesh viewer (e.g. gmsh)
 #     mesh = geometry.mesh_planar_sensor(
 #         n_pixel=n_pixel,
 #         width=width,
 #         thickness=thickness,
 #         resolution=200.,
 #         filename='planar_mesh_example.msh')
-#
-# Numerically solve the laplace equation on the mesh
+# 
+#     # Numerically solve the laplace equation on the mesh
 #     potential = fields.calculate_planar_sensor_potential(mesh=mesh,
 #                                                          width=width,
 #                                                          pitch=pitch,
@@ -49,13 +50,13 @@ def induced_current():
 #                                                          V_bias=V_bias,
 #                                                          V_readout=V_readout,
 #                                                          V_bi=V_bi)
-#
+# 
 #     w_potential = fields.calculate_planar_sensor_w_potential(mesh=mesh,
 #                                                              width=width,
 #                                                              pitch=pitch,
 #                                                              n_pixel=n_pixel,
 #                                                              thickness=thickness)
-#
+# 
 #     min_x = float(mesh.getFaceCenters()[0, :].min())
 #     max_x = float(mesh.getFaceCenters()[0, :].max())
 #     pot_descr = fields.Description(potential,
@@ -68,13 +69,13 @@ def induced_current():
 #                                      max_x=max_x,
 #                                      min_y=0,
 #                                      max_y=thickness)
-#
+# 
 #     pot_descr.get_field(0, 0)
 #     pot_w_descr.get_field(0, 0)
-#
+# 
 #     tools.save(pot_descr, 'planar_sensor_pot.sc')
 #     tools.save(pot_w_descr, 'planar_sensor_pot_w.sc')
-
+#     raise
     pot_descr = tools.load('planar_sensor_pot.sc')
     pot_w_descr = tools.load('planar_sensor_pot_w.sc')
 
@@ -119,7 +120,14 @@ def induced_current():
 #                             depletion_function=pot_descr.get_depletion,
 #                             title='Planar sensor potential')
 
-    fields.
+    p0 = np.array([[0., 0., 0.]*1000,[thickness / 3., thickness / 3., thickness / 3.]*1000])
+     
+    dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr, T=temperature)
+     
+    dd.solve(p0, 0.001)
+    
+#     print p0.shape
+#     print pot_descr.get_field(*p0).shape
 
 if __name__ == '__main__':
     import logging
