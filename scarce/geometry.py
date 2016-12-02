@@ -1,7 +1,8 @@
 ''' Function to geometrically describe and mesh planar and 3D electrode configurations. '''
 
-import logging
 import numpy as np
+import logging
+_LOGGER = logging.getLogger(__name__)
 
 from fipy import GmshImporter2D
 import pygmsh as pg
@@ -170,7 +171,7 @@ class SensorDescription3D(object):
 def mesh_3D_sensor(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD, resolution, filename='sensor.msh'):
     ''' Create the mesh of a 3D sensor array '''
 
-    logging.info('Mesh 3D sensor array')
+    _LOGGER.info('Mesh 3D sensor array')
 
     desc = SensorDescription3D(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD)
 
@@ -348,13 +349,14 @@ def mesh_3D_sensor(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD, resolutio
     generate_3D_array(
         geom, width_x, width_y, radius, resolution, x0=0., y0=0.)
 
-    points, cells = pg.generate_mesh(geom)
+    points, cells = pg.generate_mesh(geom, verbose=False)
 
     mio.write(filename, points, cells)
     return GmshImporter2D(filename)
 
 
 def mesh_planar_sensor(n_pixel, width, thickness, resolution=1., filename='sensor.msh'):  # TODO: size independent resolution parameter
+    _LOGGER.info('Mesh planar sensor array')
     if n_pixel < 3:
         raise logging.warning('Less than 3 pixels result in quite wrong boundaries. It is better to choose more pixelss!')
     if not n_pixel % 2:
@@ -401,7 +403,7 @@ def mesh_planar_sensor(n_pixel, width, thickness, resolution=1., filename='senso
 
     geom.add_raw_code(raw_codes)
 
-    points, cells = pg.generate_mesh(geom)
+    points, cells = pg.generate_mesh(geom, verbose=False)
 
     mio.write(filename, points, cells)
     return GmshImporter2D(filename)
