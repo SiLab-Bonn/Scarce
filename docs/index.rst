@@ -6,6 +6,7 @@ Contents:
    Scarce
    Silicon
    Fields
+   Solver
    Examples
 
 
