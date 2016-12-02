@@ -89,6 +89,8 @@ def plot_depletion_voltage():
         'Full depletion voltage in silicon')
     plt.xlabel('Effective doping concentration [$\mathrm{10^{12} / cm^3}}$]')
     plt.ylabel('Depletion Voltage [$\mathrm{V}}$]')
+    plt.xscale('log')
+    plt.yscale('log')
     plt.legend(loc=0)
     plt.grid()
     plt.savefig('DepletionVoltage.pdf', layout='tight')
@@ -162,7 +164,6 @@ def plot_free_path():
 
 
 def plot_mobility():
-
     e_field = np.logspace(3., 5., 1000.)
     plt.clf()
     # Plot mobility mu
@@ -170,9 +171,9 @@ def plot_mobility():
     mu1_e = silicon.get_mobility(e_field, temperature=300., is_electron=True)
     mu0_h = silicon.get_mobility(e_field, temperature=250., is_electron=False)
     mu1_h = silicon.get_mobility(e_field, temperature=300., is_electron=False)
-    # plt.loglog(e_field, mu0_e, linewidth=2., color='blue', linestyle='--', label='Electrons, T = 250K')
+    plt.loglog(e_field, mu0_e, linewidth=2., color='blue', linestyle='--', label='Electrons, T = 250K')
     plt.loglog(e_field, mu1_e, linewidth=2., color='blue', linestyle='-', label='Electrons, T = 300K')
-    # plt.loglog(e_field, mu0_h, linewidth=2., color='red', linestyle='--', label='Holes, T = 250K')
+    plt.loglog(e_field, mu0_h, linewidth=2., color='red', linestyle='--', label='Holes, T = 250K')
     plt.loglog(e_field, mu1_h, linewidth=2., color='red', linestyle='-', label='Holes, T = 300K')
     plt.title('Charge carrier mobility in silicon')
     plt.xlabel('Electric field [$\mathrm{V/cm}$]')
@@ -181,16 +182,18 @@ def plot_mobility():
     plt.grid()
     plt.savefig('Mobility.pdf', layout='tight')
 
+def plot_velocity():
     # Plot velocity: v = mu * E
+    e_field = np.logspace(3., 5., 1000.)
     plt.clf()
     v0_e = silicon.get_mobility(e_field, temperature=250., is_electron=True) * e_field
     v1_e = silicon.get_mobility(e_field, temperature=300., is_electron=True) * e_field
     v0_h = silicon.get_mobility(e_field, temperature=250., is_electron=False) * e_field
     v1_h = silicon.get_mobility(e_field, temperature=300., is_electron=False) * e_field
     plt.plot(e_field, v0_e, linewidth=2., color='blue', linestyle='-', label='Electrons, T = 250K')
-#     plt.plot(e_field, v1_e, linewidth=2., color='blue', linestyle='-', label='Electrons, T = 300K')
+    plt.plot(e_field, v1_e, linewidth=2., color='blue', linestyle='-', label='Electrons, T = 300K')
     plt.plot(e_field, v0_h, linewidth=2., color='red', linestyle='-', label='Holes, T = 250K')
-#     plt.plot(e_field, v1_h, linewidth=2., color='red', linestyle='-', label='Holes, T = 300K')
+    plt.plot(e_field, v1_h, linewidth=2., color='red', linestyle='-', label='Holes, T = 300K')
     plt.title('Charge carrier velocity in silicon')
     plt.xlabel('Electric field [$\mathrm{V/cm}$]')
     plt.ylabel('Electron/-hole velocity [$\mathrm{cm/s}$]')
@@ -251,6 +254,7 @@ def create_plots():
     plot_eff_acceptor_concentration()
     plot_free_path()
     plot_mobility()
+    plot_velocity()
     plot_resistivity()
     plot_trapping()
 
