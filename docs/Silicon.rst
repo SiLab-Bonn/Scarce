@@ -52,6 +52,11 @@ Silicon
    from scarce.examples import plot_properties
    plot_properties.plot_mobility()
    
+.. plot::
+
+   from scarce.examples import plot_properties
+   plot_properties.plot_velocity()
+   
 .. autofunction:: scarce.silicon.get_resistivity()
    
 .. plot::

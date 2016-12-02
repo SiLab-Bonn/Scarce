@@ -6,9 +6,9 @@ Solver
 
 .. automodule:: scarce.solver
 
+.. autoclass:: scarce.solver.DriftDiffusionSolver
+
 Methods
 -------
 
 .. autofunction:: scarce.solver.solve
-
-.. autofunction:: scarce.solver.solve_drift_diffusion
