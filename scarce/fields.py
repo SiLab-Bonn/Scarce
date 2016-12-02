@@ -167,18 +167,25 @@ class Description(object):
         return self.potential_smooth(x, y).T
 
     def get_field(self, x, y):
+        ''' Returns the field in V/um at different positions.
+        
+        Parameters
+        ----------
+        x, y : array_like
+            Particle x, y positions
+        '''
+
         if self.field_x is None or self.field_y is None:
             self._derive_field()
-        return [self.field_x(x, y).T, self.field_y(x, y).T]
+        return np.array([self.field_x(x, y, grid=False), self.field_y(x, y, grid=False)])
 
     def _smooth_potential(self, smoothing=None):
         ''' This function takes the potential grid interpolation
             and smooths the data points.
 
             Smoothing is really buggy in scipy, the only
-            working way to smooth is apperently to smooth
-            on a grid, thus mesh points of the potential
-            solution cannot be used directly.
+            working way is to smooth on a grid. Thus mesh points 
+            of the potential solution cannot be used directly.
         '''
         _LOGGER.debug('Calculate smoothed potential description')
 
@@ -208,11 +215,12 @@ class Description(object):
         if not self.potential_smooth:
             self._smooth_potential()
 
-        E_x, E_y = np.gradient(-self.potential_smooth(self._xx, self._yy), np.diff(self._x)[0], np.diff(self._y)[0])
+        E_x, E_y = np.gradient(-self.potential_smooth(self._x, self._y), np.diff(self._x)[0], np.diff(self._y)[0])
 
+        print '!E_x', E_x.shape
         # Create spline interpolators for E_x,E_y
-        self.field_x = RectBivariateSpline(self._x, self._y, E_x, s=0, kx=2, ky=2)
-        self.field_y = RectBivariateSpline(self._x, self._y, E_y, s=0, kx=2, ky=2)
+        self.field_x = RectBivariateSpline(self._xx, self._yy, E_x, s=0, kx=2, ky=2)
+        self.field_y = RectBivariateSpline(self._xx, self._yy, E_y, s=0, kx=2, ky=2)
 
     def _interpolate_nan(self, a):
         ''' Fills nans with closest non nan value.
