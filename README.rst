@@ -53,7 +53,7 @@ For more information visit: https://www.continuum.io/downloads
 
 .. code-block:: bash
 
-   cd Scarce && pip setup.py develop
+   cd Scarce && python setup.py develop
 
 Windows
 -------
@@ -81,7 +81,7 @@ https://github.com/SiLab-Bonn/Scarce/archive/master.zip
 
 .. code-block:: bash
 
-   pip setup.py develop
+   python setup.py develop
 
 .. |travis-status| image:: https://travis-ci.org/SiLab-Bonn/Scarce.svg?branch=master
     :target: https://travis-ci.org/SiLab-Bonn/Scarce
