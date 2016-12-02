@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import PolyCollection
 from matplotlib.patches import Rectangle
-from matplotlib import colors, cm
+from matplotlib import cm
+import logging
+_LOGGER = logging.getLogger(__name__)
 
 from scarce import geometry
 
@@ -86,7 +88,7 @@ def get_planar_sensor_plot(fig,
                            depletion_function=None,
                            mesh=None,
                            title=None):
-
+    _LOGGER.info('Create planar sensor plot')
     ax = fig.add_subplot(111)
 
     min_x, max_x = -width * float(n_pixel) / 2., width * float(n_pixel) / 2.
@@ -131,7 +133,7 @@ def get_planar_sensor_plot(fig,
         # BUG in matplotlib: aspect to be set to equal, otherwise contour plot wrong aspect ratio
         # http://stackoverflow.com/questions/28857673/wrong-aspect-ratio-for-contour-plot-with-python-matplotlib
         ax.set_aspect('equal')
-        ax.contour(x, y, phi, 10, colors='black')
+        ax.contour(x, y, phi, 10, colors='black', vmin=V_backplane, vmax=V_readout)
         cmesh = ax.pcolormesh(x - np.diff(x)[0] / 2., y - np.diff(y)[0] / 2., phi, cmap=cm.get_cmap('Blues'), vmin=V_backplane, vmax=V_readout)
         cax = fig.add_axes([ax.get_position().xmax, 0.1, 0.05, ax.get_position().ymax - ax.get_position().ymin])
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
