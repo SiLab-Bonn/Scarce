@@ -70,7 +70,7 @@ def sensor_planar():
     plt.legend(loc=0)
     plt.title('Potential in a not fully depleted planar sensor')
     plt.xlabel('Position [um]')
-    plt.xlabel('Potential [V]')
+    plt.ylabel('Potential [V]')
     plt.grid()
     plt.show()
 
@@ -88,4 +88,6 @@ def sensor_planar():
                             title='Planar sensor potential')
 
 if __name__ == '__main__':
+    import logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     sensor_planar()
