@@ -7,3 +7,4 @@ pygmsh  # gmsh interface
 meshio  # io library for meshes
 fipy  # the used finite element solver
 matplotlib  # plot library
+progressbar-latest  # show a progressbar
