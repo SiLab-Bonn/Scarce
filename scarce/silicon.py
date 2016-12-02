@@ -119,7 +119,10 @@ def get_mobility(e_field, temperature, is_electron):
         From:
         C. Jacononi et al., Solid state electronics, 1977, vol 20., p. 87
         'A review of some charge transport properties of silicon'
-        Note: the doping concentration is irrelevant for < 10^16/cm^3
+        
+        Note
+        ----
+        The doping concentration is irrelevant for n_eff < 10^16/cm^3
     '''
 
     if is_electron:
