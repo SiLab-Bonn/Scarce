@@ -72,7 +72,6 @@ class Description(object):
 
         try:
             self.depletion_data = np.array([self.potential_data.depletion[0], self.potential_data.depletion[1]])
-            # print self.depletion_data
         except AttributeError:
             self.depletion_data = None
 
@@ -89,8 +88,12 @@ class Description(object):
         # since it is time consuming and maybe not needed
         self.depletion_region = None
 
-        self._x = np.linspace(min_x, max_x, nx)
-        self._y = np.linspace(min_y, max_y, ny)
+        self.min_x = min_x
+        self.min_y = min_y
+        self.max_x = max_x
+        self.max_y = max_y
+        self._x = np.linspace(self.min_x, self.max_x, nx)
+        self._y = np.linspace(self.min_y, self.max_y, ny)
 
         # Create sparse x,y plot grid
         self._xx, self._yy = np.meshgrid(self._x, self._y, sparse=True)
@@ -168,7 +171,7 @@ class Description(object):
 
     def get_field(self, x, y):
         ''' Returns the field in V/um at different positions.
-        
+
         Parameters
         ----------
         x, y : array_like
@@ -184,7 +187,7 @@ class Description(object):
             and smooths the data points.
 
             Smoothing is really buggy in scipy, the only
-            working way is to smooth on a grid. Thus mesh points 
+            working way is to smooth on a grid. Thus mesh points
             of the potential solution cannot be used directly.
         '''
         _LOGGER.debug('Calculate smoothed potential description')
@@ -217,7 +220,6 @@ class Description(object):
 
         E_x, E_y = np.gradient(-self.potential_smooth(self._x, self._y), np.diff(self._x)[0], np.diff(self._y)[0])
 
-        print '!E_x', E_x.shape
         # Create spline interpolators for E_x,E_y
         self.field_x = RectBivariateSpline(self._xx, self._yy, E_x, s=0, kx=2, ky=2)
         self.field_y = RectBivariateSpline(self._xx, self._yy, E_y, s=0, kx=2, ky=2)
