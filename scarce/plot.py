@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib.collections import PolyCollection
 from matplotlib.patches import Rectangle
 from matplotlib import cm
+import matplotlib.animation as animation
 import logging
 _LOGGER = logging.getLogger(__name__)
 
@@ -288,6 +289,32 @@ def get_3D_sensor_plot(fig,
     ax.set_ylabel('Position y [um]', fontsize=22)
     if title:
         ax.set_title(title, fontsize=22)
+
+
+def animate_drift_diffusion(fig, pe, ph, dt):
+    if not fig.get_axes():
+        raise RuntimeError('Function has to be called with sensor plot figure')
+    else:
+        ax = fig.get_axes()[0]
+
+    electrons, = ax.plot([], [], '.', label='Electrons')
+    holes, = ax.plot([], [], '.', label='Holes')
+    time_template = '%.1f ns'
+    time_text = ax.text(0.01, 0.97, '', transform=ax.transAxes)
+
+    def init():
+        electrons.set_data([], [])
+        holes.set_data([], [])
+        time_text.set_text('')
+        return electrons, holes, time_text
+
+    def animate(i):
+        electrons.set_data(pe[i, 0, :], pe[i, 1, :])
+        holes.set_data(ph[i, 0, :], ph[i, 1, :])
+        time_text.set_text(time_template % (i * dt))
+        return electrons, holes, time_text
+
+    return init, animate
 
 
 if __name__ == '__main__':
