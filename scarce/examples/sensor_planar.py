@@ -1,10 +1,13 @@
-''' Example that creates a planar silicon sensor with a given geometry (thickness, number of pixels, pitch, width).
-    Calculates the electrical potential and fields. For comparison also the analytical result of a planar sensor with
-    100% fill factor (width = pitch) is created.
+''' Example that creates a planar silicon sensor with a given geometry.
+
+    Calculates the electrical potential and fields. For comparison also the
+    analytical result of a planar sensor with 100% fill factor (width = pitch)
+    is created.
 
     .. WARNING::
-       The calculation of the depletion region is simplified. If the depletion is not at a contant y position
-       in the sensor (e.g. for pixels with small fill factor) it deviates from the correct solution.
+       The calculation of the depletion region is simplified. If the depletion
+       is not at a contant y position in the sensor (e.g. for pixels with small
+       fill factor) it deviates from the correct solution.
 '''
 
 import numpy as np
@@ -36,7 +39,7 @@ def sensor_planar():
         n_pixel=n_pixel,
         width=width,
         thickness=thickness,
-        resolution=200.,
+        resolution=300.,
         filename='planar_mesh_example.msh')
 
     # Numerically solve the laplace equation on the mesh
@@ -52,25 +55,52 @@ def sensor_planar():
 
     min_x = float(mesh.getFaceCenters()[0, :].min())
     max_x = float(mesh.getFaceCenters()[0, :].max())
-    description = fields.Description(potential,
-                                     min_x=min_x,
-                                     max_x=max_x,
-                                     min_y=0,
-                                     max_y=thickness)
+    desc = fields.Description(potential,
+                              min_x=min_x,
+                              max_x=max_x,
+                              min_y=0,
+                              max_y=thickness)
 
     # Plot analytical / numerical result with depletion region in 1D
-    y = np.linspace(0, thickness, 100)
+    y = np.linspace(0, thickness, 1000)
     x = np.zeros_like(y)
-    plt.plot(y, description.get_potential(x, y), label='Potential, numerical', linewidth=2)
-    pot_masked = np.ma.masked_array(description.get_potential(x, y), mask=description.get_depletion_mask(x, y), linewidth=2)
-    plt.plot(y, pot_masked, label='Potential, numerical, depleted', linewidth=2)
-    plt.plot([description.get_depletion(x[50]), description.get_depletion(x[50])], plt.ylim(), label='Depletion, numerical ', linewidth=2)
-    plt.plot(y, fields.get_potential_planar_analytic_1D(y, V_bias=V_bias + V_bi, V_readout=V_readout, n_eff=n_eff, D=thickness), '--', label='Potential, analytical', linewidth=2)
-    plt.plot([silicon.get_depletion_depth(np.abs(V_bias), n_eff / 1e12, temperature), silicon.get_depletion_depth(np.abs(V_bias), n_eff / 1e12, temperature)], plt.ylim(), '--', label='Depletion, analytical', linewidth=2)
-    plt.legend(loc=0)
+
+    plt.plot(y, desc.get_potential(x, y),
+             label='Potential, numerical', linewidth=2)
+    pot_masked = np.ma.masked_array(desc.get_potential(x, y),
+                                    mask=desc.get_depletion_mask(x, y))
+    plt.plot(y, pot_masked, label='Potential, numerical, depl.',
+             linewidth=2)
+    plt.plot([desc.get_depletion(x[500]), desc.get_depletion(x[500])],
+             plt.ylim(), label='Depletion, numerical ', linewidth=2)
+    plt.plot(y, fields.get_potential_planar_analytic_1D(y,
+                                                        V_bias=V_bias + V_bi,
+                                                        V_readout=V_readout,
+                                                        n_eff=n_eff,
+                                                        D=thickness),
+             '--', label='Potential, analytical', linewidth=2)
+    plt.plot([silicon.get_depletion_depth(np.abs(V_bias), n_eff / 1e12,
+                                          temperature),
+              silicon.get_depletion_depth(np.abs(V_bias), n_eff / 1e12,
+                                          temperature)],
+             plt.ylim(), '--', label='Depletion, analytical', linewidth=2)
+    plt.ylabel('Potential [V]')
+    plt.legend(loc=1)
+    ax2 = plt.gca().twinx()
+    ax2.plot(y, desc.get_field(x, y)[1],
+             '--', label='Field, numerical', linewidth=2)
+    ax2.plot(y, fields.get_electric_field_analytic(x,
+                                                   y,
+                                                   V_bias=V_bias,
+                                                   V_readout=V_readout,
+                                                   n_eff=n_eff,
+                                                   D=thickness)[1],
+             '--', label='Field, analytical', linewidth=2)
+    plt.ylabel('Field [V/cm]')
+    plt.legend(loc=4)
     plt.title('Potential in a not fully depleted planar sensor')
     plt.xlabel('Position [um]')
-    plt.ylabel('Potential [V]')
+
     plt.grid()
     plt.show()
 
@@ -79,15 +109,20 @@ def sensor_planar():
                             pitch=pitch,
                             thickness=thickness,
                             n_pixel=n_pixel,
-                            V_backplane=V_bias,  # Weighting field = 0 at backplane
-                            V_readout=V_readout,  # Weighting field = 1 at readout
-                            potential_function=description.get_potential,
-                            field_function=description.get_field,
-                            depletion_function=description.get_depletion,
-                            mesh=None,  # potential.mesh,  # Comment in if you want to see the mesh
+                            # Weighting field = 0 at backplane
+                            V_backplane=V_bias,
+                            # Weighting field = 1 at readout
+                            V_readout=V_readout,
+                            potential_function=desc.get_potential,
+                            field_function=desc.get_field,
+                            depletion_function=desc.get_depletion,
+                            # Comment in if you want to see the mesh
+                            mesh=None,  # potential.mesh,
                             title='Planar sensor potential')
 
 if __name__ == '__main__':
     import logging
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(message)s",
+                        datefmt="%Y-%m-%d %H:%M:%S")
     sensor_planar()
