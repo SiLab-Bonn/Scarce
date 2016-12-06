@@ -7,6 +7,7 @@ from scarce.examples import sensor_3D_weighting
 from scarce.examples import potential_1D
 from scarce.examples import sensor_planar
 from scarce.examples import sensor_3D
+from scarce.examples import transient_planar
 
 
 class TestExamples(unittest.TestCase):
@@ -55,6 +56,11 @@ class TestExamples(unittest.TestCase):
         ''' Check example to create 3D potential/field.
         '''
         sensor_3D.sensor_3D()
+
+    def test_transient_planar(self):
+        ''' Check example to calculate transient signa in planar sensor.
+        '''
+        transient_planar.transient_planar()
 
 if __name__ == "__main__":
     unittest.main()
