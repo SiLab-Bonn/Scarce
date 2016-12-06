@@ -86,7 +86,8 @@ class DriftDiffusionSolver(object):
                 n positions of e-h-pairs in x, y at t = 0
 
             q0 : array_like, shape = (n, )
-                n charges of quasi particles at t = 0
+                Charge of quasi particles at t = 0.
+                To give in electrons is a good choise.
 
             dt : number
                 Time step in ns. Influences presicion.
@@ -97,15 +98,15 @@ class DriftDiffusionSolver(object):
         '''
 
         # Start positions
-        p_e, p_h = p0, p0.copy()
+        p_e, p_h = p0.copy(), p0.copy()
 
         # Result arrays initialized to NaN
         traj_e = np.empty(shape=(n_steps, p_e.shape[0], p_e.shape[1]))
         traj_h = np.empty(shape=(n_steps, p_h.shape[0], p_h.shape[1]))
-        I_ind_e = np.empty(shape=(n_steps, p_e.shape[1]))
-        I_ind_h = np.empty(shape=(n_steps, p_h.shape[1]))
+        Q_ind_e = np.zeros(shape=(n_steps, p_e.shape[1]))
+        Q_ind_h = np.zeros(shape=(n_steps, p_h.shape[1]))
+        Q_ind_tot = np.zeros(shape=(n_steps, p_h.shape[1]))
         traj_e[:], traj_h[:] = np.nan, np.nan
-        I_ind_e[:], I_ind_h[:] = np.nan, np.nan
 
         progress_bar = progressbar.ProgressBar(
             widgets=['', progressbar.Percentage(), ' ',
@@ -151,19 +152,30 @@ class DriftDiffusionSolver(object):
                 # Weighting field in V/um
                 W_e = self.pot_w_descr.get_field(p_e[0, sel_e],
                                                  p_e[1, sel_e])
-                # Induced current in C/s
-                I_ind_e[step, sel_e] = (W_e[0, 0] * v_e[0, 0] +
-                                        W_e[1, 0] * v_e[1, 0]) \
+
+                # Induced charge in C/s, Q = E_w * v * q * dt
+                dQ_e = (W_e[0] * v_e[0] + W_e[1] * v_e[1]) * \
                     - q0[sel_e] * dt * 1e-5
+
+                # Total integrated induced charge
+                Q_ind_e[step, sel_e] = Q_ind_e[step - 1, sel_e] + dQ_e
+
+            Q_ind_e[step, ~sel_e] = Q_ind_e[step - 1, ~sel_e]
+            Q_ind_tot[step] += Q_ind_e[step]
 
             if np.any(p_h[0, sel_h]):  # Only if holes are still drifting
                 # Weighting field in V/um
                 W_h = self.pot_w_descr.get_field(p_h[0, sel_h],
                                                  p_h[1, sel_h])
-                # Induced current in C/s
-                I_ind_h[step, sel_h] = (W_h[0, 0] * v_h[0, 0] +
-                                        W_h[1, 0] * v_h[1, 0]) * \
+                # Induced charge in C/s, Q = E_w * v * q * dt
+                dQ_h = (W_h[0] * v_h[0] + W_h[1] * v_h[1]) * \
                     q0[sel_h] * dt * 1e-5
+
+                # Total integrated induced charge
+                Q_ind_h[step, sel_h] = Q_ind_h[step - 1, sel_h] + dQ_h
+
+            Q_ind_h[step, ~sel_h] = Q_ind_h[step - 1, ~sel_h]
+            Q_ind_tot[step] += Q_ind_h[step]
 
             # Position change in um
             d_p_e, d_p_h = v_e * dt * 1e-5, v_h * dt * 1e-5
@@ -186,4 +198,4 @@ class DriftDiffusionSolver(object):
             progress_bar.update(step)
         progress_bar.finish()
 
-        return traj_e, traj_h, I_ind_e, I_ind_h
+        return traj_e, traj_h, Q_ind_e, Q_ind_h, Q_ind_tot
