@@ -297,7 +297,7 @@ def animate_drift_diffusion(fig, pe, ph, dt):
     else:
         ax = fig.get_axes()[0]
 
-    electrons, = ax.plot([], [], '.', label='Electrons')
+    electrons, = ax.plot([], [], 'o', label='Electrons')
     holes, = ax.plot([], [], '.', label='Holes')
     time_template = '%.1f ns'
     time_text = ax.text(0.01, 0.97, '', transform=ax.transAxes)
