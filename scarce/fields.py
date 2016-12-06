@@ -914,6 +914,8 @@ def get_electric_field_analytic(x, y, V_bias, n_eff, D,
             \end{array}
             \right.
 
+        with :math:`x_{\mathrm{dep}} = \sqrt{\frac{2\epsilon}{\rho}(V_{\mathrm{readout}} - V_{\mathrm{bias})}}`
+
     - 3D sensor:
         Calculates the field E_x/E_y [V/um] in a 3d sensor as a function of the position
         x,y between the electrodes [um], the bias Voltage V_bias [V], the effective
