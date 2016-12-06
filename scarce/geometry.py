@@ -382,7 +382,9 @@ def mesh_planar_sensor(n_pixel, width, thickness, resolution=1., filename='senso
     # Decrease resolution to 1/4 for areas next to the 3 center pixel
     points = []
     for i, point_xyz in enumerate(points_xyz):
-        points.append(geom.add_point(point_xyz, lcar=resolution_x if i in (2, 3, 6, 7) else resolution_x * 4.))
+        points.append(geom.add_point(point_xyz,
+                                     lcar=resolution_x if i in (2, 3, 6, 7)
+                                     else resolution_x * 4.))
 
     # Create lines
     lines = [geom.add_line(points[i], points[i + 1])
@@ -392,18 +394,18 @@ def mesh_planar_sensor(n_pixel, width, thickness, resolution=1., filename='senso
     line_loop = geom.add_line_loop(lines)
     geom.add_plane_surface([line_loop])
 
-    # Add 1/x1.5 law for the mesh size
-    raw_codes = ['lc = %f;' % (resolution_x / 4.),
+    # Add 1/x**4 law for the mesh size
+    raw_codes = ['lc = %f;' % (resolution_x / 6.),
                  'Field[1] = Attractor;',
                  'Field[1].EdgesList = {l3};'
                  'Field[1].NNodesByEdge = %d;' % resolution,
                  'Field[2] = MathEval;',
-                 'Field[2].F = Sprintf(\"F1^3 + %g\", lc);',
+                 'Field[2].F = Sprintf(\"F1^4 + %g\", lc);',
                  'Background Field = 2;\n']
 
     geom.add_raw_code(raw_codes)
 
     points, cells = pg.generate_mesh(geom, verbose=False)
-
+    _LOGGER.info('Create mesh with %d points', len(points))
     mio.write(filename, points, cells)
     return GmshImporter2D(filename)
