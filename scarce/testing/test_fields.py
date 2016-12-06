@@ -145,7 +145,7 @@ class TestFields(unittest.TestCase):
                     self.assertTrue(np.allclose(
                         pot_analytic.T[nx / 2 + i, sel],
                         pot_numeric.T[nx / 2 + i, sel],
-                        rtol=0.005, atol=0.005))
+                        rtol=0.01, atol=0.005))
 
     def test_weighting_field_planar(self):
         '''  Checks the numerical field estimation by comparing to correct
