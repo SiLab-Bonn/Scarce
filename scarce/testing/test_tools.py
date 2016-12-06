@@ -46,7 +46,7 @@ class TestTools(unittest.TestCase):
         tools.save(description, 'tmp.sc')
         description_2 = tools.load('tmp.sc')
 
-        self.assertTrue(np.all(description.potential_data == description_2.potential_data))
+        self.assertTrue(np.all(description.pot_data == description_2.pot_data))
         self.assertTrue(np.all(description.potential_grid == description_2.potential_grid))
         self.assertTrue(np.all(np.array(description.get_field(description._xx, description._yy))
                                == np.array(description_2.get_field(description_2._xx, description_2._yy))))
