@@ -132,9 +132,8 @@ class DriftDiffusionSolver(object):
             sel = np.logical_and(sel_x, sel_y)
 
             if self.geom_descr:
-                sel_col = self.geom_descr.position_in_column(x, y)
-                print type(sel_col)
-                print sel_col.dtype
+                sel_col = self.geom_descr.position_in_column(x, y,
+                                                             incl_sides=True)
                 sel = np.logical_and(sel, ~sel_col)
 
             return sel
