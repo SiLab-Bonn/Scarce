@@ -19,11 +19,11 @@ def sensor_3D():
     radius = 6.
     nD = 2  # Number of columns per pixel
 
-    n_eff = 0.8e13  # n_eff [cm^-3]
+    n_eff = 1e12  # n_eff [cm^-3]
     temperature = 300
 
     # Potentials
-    V_bias = -200.
+    V_bias = -20.
     V_readout = 0.
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
