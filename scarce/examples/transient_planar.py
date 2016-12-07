@@ -132,10 +132,8 @@ def transient_planar():
                                   interval=ani_time / frames * 1000.,
                                   blit=True, init_func=init,
                                   repeat_delay=ani_time / 5.)
-    try:
-        ani.save('Example_planar_drift.gif', dpi=80, writer='imagemagick')
-    except RuntimeError:
-        logging.info('You can install imagemagick to safe the animation')
+
+    # ani.save('Example_planar_drift.gif', dpi=80, writer='imagemagick')
     plt.show()
 
 
