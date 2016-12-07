@@ -157,7 +157,7 @@ class SensorDescription3D(object):
 
         x, y = np.atleast_1d(x), np.atleast_1d(y)  # To make this function work with single numbers instead of arrays
 
-        mask = np.zeros_like(x)
+        mask = np.zeros(shape=x.shape, dtype=np.bool)
 
         for x_col, y_col in self.get_ro_col_offsets():
             mask[np.sqrt((x - x_col) ** 2 + (y - y_col) ** 2) < self.radius] = True
@@ -350,6 +350,7 @@ def mesh_3D_sensor(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD, resolutio
         geom, width_x, width_y, radius, resolution, x0=0., y0=0.)
 
     points, cells = pg.generate_mesh(geom, verbose=False)
+    _LOGGER.info('Created mesh with %d points', len(points))
 
     mio.write(filename, points, cells)
     return GmshImporter2D(filename)
@@ -406,6 +407,6 @@ def mesh_planar_sensor(n_pixel, width, thickness, resolution=1., filename='senso
     geom.add_raw_code(raw_codes)
 
     points, cells = pg.generate_mesh(geom, verbose=False)
-    _LOGGER.info('Create mesh with %d points', len(points))
+    _LOGGER.info('Created mesh with %d points', len(points))
     mio.write(filename, points, cells)
     return GmshImporter2D(filename)
