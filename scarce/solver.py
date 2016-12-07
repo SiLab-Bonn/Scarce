@@ -53,7 +53,7 @@ class DriftDiffusionSolver(object):
     '''
 
     def __init__(self, pot_descr, pot_w_descr,
-                 T=300):
+                 T=300, geom_descr=None):
         '''
         Parameters
         ----------
@@ -66,6 +66,9 @@ class DriftDiffusionSolver(object):
         T : number
             Temperatur in Kelvin
 
+        geom_descr : scarce.geometry.SensorDescription3D
+            Describes the 3D sensor geometry
+
         Notes
         -----
 
@@ -75,6 +78,7 @@ class DriftDiffusionSolver(object):
         self.pot_w_descr = pot_w_descr
 
         self.T = T
+        self.geom_descr = geom_descr
 
     def solve(self, p0, q0, dt, n_steps=4000):
         ''' Solve the drift diffusion equation for quasi partciles and calculates
@@ -116,18 +120,29 @@ class DriftDiffusionSolver(object):
 
         progress_bar.start()
 
-        def in_boundary(description, x, y):
+        def in_boundary(pot_descr, x, y):
             ''' Checks if the particles are still in the bulk and should be propagated
             '''
 
-            sel_x = np.logical_and(x >= description.min_x,
-                                   x <= description.max_x)
-            sel_y = np.logical_and(y >= description.min_y,
-                                   y <= description.max_y)
-            return np.logical_and(sel_x, sel_y)
+            sel_x = np.logical_and(x >= pot_descr.min_x,
+                                   x <= pot_descr.max_x)
+            sel_y = np.logical_and(y >= pot_descr.min_y,
+                                   y <= pot_descr.max_y)
 
-        sel_e = np.ones(p_e.shape[1], dtype=np.bool)
-        sel_h = np.ones(p_h.shape[1], dtype=np.bool)
+            sel = np.logical_and(sel_x, sel_y)
+
+            if self.geom_descr:
+                sel_col = self.geom_descr.position_in_column(x, y)
+                print type(sel_col)
+                print sel_col.dtype
+                sel = np.logical_and(sel, ~sel_col)
+
+            return sel
+
+        sel_e = in_boundary(pot_descr=self.pot_descr,
+                            x=p_e[0, :], y=p_e[1, :])
+        sel_h = in_boundary(pot_descr=self.pot_descr,
+                            x=p_h[0, :], y=p_h[1, :])
 
         for step in range(n_steps):
             # Check if all particles out of boundary
@@ -185,9 +200,9 @@ class DriftDiffusionSolver(object):
             p_h[:, sel_h] = p_h[:, sel_h] + d_p_h
 
             # Check boundaries and update selection
-            sel_e = in_boundary(description=self.pot_descr,
+            sel_e = in_boundary(pot_descr=self.pot_descr,
                                 x=p_e[0, :], y=p_e[1, :])
-            sel_h = in_boundary(description=self.pot_descr,
+            sel_h = in_boundary(pot_descr=self.pot_descr,
                                 x=p_h[0, :], y=p_h[1, :])
             p_e[:, ~sel_e] = np.nan
             p_h[:, ~sel_h] = np.nan
