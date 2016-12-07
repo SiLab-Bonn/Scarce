@@ -42,10 +42,14 @@ class SensorDescription3D(object):
         return int((self.n_pixel_y - 1) / 2)
 
     def get_array_corners(self):
-        min_x = self.x0 - self.width_x / 2. - self.get_n_pixel_left() * self.width_x
-        max_x = self.x0 + self.width_x / 2. + self.get_n_pixel_right() * self.width_x
-        min_y = self.y0 - self.width_y / 2. - self.get_n_pixel_top() * self.width_y
-        max_y = self.y0 + self.width_y / 2. + self.get_n_pixel_bottom() * self.width_y
+        min_x = self.x0 - self.width_x / 2. - \
+            self.get_n_pixel_left() * self.width_x
+        max_x = self.x0 + self.width_x / 2. + \
+            self.get_n_pixel_right() * self.width_x
+        min_y = self.y0 - self.width_y / 2. - \
+            self.get_n_pixel_top() * self.width_y
+        max_y = self.y0 + self.width_y / 2. + \
+            self.get_n_pixel_bottom() * self.width_y
 
         return min_x, max_x, min_y, max_y
 
@@ -67,7 +71,8 @@ class SensorDescription3D(object):
         offsets = []
         for ix0 in self.get_pixel_x_offsets():
             for pillar in range(self.nD):
-                offsets.append(self.width_x / self.nD * (pillar + 1.) - self.width_x / 2. + ix0)
+                offsets.append(
+                    self.width_x / self.nD * (pillar + 1.) - self.width_x / 2. + ix0)
         return offsets[:-1]  # Last offset is edge column
 
     def get_side_col_y_offsets(self):
@@ -86,7 +91,8 @@ class SensorDescription3D(object):
         for offset_x in self.get_pixel_x_offsets():
             for offset_y in self.get_pixel_y_offsets():
                 for pillar in range(self.nD):
-                    yield self.width_x / self.nD * (pillar + 1. / 2.) - self.width_x / 2. + offset_x, offset_y
+                    yield self.width_x / self.nD * (pillar + 1. / 2.) \
+                        - self.width_x / 2. + offset_x, offset_y
 
     def get_center_bias_col_offsets(self):
         ''' Offsets of the center bias columns in x,y '''
@@ -148,32 +154,49 @@ class SensorDescription3D(object):
         return zip(offsets_x, offsets_y)
 
     def position_in_center_pixel(self, x, y):
-        return -self.width_x / 2. <= x + self.x0 <= self.width_x / 2. and -self.width_y / 2. <= y + self.y0 <= self.width_y / 2.
+        return -self.width_x / 2. <= x + self.x0 <= self.width_x / 2. \
+           and -self.width_y / 2. <= y + self.y0 <= self.width_y / 2.
 
-    def position_in_column(self, x, y):
-        ''' Returns a mask with the shape of x wich is true if x and y is within a column radius.
-            All columns that are full within the bulk (no edge, corner columns) are used.
+    def position_in_column(self, x, y, incl_sides=False):
+        ''' Returns mask wich is true if x and y is within a column radius.
+            All columns that are full within the bulk (no edge, corner columns)
+            are used.
         '''
 
-        x, y = np.atleast_1d(x), np.atleast_1d(y)  # To make this function work with single numbers instead of arrays
+        # To make this function work with single numbers instead of arrays
+        x, y = np.atleast_1d(x), np.atleast_1d(y)
 
         mask = np.zeros(shape=x.shape, dtype=np.bool)
 
         for x_col, y_col in self.get_ro_col_offsets():
-            mask[np.sqrt((x - x_col) ** 2 + (y - y_col) ** 2) < self.radius] = True
+            mask[np.sqrt((x - x_col) ** 2 +
+                         (y - y_col) ** 2) < self.radius] = True
 
         for x_col, y_col in self.get_center_bias_col_offsets():
-            mask[np.sqrt((x - x_col) ** 2 + (y - y_col) ** 2) < self.radius] = True
+            mask[np.sqrt((x - x_col) ** 2 +
+                         (y - y_col) ** 2) < self.radius] = True
+
+        if incl_sides:
+            for x_col, y_col in self.get_side_bias_col_offsets():
+                mask[np.sqrt((x - x_col) ** 2 +
+                             (y - y_col) ** 2) < self.radius] = True
+            for x_col, y_col in self.get_edge_bias_col_offsets():
+                mask[np.sqrt((x - x_col) ** 2 +
+                             (y - y_col) ** 2) < self.radius] = True
 
         return mask
 
 
-def mesh_3D_sensor(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD, resolution, filename='sensor.msh'):
+def mesh_3D_sensor(width_x, width_y,
+                   n_pixel_x, n_pixel_y,
+                   radius, nD,
+                   resolution, filename='sensor.msh'):
     ''' Create the mesh of a 3D sensor array '''
 
     _LOGGER.info('Mesh 3D sensor array')
 
-    desc = SensorDescription3D(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD)
+    desc = SensorDescription3D(
+        width_x, width_y, n_pixel_x, n_pixel_y, radius, nD)
 
     # Center pixel column segments that need higher resolution
     high_res_segments = []
@@ -336,7 +359,8 @@ def mesh_3D_sensor(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD, resolutio
 
         raw_codes = ['lc = %f;' % (resolution_x / 8.),
                      'Field[1] = Attractor;',
-                     'Field[1].EdgesList = {%s};' % ','.join(high_res_segments),
+                     'Field[1].EdgesList = {%s};' % ','.join(
+                         high_res_segments),
                      'Field[1].NNodesByEdge = %d;' % resolution,
                      'Field[2] = MathEval;',
                      'Field[2].F = Sprintf(\"F1^3 + %g\", lc);',
@@ -356,12 +380,15 @@ def mesh_3D_sensor(width_x, width_y, n_pixel_x, n_pixel_y, radius, nD, resolutio
     return GmshImporter2D(filename)
 
 
-def mesh_planar_sensor(n_pixel, width, thickness, resolution=1., filename='sensor.msh'):  # TODO: size independent resolution parameter
+# TODO: size independent resolution parameter
+def mesh_planar_sensor(n_pixel, width, thickness, resolution=1., filename='sensor.msh'):
     _LOGGER.info('Mesh planar sensor array')
     if n_pixel < 3:
-        raise logging.warning('Less than 3 pixels result in quite wrong boundaries. It is better to choose more pixelss!')
+        raise logging.warning(
+            'Less than 3 pixels result in quite wrong boundaries. It is better to choose more pixelss!')
     if not n_pixel % 2:
-        raise NotImplementedError('Chose an odd pixel number (symmetry reasons)')
+        raise NotImplementedError(
+            'Chose an odd pixel number (symmetry reasons)')
 
     geom = pg.Geometry()
 
