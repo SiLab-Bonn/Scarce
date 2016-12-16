@@ -50,7 +50,7 @@ import fipy
 import numpy as np
 import logging
 
-from scipy.interpolate import interp1d, RectBivariateSpline, griddata
+from scipy.interpolate import interp1d, RectBivariateSpline, griddata, interp2d, SmoothBivariateSpline
 from scipy import constants
 
 from scarce import silicon
@@ -81,8 +81,7 @@ class Description(object):
         except AttributeError:
             self.depletion_data = None
 
-        self.potential_grid_inter = self.interpolate_potential(
-            self.pot_data)
+        self.potential_grid_inter = self.interpolate_potential(self.pot_data)
         self.smoothing = smoothing
 
         # Do not calculate field on init, since it is time consuming
@@ -127,7 +126,7 @@ class Description(object):
             return griddata(points=points,
                             values=values,
                             xi=(grid_x, grid_y),
-                            method='cubic',
+                            method='linear',
                             rescale=False,
                             fill_value=np.nan)
 
@@ -218,6 +217,7 @@ class Description(object):
         def interpolator(x, y, **kwarg):
             func = RectBivariateSpline(self._xx, self._yy, potential_scaled.T,
                                        s=smoothing, kx=3, ky=3)
+            # func = interp2d(self._x, self._y, potential_scaled, kind='cubic')
             return func(x, y, **kwarg) * (v_max - v_min) + v_min
 
         # Smooth on the interpolated grid
