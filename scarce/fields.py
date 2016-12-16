@@ -65,8 +65,8 @@ class Description(object):
 
     ''' Class to describe potential and field at any
         point in space. The numerical potential estimation
-        is used and interpolated to make this possible. The field
-        is derived from a smoothed potential interpolation to minimize
+        is used and interpolated. The field is derived from
+        a smoothed potential interpolation to minimize
         numerical instabilities.
     '''
 
@@ -81,6 +81,11 @@ class Description(object):
         except AttributeError:
             self.depletion_data = None
 
+        self.min_x = min_x
+        self.min_y = min_y
+        self.max_x = max_x
+        self.max_y = max_y
+
         self.potential_grid_inter = self.interpolate_potential(self.pot_data)
         self.smoothing = smoothing
 
@@ -94,10 +99,6 @@ class Description(object):
         # since it is time consuming and maybe not needed
         self.depletion_region = None
 
-        self.min_x = min_x
-        self.min_y = min_y
-        self.max_x = max_x
-        self.max_y = max_y
         self._x = np.linspace(self.min_x, self.max_x, nx)
         self._y = np.linspace(self.min_y, self.max_y, ny)
 
@@ -215,9 +216,10 @@ class Description(object):
         potential_scaled = (self.potential_grid - v_min) / (v_max - v_min)
 
         def interpolator(x, y, **kwarg):
-            func = RectBivariateSpline(self._xx, self._yy, potential_scaled.T,
+            func = RectBivariateSpline(self._x, self._y, potential_scaled.T,
                                        s=smoothing, kx=3, ky=3)
-            # func = interp2d(self._x, self._y, potential_scaled, kind='cubic')
+#             func = interp2d(self._x, self._y, potential_scaled, kind='cubic')
+#             return func(x, y) * (v_max - v_min) + v_min
             return func(x, y, **kwarg) * (v_max - v_min) + v_min
 
         # Smooth on the interpolated grid
@@ -233,16 +235,16 @@ class Description(object):
         if not self.pot_smooth:
             self._smooth_potential()
 
-        E_x, E_y = np.gradient(-self.pot_smooth(self._xx,
-                                                self._yy,
+        E_x, E_y = np.gradient(-self.pot_smooth(self._x,
+                                                self._y,
                                                 grid=True),
                                np.diff(self._x)[0], np.diff(self._y)[0])
 
         # Create spline interpolators for E_x,E_y
         self.field_x = RectBivariateSpline(
-            self._xx, self._yy, E_x, s=0, kx=2, ky=2)
+            self._xx, self._yy, E_x, s=0, kx=1, ky=1)
         self.field_y = RectBivariateSpline(
-            self._xx, self._yy, E_y, s=0, kx=2, ky=2)
+            self._xx, self._yy, E_y, s=0, kx=1, ky=1)
 
     def _interpolate_nan(self, a):
         ''' Fills nans with closest non nan value.
@@ -254,7 +256,8 @@ class Description(object):
         return a
 
 
-def calculate_planar_sensor_w_potential(mesh, width, pitch, n_pixel, thickness):
+def calculate_planar_sensor_w_potential(mesh, width, pitch,
+                                        n_pixel, thickness):
     ''' Calculates the weighting field of a planar sensor.
     '''
     _LOGGER.info('Calculating weighting potential')
@@ -383,9 +386,10 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
             depletion_mask = np.logical_and(
                 potential.mesh.y > y_dep_new[0],
                 potential.mesh.y > y_dep_new[0])
-            potential.equation = (fipy.DiffusionTerm(coeff=epsilon_scaled) + charge ==
-                                  fipy.ImplicitSourceTerm(depletion_mask * large_value) -
-                                  depletion_mask * large_value * V_bias)
+            potential.equation = (
+                fipy.DiffusionTerm(coeff=epsilon_scaled) + charge ==
+                fipy.ImplicitSourceTerm(depletion_mask * large_value) -
+                depletion_mask * large_value * V_bias)
         else:
             potential.equation = (
                 fipy.DiffusionTerm(coeff=epsilon_scaled) + charge == 0.)
@@ -399,10 +403,12 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
         X, _ = mesh.getFaceCenters()
         for pixel in range(n_pixel):
             pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
-            bcs.append(fipy.FixedValue(value=V_readout if pixel_position == 0. else 0.,
-                                       faces=electrodes &
-                                       (X > pixel_position - pitch / 2.) &
-                                       (X < pixel_position + pitch / 2.)))
+            bcs.append(
+                fipy.FixedValue(value=V_readout if pixel_position == 0.
+                                else 0.,
+                                faces=electrodes &
+                                (X > pixel_position - pitch / 2.) &
+                                (X < pixel_position + pitch / 2.)))
 
         solver.solve(
             potential, equation=potential.equation, boundaryConditions=bcs)
@@ -426,7 +432,10 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
 
         for i in range(max_iter):
             # First solution with full depletion assumption
-            depletion_mask = None if i == 0 else description.get_depletion_mask()
+            if i == 0:
+                depletion_mask = None
+            else:
+                depletion_mask = description.get_depletion_mask()
 
             potential = calculate_potential(
                 depletion_mask=depletion_mask, y_dep_new=y_dep_new)
@@ -451,7 +460,9 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
             potential_min = description.get_potential_minimum()
             y_dep_new = description.get_potential_minimum_pos_y()
 
-            if (i == 0 and np.allclose(potential_min, V_bias, rtol=1.e-2)) or (i > 0 and np.allclose(potential_min, V_bias)) or y_dep_new[0] >= y_dep[0]:
+            if ((i == 0 and np.allclose(potential_min, V_bias, rtol=1.e-2)) or
+                    (i > 0 and np.allclose(potential_min, V_bias)) or
+                    y_dep_new[0] >= y_dep[0]):
                 potential.depletion = [description._x, y_dep]
                 return potential
 
@@ -474,7 +485,8 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
 
 
 def calculate_3D_sensor_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y,
-                                  radius, nD, n_eff, V_bias, V_readout, V_bi=0):
+                                  radius, nD, n_eff,
+                                  V_bias, V_readout, V_bi=0):
     ''' Calculates the potential of a planar sensor.
 
         Parameters
@@ -523,13 +535,15 @@ def calculate_3D_sensor_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y,
 
     if mesh_width != max_x - min_x:
         raise ValueError(
-            'The provided mesh width does not correspond to the sensor width')
+            'Provided mesh width does not correspond to the sensor width')
     if mesh_height != max_y - min_y:
         raise ValueError(
-            'The provided mesh height does not correspond to the sensor height')
-    if mesh.getFaceCenters()[0, :].min() != min_x or mesh.getFaceCenters()[0, :].max() != max_x:
+            'Provided mesh height does not correspond to the sensor height')
+    if (mesh.getFaceCenters()[0, :].min() != min_x or
+            mesh.getFaceCenters()[0, :].max() != max_x):
         raise ValueError('The provided mesh has a wrong x position')
-    if mesh.getFaceCenters()[1, :].min() != min_y or mesh.getFaceCenters()[1, :].max() != max_y:
+    if (mesh.getFaceCenters()[1, :].min() != min_y or
+            mesh.getFaceCenters()[1, :].max() != max_y):
         raise ValueError('The provided mesh has a wrong y position')
 
     # The field scales with rho / epsilon, thus scale to proper value to
@@ -556,8 +570,8 @@ def calculate_3D_sensor_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y,
     allfaces = mesh.getExteriorFaces()
     X, Y = mesh.getFaceCenters()
 
-    # Simply add build in potential to bias potential, although that might be not correct
-    # The analytic formular does it like this
+    # Add build in potential to bias potential, although that might not be
+    # correct. The analytic formular does it like this
     V_bias += V_bi
 
     # Set boundary conditions
@@ -586,15 +600,18 @@ def calculate_3D_sensor_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y,
     solver.solve(
         potential, equation=potential.equation, boundaryConditions=bcs)
 
-    if not np.isclose(potential.arithmeticFaceValue().min(), V_bias, rtol=0.05, atol=0.01):
+    if not np.isclose(potential.arithmeticFaceValue().min(),
+                      V_bias, rtol=0.05, atol=0.01):
         print potential.arithmeticFaceValue().min(), V_bias
         raise NotImplementedError(
-            'The 3D sensor does not seem to be fully depleted, this is not supported yet!')
+            'The 3D sensor does not seem to be fully depleted,\
+            this is not supported yet!')
 
     return potential
 
 
-def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y, radius, nD=2):
+def calculate_3D_sensor_w_potential(mesh, width_x, width_y,
+                                    n_pixel_x, n_pixel_y, radius, nD=2):
     _LOGGER.info('Calculating weighting potential')
 
     # Mesh validity check
@@ -609,13 +626,15 @@ def calculate_3D_sensor_w_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y
 
     if mesh_width != max_x - min_x:
         raise ValueError(
-            'The provided mesh width does not correspond to the sensor width')
+            'Provided mesh width does not correspond to the sensor width')
     if mesh_height != max_y - min_y:
         raise ValueError(
-            'The provided mesh height does not correspond to the sensor height')
-    if mesh.getFaceCenters()[0, :].min() != min_x or mesh.getFaceCenters()[0, :].max() != max_x:
+            'Provided mesh height does not correspond to the sensor height')
+    if (mesh.getFaceCenters()[0, :].min() != min_x or
+            mesh.getFaceCenters()[0, :].max() != max_x):
         raise ValueError('The provided mesh has a wrong x position')
-    if mesh.getFaceCenters()[1, :].min() != min_y or mesh.getFaceCenters()[1, :].max() != max_y:
+    if (mesh.getFaceCenters()[1, :].min() != min_y or
+            mesh.getFaceCenters()[1, :].max() != max_y):
         raise ValueError('The provided mesh has a wrong y position')
 
     potential = fipy.CellVariable(mesh=mesh, name='potential', value=0.)
@@ -677,8 +696,10 @@ def get_weighting_potential_analytic(x, y, D, S, is_planar=True):
         xbar = np.pi * x / D
         ybar = np.pi * (y - D) / D
         wbar = np.pi * S / D
-        return -1. / np.pi * (np.arctan(np.tan(ybar / 2) * np.tanh((xbar + wbar / 2.) / 2.)) -
-                              np.arctan(np.tan(ybar / 2) * np.tanh((xbar - wbar / 2.) / 2.)))
+        return -1. / np.pi * (np.arctan(np.tan(ybar / 2) *
+                                        np.tanh((xbar + wbar / 2.) / 2.)) -
+                              np.arctan(np.tan(ybar / 2) *
+                                        np.tanh((xbar - wbar / 2.) / 2.)))
     else:
         R = S
         D = D / 2.  # D is the total distance between the columns
@@ -790,18 +811,21 @@ def get_potential_planar_analytic_1D(x, V_bias, V_readout, n_eff, D):
 
         Notes
         -----
-        The formular can be derived from the 1D Poisson equation :eq:`poisson`, wich has
-        the following general solution for :math:`x <= x_{\mathrm{dep}}` with the full depletion
-        assumption:
+        The formular can be derived from the 1D Poisson equation :eq:`poisson`,
+        wich has the following general solution for
+        :math:`x <= x_{\mathrm{dep}}` with the full depletion assumption:
 
-        .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + \mathrm{const_{p,2}}
+        .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x
+                            + \mathrm{const_{p,2}}
 
-        For the undepleted region :math:`x > x_{\mathrm{dep}}` there is no spacecharge (:math:`\rho = 0`).
-        Thus the generel solution of the 1D Laplace equation :eq:`laplace` can be used here:
+        For the undepleted region :math:`x > x_{\mathrm{dep}}` there is no
+        spacecharge (:math:`\rho = 0`). Thus the generel solution of the 1D
+        Laplace equation :eq:`laplace` can be used here:
 
         .. math:: \Phi_l = \mathrm{const_{l,1}} x + \mathrm{const_{l,2}}
 
-        For an underdepleted sensor (:math:`x_{\mathrm{dep}} <= D`) these boundary conditions have to be satisfied:
+        For an underdepleted sensor (:math:`x_{\mathrm{dep}} <= D`) these
+        boundary conditions have to be satisfied:
 
           1. .. math:: \Phi_p(0) = V_{\mathrm{readout}}
           2. .. math:: \Phi_l(D) = V_{\mathrm{bias}}
@@ -811,10 +835,16 @@ def get_potential_planar_analytic_1D(x, V_bias, V_readout, n_eff, D):
 
         The following simultaneous equations follow:
 
-          1. .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2 + \mathrm{const_{p,1}} x + V_{\mathrm{readout}}
-          2. .. math:: \Phi_l = (x - D)\cdot \mathrm{const_{l,1}} + V_{\mathrm{bias}}
-          3. .. math:: \frac{\rho}{2\epsilon} x_{\mathrm{dep}}^2 + \mathrm{const_{p,1}} x_{\mathrm{dep}} + V_{\mathrm{readout}} = (x_{\mathrm{dep}} - D)\cdot \mathrm{const_{l,1}} + V_{\mathrm{bias}}
-          4. .. math:: \frac{\rho}{\epsilon} x_{\mathrm{dep}} + \mathrm{const_{p,1}} = 0
+          1. .. math:: \Phi_p = \frac{\rho}{2\epsilon} x^2
+                              + \mathrm{const_{p,1}} x + V_{\mathrm{readout}}
+          2. .. math:: \Phi_l = (x - D)\cdot \mathrm{const_{l,1}}
+                                  + V_{\mathrm{bias}}
+          3. .. math:: \frac{\rho}{2\epsilon} x_{\mathrm{dep}}^2
+                        + \mathrm{const_{p,1}} x_{\mathrm{dep}}
+                        + V_{\mathrm{readout}} = (x_{\mathrm{dep}} - D)
+                        \cdot \mathrm{const_{l,1}} + V_{\mathrm{bias}}
+          4. .. math:: \frac{\rho}{\epsilon} x_{\mathrm{dep}}
+                          + \mathrm{const_{p,1}} = 0
           5. .. math:: \mathrm{const_{l,1}} = 0
 
         With the solution:
@@ -824,7 +854,8 @@ def get_potential_planar_analytic_1D(x, V_bias, V_readout, n_eff, D):
             \Phi(x) =
             \left\{
             \begin{array}{ll}
-                  \frac{\rho}{2\epsilon} x^2 - \frac{\rho}{\epsilon} x_{\mathrm{dep}} x + V_{\mathrm{readout}} & x\leq x_{\mathrm{dep}} \\
+                  \frac{\rho}{2\epsilon} x^2 - \frac{\rho}{\epsilon} x_{\mathrm{dep}} x
+                  + V_{\mathrm{readout}} & x\leq x_{\mathrm{dep}} \\
                   V_{\mathrm{bias}} & x > x_{\mathrm{dep}}
             \end{array}
             \right.
