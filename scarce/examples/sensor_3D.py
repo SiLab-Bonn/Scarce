@@ -73,4 +73,8 @@ def sensor_3D():
                         title='Potential and field of a 3D sensor, %dx%d pixel matrix, numerical solution' % (n_pixel_x, n_pixel_y))
 
 if __name__ == '__main__':
+    import logging
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(message)s",
+                        datefmt="%Y-%m-%d %H:%M:%S")
     sensor_3D()
