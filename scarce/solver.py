@@ -37,7 +37,7 @@ def solve(var, equation, **kwargs):
     solver = fipy.solvers.LinearLUSolver
 
     # Reasonable and more strict convergence criteria
-    tolerance = 1e-15
+    tolerance = 1e-20
     iterations = 10000
 
     equation.solve(var=var,
