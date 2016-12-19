@@ -85,6 +85,8 @@ class Description(object):
         self.min_y = min_y
         self.max_x = max_x
         self.max_y = max_y
+        self._nx = nx
+        self._ny = ny
 
         self.potential_grid_inter = self.interpolate_potential(self.pot_data)
         self.smoothing = smoothing
@@ -103,12 +105,43 @@ class Description(object):
         self._y = np.linspace(self.min_y, self.max_y, ny)
 
         # Create sparse x,y plot grid
-
         self._xx, self._yy = np.meshgrid(self._x, self._y, sparse=True)
 
         # Potential interpolated on a grid with NaN set to closest value
         self.potential_grid = self.potential_grid_inter(self._xx, self._yy)
+#         self._extrapolate_boundary()
         self.potential_grid = self._interpolate_nan(self.potential_grid)
+
+    def _extrapolate_boundary(self):
+        ''' Extrapolate the potental at the boundary with constant gradient
+            to prevent oscillations when smoothing.
+        '''
+
+        # Extend array by 10% in y direction, y direction is
+        # in dimension 0 here
+        y_shape = int(self.potential_grid.shape[0] * 1.0)
+        # Difference to old shape
+        dy_shape = y_shape - self.potential_grid.shape[0]
+
+        # Create extended array and fill with old data
+        new_potential_grid = np.zeros(
+            shape=(y_shape, self.potential_grid.shape[1]))#     ax2.plot(desc._y, -np.gradient(desc.potential_grid.T[xi, :], desc._y[1]-desc._y[0], edge_order=1), '-', label='DIFF N')
+        new_potential_grid[dy_shape:, :] = self.potential_grid
+
+        # Calculate the gradient in y for linear extrapolation
+        dy = self.potential_grid[0, :] - self.potential_grid[1, :]
+
+        # Extrapolate at the extended area
+        slope = (np.tile(np.arange(1, dy_shape + 1)
+                         [::-1], (self.potential_grid.shape[1], 1))).T * dy[np.newaxis, :]
+        new_potential_grid[:dy_shape] = self.potential_grid[0, :] + slope
+        self.potential_grid = new_potential_grid#[:new_potential_grid.shape[0] - dy_shape, :]
+        
+        # Also extend y positions
+        self._y = np.linspace(self.min_y - dy_shape * np.diff(self._y)[0], self.max_y, self._ny + dy_shape)
+        
+        print 'self._y', self._y
+#         raise
 
     def interpolate_potential(self, potential=None):
         ''' Interpolates the potential on a grid.
@@ -129,7 +162,7 @@ class Description(object):
                             xi=(grid_x, grid_y),
                             method='linear',
                             rescale=False,
-                            fill_value=np.nan)
+                            fill_value=np.nan)  # values.max())
 
         return grid_interpolator
 
@@ -242,9 +275,9 @@ class Description(object):
 
         # Create spline interpolators for E_x,E_y
         self.field_x = RectBivariateSpline(
-            self._xx, self._yy, E_x, s=0, kx=1, ky=1)
+            self._x, self._y, E_x, s=0, kx=3, ky=3)
         self.field_y = RectBivariateSpline(
-            self._xx, self._yy, E_y, s=0, kx=1, ky=1)
+            self._x, self._y, E_y, s=0, kx=3, ky=3)
 
     def _interpolate_nan(self, a):
         ''' Fills nans with closest non nan value.
