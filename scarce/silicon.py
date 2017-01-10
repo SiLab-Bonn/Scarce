@@ -17,8 +17,6 @@ def get_thermal_velocity(temperature, is_electron=True):
         m_eff = 0.26 * constants.electron_mass
     else:
         m_eff = 0.386 * constants.electron_mass
-    print 'constants.Boltzmann', constants.Boltzmann
-    print 'constants.electron_mass', constants.electron_mass
     return np.sqrt(3.*constants.Boltzmann*temperature / m_eff) * 100.
 
 
