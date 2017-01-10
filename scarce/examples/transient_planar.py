@@ -28,13 +28,15 @@ def transient_planar():
     V_readout = 0.
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
+    resolution = 200.
+
     # Create mesh of the sensor and stores the result
     # The created file can be viewed with any mesh viewer (e.g. gmsh)
     mesh = geometry.mesh_planar_sensor(
         n_pixel=n_pixel,
         width=width,
         thickness=thickness,
-        resolution=300.,
+        resolution=resolution,
         filename='planar_mesh_example.msh')
 
     # Numerically solve the laplace equation on the mesh
@@ -71,7 +73,7 @@ def transient_planar():
 
     # Start parameters of e-h pairs
     xx, yy = np.meshgrid(np.linspace(0, width, 2),  # x
-                         np.linspace(thickness / 2., thickness / 2., 1),  # y
+                         np.linspace(thickness / 2., thickness / 2., 2),  # y
                          sparse=False)  # all combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])
 
@@ -79,8 +81,8 @@ def transient_planar():
     q0 = np.ones(p0.shape[1])
 
     # Time steps
-    dt = 0.001  # [ns]
-    n_steps = 3000
+    dt = 0.0001  # [ns]
+    n_steps = 30000
     t = np.arange(n_steps) * dt
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr, T=temperature)
@@ -124,7 +126,7 @@ def transient_planar():
     # Create animation
     init, animate = plot.animate_drift_diffusion(
         fig, pe=traj_e, ph=traj_h, dt=dt)
-    ani_time = 5.  # [s]
+    ani_time = 5.  # [ns]
     frames = 30
     ani = animation.FuncAnimation(fig=fig, func=animate,
                                   frames=np.arange(1, traj_h.shape[0],

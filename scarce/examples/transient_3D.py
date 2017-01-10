@@ -30,7 +30,7 @@ def transient_3D():
     V_readout = 0.
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
-    resolution = 100.
+    resolution = 150.
 
     mesh = geometry.mesh_3D_sensor(width_x=width_x,
                                    width_y=width_y,
@@ -59,7 +59,7 @@ def transient_3D():
                                                          n_pixel_y,
                                                          radius,
                                                          nD=nD)
-#
+
     # Describe the 3D sensor array
     geom_descr = geometry.SensorDescription3D(width_x, width_y,
                                               n_pixel_x, n_pixel_y,
@@ -73,8 +73,8 @@ def transient_3D():
                                    max_x=max_x,
                                    min_y=min_y,
                                    max_y=max_y,
-                                   nx=width_x * n_pixel_x,  # um resolution
-                                   ny=width_y * n_pixel_y,  # um resolution
+                                   nx=width_x * n_pixel_x * 10.,  # um res.
+                                   ny=width_y * n_pixel_y * 10.,  # um res.
                                    smoothing=0.1
                                    )
     pot_w_descr = fields.Description(w_potential,
@@ -82,14 +82,14 @@ def transient_3D():
                                      max_x=max_x,
                                      min_y=min_y,
                                      max_y=max_y,
-                                     nx=width_x * n_pixel_x,
-                                     ny=width_y * n_pixel_y,
+                                     nx=width_x * n_pixel_x * 10.,
+                                     ny=width_y * n_pixel_y * 10.,
                                      smoothing=0.1
                                      )
 
     # Start parameters of e-h pairs
-    xx, yy = np.meshgrid(np.linspace(-width_x / 3., width_x / 3., 1),  # x
-                         np.linspace(-width_y / 3., width_y / 3., 1),  # y
+    xx, yy = np.meshgrid(np.linspace(-width_x / 3., width_x / 3., 4),  # x
+                         np.linspace(-width_y / 3., width_y / 3., 4),  # y
                          sparse=False)  # all combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])
 
@@ -97,8 +97,8 @@ def transient_3D():
     q0 = np.ones(p0.shape[1])
 
     # Time steps
-    dt = 0.01  # [ns]
-    n_steps = 1000
+    dt = 0.0001  # [ns]
+    n_steps = 30000
     t = np.arange(n_steps) * dt
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
