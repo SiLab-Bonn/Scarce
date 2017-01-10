@@ -30,7 +30,7 @@ def transient_3D():
     V_readout = 0.
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
-    resolution = 150.
+    resolution = 50.
 
     mesh = geometry.mesh_3D_sensor(width_x=width_x,
                                    width_y=width_y,
@@ -73,8 +73,8 @@ def transient_3D():
                                    max_x=max_x,
                                    min_y=min_y,
                                    max_y=max_y,
-                                   nx=width_x * n_pixel_x * 10.,  # um res.
-                                   ny=width_y * n_pixel_y * 10.,  # um res.
+                                   nx=width_x * n_pixel_x * 4.,  # um res.
+                                   ny=width_y * n_pixel_y * 4.,  # um res.
                                    smoothing=0.1
                                    )
     pot_w_descr = fields.Description(w_potential,
@@ -82,14 +82,14 @@ def transient_3D():
                                      max_x=max_x,
                                      min_y=min_y,
                                      max_y=max_y,
-                                     nx=width_x * n_pixel_x * 10.,
-                                     ny=width_y * n_pixel_y * 10.,
+                                     nx=width_x * n_pixel_x * 4.,
+                                     ny=width_y * n_pixel_y * 4.,
                                      smoothing=0.1
                                      )
 
     # Start parameters of e-h pairs
-    xx, yy = np.meshgrid(np.linspace(-width_x / 3., width_x / 3., 4),  # x
-                         np.linspace(-width_y / 3., width_y / 3., 4),  # y
+    xx, yy = np.meshgrid(np.linspace(-width_x / 2., width_x / 2., 4),  # x
+                         np.linspace(-width_y / 2., width_y / 2., 4),  # y
                          sparse=False)  # all combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])
 
