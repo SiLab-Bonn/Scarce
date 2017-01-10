@@ -7,6 +7,21 @@ from scipy import constants
 from scarce import constant
 
 
+def get_thermal_velocity(temperature, is_electron=True):
+    ''' Calculate the thermal velocity [cm/s] for a given temperature [K].
+
+        From: IEEE TRANSACTIONS ON NUCLEAR SCIENCE, VOL. 56, NO. 3, JUNE 2009
+    '''
+    # Effective mass
+    if is_electron:
+        m_eff = 0.26 * constants.electron_mass
+    else:
+        m_eff = 0.386 * constants.electron_mass
+    print 'constants.Boltzmann', constants.Boltzmann
+    print 'constants.electron_mass', constants.electron_mass
+    return np.sqrt(3.*constants.Boltzmann*temperature / m_eff) * 100.
+
+
 def get_depletion_depth(V_bias, n_eff, temperature):
     ''' Depletion depth [um] of silcon with an effective doping concentration n_eff [10^12 /cm^3]
         at a temperature [K] and reverse bias V_bias [V].

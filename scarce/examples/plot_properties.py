@@ -53,7 +53,8 @@ def plot_depletion_depth_res():
              0.3 * np.sqrt(V_bias * resistivity),
              '--',
              linewidth=2.,
-             label=r'$0.3\sqrt{V_{bias}\ \mathrm{[V]}\cdot\rho\ \mathrm{[\Omega - cm]}}$')
+             label=r'$0.3\sqrt{V_{bias}\ \mathrm{[V]}\cdot\rho\
+              \mathrm{[\Omega - cm]}}$')
 
     resistivity = silicon.get_resistivity(n_eff,
                                           is_n_type=True,
@@ -136,7 +137,8 @@ def plot_eff_acceptor_concentration():
 
     plt.title('Effective acceptor concentration')
     plt.xlabel('Fluence [$\mathrm{10^{12}\ N_{eq}/cm^2}}$]')
-    plt.ylabel('Acceptor concentration $\mathrm{N_{eff}}$ [$\mathrm{10^{12} cm^{-3}}$]')
+    plt.ylabel('Acceptor concentration $\mathrm{N_{eff}}$\
+     [$\mathrm{10^{12} cm^{-3}}$]')
     plt.legend(loc=0)
     plt.xscale('log')
     plt.yscale('log')
@@ -145,15 +147,19 @@ def plot_eff_acceptor_concentration():
 
 
 def plot_free_path():
-
     fluence = np.logspace(12., 15., 1000.)
     plt.clf()
     # Plot trapping rate (1 / s)
-    s_e = silicon.get_free_path(fluence, e_field=1e6, temperature=250, is_electron=True)
-    s_h = silicon.get_free_path(fluence, e_field=1e6, temperature=250, is_electron=False)
-    plt.plot(fluence, s_e, linewidth=2., color='blue', linestyle='-', label='Electrons, T = 250')
-    plt.plot(fluence, s_h, linewidth=2., color='red', linestyle='-', label='Holes, T = 250')
-    plt.title('Charge carrier mean free path in irradiated silicon\nat saturation velocity ($\mathrm{E=10^6\ V/cm}$)')
+    s_e = silicon.get_free_path(fluence, e_field=1e6, temperature=250,
+                                is_electron=True)
+    s_h = silicon.get_free_path(fluence, e_field=1e6, temperature=250,
+                                is_electron=False)
+    plt.plot(fluence, s_e, linewidth=2., color='blue', linestyle='-',
+             label='Electrons, T = 250')
+    plt.plot(fluence, s_h, linewidth=2., color='red', linestyle='-',
+             label='Holes, T = 250')
+    plt.title('Charge carrier mean free path in irradiated silicon\nat saturation\
+     velocity ($\mathrm{E=10^6\ V/cm}$)')
     plt.xlabel('Fluence [$\mathrm{N_{eq}/cm^2}}$]')
     plt.ylabel('Trapping time [$\mathrm{ns}$]')
     plt.legend(loc=0)
@@ -246,17 +252,37 @@ def plot_trapping():
     plt.savefig('TrappingTime.pdf', layout='tight')
 
 
+def plot_thermal_velocity():
+    temperature = np.linspace(100, 500, 100)
+    v_th_e = silicon.get_thermal_velocity(temperature, is_electron=True)
+    v_th_h = silicon.get_thermal_velocity(temperature, is_electron=False)
+
+    plt.clf()
+    plt.plot(temperature, v_th_e, linewidth=2., color='blue', linestyle='-',
+             label='Electrons')
+    plt.plot(temperature, v_th_h, linewidth=2., color='red', linestyle='-',
+             label='Holes')
+    plt.title('Thermal velocity of charge carriers in silicon')
+    plt.xlabel('Temperatur [K]')
+    plt.ylabel('Thermal velocity [cm/s]')
+    plt.legend(loc=0)
+    plt.grid()
+    plt.show()
+    plt.savefig('ThermalVelocity.pdf', layout='tight')
+
+
 def create_plots():
-    plot_depletion_depth()
-    plot_depletion_depth_res()
-    plot_depletion_voltage()
-    plot_diffusion_potential()
-    plot_eff_acceptor_concentration()
-    plot_free_path()
-    plot_mobility()
-    plot_velocity()
-    plot_resistivity()
-    plot_trapping()
+#     plot_depletion_depth()
+#     plot_depletion_depth_res()
+#     plot_depletion_voltage()
+#     plot_diffusion_potential()
+#     plot_eff_acceptor_concentration()
+#     plot_free_path()
+#     plot_mobility()
+#     plot_velocity()
+#     plot_resistivity()
+#     plot_trapping()
+    plot_thermal_velocity()
 
 if __name__ == '__main__':
     create_plots()
