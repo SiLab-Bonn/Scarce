@@ -8,6 +8,7 @@ import fipy
 import numpy as np
 import matplotlib.pyplot as plt
 import progressbar
+import logging
 
 from scarce import silicon
 
@@ -53,7 +54,7 @@ class DriftDiffusionSolver(object):
     '''
 
     def __init__(self, pot_descr, pot_w_descr,
-                 T=300, geom_descr=None):
+                 T=300, geom_descr=None, diffusion=True):
         '''
         Parameters
         ----------
@@ -79,6 +80,7 @@ class DriftDiffusionSolver(object):
 
         self.T = T
         self.geom_descr = geom_descr
+        self.diffusion = diffusion
 
     def solve(self, p0, q0, dt, n_steps=4000):
         ''' Solve the drift diffusion equation for quasi partciles and calculates
@@ -100,6 +102,9 @@ class DriftDiffusionSolver(object):
                 Number of steps in time. Has to be large enough that all
                 particles reach the readout electrode.
         '''
+
+        if dt > 0.001:
+            logging.warning('A time step > 1 ps result in wrong diffusion')
 
         # Start positions
         p_e, p_h = p0.copy(), p0.copy()
@@ -158,8 +163,38 @@ class DriftDiffusionSolver(object):
             mu_h = silicon.get_mobility(np.sqrt(E_h[0] ** 2 + E_h[1] ** 2),
                                         temperature=self.T, is_electron=False)
 
-            # Velocity in cm / s
+            # Drift velocity in cm / s
             v_e, v_h = - E_e * mu_e, E_h * mu_h
+
+            # Add diffusion velocity
+            if self.diffusion:
+                # Calculate absolute thermal velocity
+                v_th_e = silicon.get_thermal_velocity(temperature=self.T,
+                                                      is_electron=True)
+                v_th_h = silicon.get_thermal_velocity(temperature=self.T,
+                                                      is_electron=False)
+                # Create thermal velocity distribution
+                # From: IEEE VOL. 56, NO. 3, JUNE 2009
+                v_th_e *= np.log(np.abs(
+                    1. / (1. - np.random.uniform(size=v_e.shape[1]))))
+                v_th_h *= np.log(np.abs(
+                    1. / (1. - np.random.uniform(size=v_h.shape[1]))))
+                # Calculate random direction in x, y
+                # Uniform random number 0 .. 2 Pi
+                eta = np.random.uniform(0., 2. * np.pi, size=v_e.shape[1])
+                direction_e = np.array([np.cos(eta), np.sin(eta)])
+                eta = np.random.uniform(0., 2. * np.pi, size=v_h.shape[1])
+                direction_h = np.array([np.cos(eta), np.sin(eta)])
+
+                v_th_e = v_th_e[np.newaxis, :] * direction_e
+                v_th_h = v_th_h[np.newaxis, :] * direction_h
+
+                v_e += v_th_e
+                v_h += v_th_h
+#                 print np.sqrt(v_th_e[0][0] ** 2 + v_th_e[1][0] ** 2)
+#                 print v_th_e.shape
+#                 print v_e.shape
+#                 raise
 
             # Calculate induced current
             if np.any(p_e[0, sel_e]):  # Only if electrons are still drifting
