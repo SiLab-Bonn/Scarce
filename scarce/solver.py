@@ -96,7 +96,7 @@ class DriftDiffusionSolver(object):
                 To give in electrons is a good choise.
 
             dt : number
-                Time step in ns. Influences presicion.
+                Time step in ns. Influences presicion. Should be <= 0.001 (ps).
 
             n_steps : number
                 Number of steps in time. Has to be large enough that all
