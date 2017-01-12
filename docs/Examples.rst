@@ -49,6 +49,47 @@ Drifting e-h pairs in planar sensor
 .. image:: _static/Example_transient_planar_readout.png
 .. image:: _static/Example_planar_drift.gif
 
+Drifting e-h pairs in 3D sensor
+=========================================
+.. automodule:: scarce.examples.transient_3D
+
+The following shows the induced charge for e-h pairs at
+different start positions with and without diffusion.
+
+With diffusion:
+
+.. image:: _static/Example_transient_3D_m125_8_d.png
+
+Without diffusion:
+
+.. image:: _static/Example_transient_3D_m125_8.png
+
+With diffusion:
+
+.. image:: _static/Example_transient_3D_m125_m8_d.png
+
+Without diffusion:
+
+.. image:: _static/Example_transient_3D_m125_m8.png
+
+With diffusion:
+
+.. image:: _static/Example_transient_3D_m41_25_d.png
+
+Without diffusion:
+
+.. image:: _static/Example_transient_3D_m41_25.png
+
+With diffusion:
+
+.. image:: _static/Example_transient_3D_m41_m8_d.png
+
+Without diffusion:
+
+.. image:: _static/Example_transient_3D_m41_m8.png
+
+.. image:: _static/Example_3D_drift.gif
+
 Silicon properties
 =========================================
 .. automodule:: scarce.examples.plot_properties
