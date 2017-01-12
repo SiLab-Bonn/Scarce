@@ -1,7 +1,12 @@
-''' Example that moves e-h pairs in a planar sensor.
+''' Example that moves e-h pairs in a 3D sensor.
 
     Calculates the induced charge from e-h pairs drifting
     through the silicon.
+
+    .. WARNING::
+       The 3D field is low between pixels. Thus diffusion
+       should be activated to leave this field minima quickly
+       to give reasonable results.
 '''
 
 import numpy as np
@@ -30,7 +35,7 @@ def transient_3D():
     V_readout = 0.
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
-    resolution = 50.
+    resolution = 100.
 
     mesh = geometry.mesh_3D_sensor(width_x=width_x,
                                    width_y=width_y,
@@ -97,34 +102,29 @@ def transient_3D():
     q0 = np.ones(p0.shape[1])
 
     # Time steps
-    dt = 0.0001  # [ns]
-    n_steps = 30000
+    dt = 0.001  # [ns]
+    n_steps = 5000
     t = np.arange(n_steps) * dt
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
-                                     T=temperature, geom_descr=geom_descr)
+                                     geom_descr=geom_descr,
+                                     T=temperature,
+                                     diffusion=True)
     traj_e, traj_h, Q_ind_e, Q_ind_h, Q_ind_tot = dd.solve(p0, q0, dt, n_steps)
 
-    plt.plot(t, Q_ind_e[:, 0], label='Electrons')
-    plt.plot(t, Q_ind_h[:, 0], label='Holes')
-    plt.plot(t, Q_ind_tot[:, 0], label='Sum')
-    plt.legend(loc=0)
-    plt.xlabel('Time [ns]')
-    plt.ylabel('Charge normalized to 1')
-    plt.grid()
-    plt.title('Induced charge of drifting e-h pairs, readout pixel')
-    plt.show()
+    for i in (4, 5, 8, 13):
+        print p0[:, i]
 
-    plt.clf()
-    plt.plot(t, Q_ind_e[:, 1], label='Electrons')
-    plt.plot(t, Q_ind_h[:, 1], label='Holes')
-    plt.plot(t, Q_ind_tot[:, 1], label='Sum')
-    plt.legend(loc=0)
-    plt.xlabel('Time [ns]')
-    plt.ylabel('Charge normalized to 1')
-    plt.grid()
-    plt.title('Induced charge of drifting e-h pairs, neighbouring pixel')
-    plt.show()
+        plt.plot(t, Q_ind_e[:, i], label='Electrons')
+        plt.plot(t, Q_ind_h[:, i], label='Holes')
+        plt.plot(t, Q_ind_tot[:, i], label='Sum')
+        plt.legend(loc=0)
+        plt.xlabel('Time [ns]')
+        plt.ylabel('Charge normalized to 1')
+        plt.grid()
+        plt.title('Induced charge of drifting e-h pairs, start pos. %d/%d um' %
+                  (p0[0, i], p0[1, i]))
+        plt.show()
 
     # Plot numerical result in 2D with particle animation
     fig = plt.figure()
@@ -151,7 +151,7 @@ def transient_3D():
                                   interval=ani_time / frames * 1000.,
                                   blit=True, init_func=init,
                                   repeat_delay=ani_time / 5.)
-    # ani.save('Example_planar_drift.gif', dpi=80, writer='imagemagick')
+    ani.save('Example_3D_drift.gif', dpi=80, writer='imagemagick')
     plt.show()
 
 
