@@ -14,48 +14,36 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scarce import fields, plot, geometry, tools
+from scarce import fields, plot, sensor
 
 
 def sensor_planar():
-    # Number of pixels influences how correct the field for the
-    # center pixel(s) is due to more far away infinite boundary condition
-    n_pixel = 9
-
-    # Geometry of one pixel
+    # Sensor parameters
+    n_eff = 1.7e12
     width = 50.
     thickness = 200.
+    temperature = 300.
     pitch = 45.
+    n_pixel = 9
+    V_bias = -80.
+    V_readout = 0.
 
-    # Create mesh of the sensor and stores the result
-    # The created file can be viewed with any mesh viewer (e.g. gmsh)
-    mesh = geometry.mesh_planar_sensor(
-        n_pixel=n_pixel,
-        width=width,
-        thickness=thickness,
-        resolution=200.,
-        filename='planar_mesh_example.msh')
-    
-    # Numerically solve the laplace equation on the mesh
-    potential = fields.calculate_planar_sensor_w_potential(mesh=mesh,
-                                                           width=width,
-                                                           pitch=pitch,
-                                                           n_pixel=n_pixel,
-                                                           thickness=thickness)
-     
-#     tools.save(potential, 'potential_tmp.sc')
-#     potential = tools.load('potential_tmp.sc')
- 
-    # Describe result to obtain field/potential at any point in space
-    desc = fields.Description(potential,
-                              min_x=-width * float(n_pixel) / 2.,
-                              max_x=width * float(n_pixel) / 2.,
-                              min_y=0,
-                              max_y=thickness,
-                              nx=200 * n_pixel,
-                              ny=2000,
-                              smoothing=0.2
-                              )
+    # Create sensor
+    desc = sensor.planar(n_eff=n_eff,
+                         V_bias=V_bias,
+                         V_readout=V_readout,
+                         temperature=temperature,
+                         n_pixel=n_pixel,
+                         width=width,
+                         pitch=pitch,
+                         thickness=thickness,
+                         # Calculate drift potential only
+                         # to safe time
+                         selection='weighting',
+                         resolution=300.,
+                         nx=200 * n_pixel,
+                         ny=2000,
+                         smoothing=0.2)
 
     # Analytical results
     def potential_analytic(x, y):
@@ -74,12 +62,7 @@ def sensor_planar():
              label='Potential, numerical', linewidth=2)
     plt.plot(y, desc.get_potential_smooth(x, y),
              label='Potential, smooth', linewidth=2)
- 
-#     plt.imshow(desc.potential_grid, interpolation='none', aspect='auto')
-#     plt.show()
-    
-    xi, yi = 900, 1000
-    print desc.potential_grid.T[xi, :]
+    xi = 900
     plt.plot(desc._y, desc.potential_grid.T[xi, :], '.',
              label='Potential, grid', linewidth=2)
     plt.plot(y, potential_analytic(x, y),
@@ -92,9 +75,6 @@ def sensor_planar():
     ax2.plot(y, field_analytic(x, y)[1],
              '--', label='Field, analytical', linewidth=2)
 
-#     ax2.plot(y, -np.gradient(desc.get_potential_smooth(x, y), y[1]-y[0], edge_order=1), '-', label='DIFF')
-#     ax2.plot(desc._y, -np.gradient(desc.potential_grid.T[xi, :], desc._y[1]-desc._y[0], edge_order=1), '-', label='DIFF N')
-
     plt.ylabel('Field [V/$\mu m$]')
     plt.legend(loc=4)
     plt.title('Weighting potential and field in a planar sensor')
@@ -102,33 +82,34 @@ def sensor_planar():
     plt.grid()
     plt.show()
 
-#     # Plot 2D results
-# 
-#     # Plot numerical result
-#     plot.plot_planar_sensor(width=width,
-#                             pitch=pitch,
-#                             thickness=thickness,
-#                             n_pixel=n_pixel,
-#                             V_backplane=0,  # Weighting field = 0 at backplane
-#                             V_readout=1,  # Weighting field = 1 at readout
-#                             potential_function=desc.get_potential_smooth,
-#                             field_function=desc.get_field,
-#                             # Comment in if you want to see the mesh
-#                             mesh=None,  # potential.mesh,
-#                             title='Planar sensor mesh')
-# 
-#     # Plot analytic result
-#     plot.plot_planar_sensor(width=width,
-#                             # Analytical solution exist only for pitch = width
-#                             # (100% fill factor)
-#                             pitch=width,
-#                             thickness=thickness,
-#                             n_pixel=n_pixel,
-#                             V_backplane=0,  # Weighting field = 0 at backplane
-#                             V_readout=1,  # Weighting field = 1 at readout
-#                             potential_function=potential_analytic,
-#                             title='Planar sensor weighting potential and field, \
-#                                     analytical solution')
+    # Plot 2D results
+
+    # Plot numerical result
+    plot.plot_planar_sensor(width=width,
+                            pitch=pitch,
+                            thickness=thickness,
+                            n_pixel=n_pixel,
+                            V_backplane=0,  # Weighting field = 0 at backplane
+                            V_readout=1,  # Weighting field = 1 at readout
+                            potential_function=desc.get_potential_smooth,
+                            field_function=desc.get_field,
+                            # Comment in if you want to see the mesh
+                            mesh=None,  # potential.mesh,
+                            title='Planar sensor weighting potential and field,' \
+                                  ' numercial solution')
+
+    # Plot analytic result
+    plot.plot_planar_sensor(width=width,
+                            # Analytical solution exist only for pitch = width
+                            # (100% fill factor)
+                            pitch=width,
+                            thickness=thickness,
+                            n_pixel=n_pixel,
+                            V_backplane=0,  # Weighting field = 0 at backplane
+                            V_readout=1,  # Weighting field = 1 at readout
+                            potential_function=potential_analytic,
+                            title='Planar sensor weighting potential and field,' \
+                                  ' analytical solution')
 
 if __name__ == '__main__':
     import logging
