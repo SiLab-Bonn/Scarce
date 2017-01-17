@@ -216,7 +216,8 @@ def get_3D_sensor_plot(fig,
     # Create x,y plot grid
     xx, yy = np.meshgrid(x, y, sparse=True)
 
-    # BUG in matplotlib: aspect to be set to equal, otherwise contour plot wrong aspect ratio
+    # BUG in matplotlib: aspect to be set to equal, otherwise contour plot
+    # has wrong aspect ratio
     # http://stackoverflow.com/questions/28857673/wrong-aspect-ratio-for-contour-plot-with-python-matplotlib
     ax.set_aspect('equal')
 
@@ -227,7 +228,8 @@ def get_3D_sensor_plot(fig,
 
         if x.shape != y.shape:  # Shapes do not fit
             if x.shape != y.T.shape:   # Sparse meshgrid assumption
-                raise RuntimeError('The point representation in x,y in neither a grid nor a sparse grid.')
+                raise RuntimeError('The point representation in x,y in neither\
+                 a grid nor a sparse grid.')
             x_dense, y_dense = np.meshgrid(x[0, :], y[:, 0], sparse=False)
         else:
             x_dense, y_dense = x, y
@@ -242,30 +244,40 @@ def get_3D_sensor_plot(fig,
         phi_masked = np.ma.masked_array(phi, mask=get_column_mask(xx, yy))
 
         ax.contour(x, y, phi_masked, 10, colors='black')
-        cmesh = ax.pcolormesh(x - np.diff(x)[0] / 2., y - np.diff(y)[0] / 2., phi, cmap=cm.get_cmap('Blues'), vmin=V_bias, vmax=V_readout)
-        cax = fig.add_axes([ax.get_position().xmax, 0.1, 0.05, ax.get_position().ymax - ax.get_position().ymin])
+        cmesh = ax.pcolormesh(x - np.diff(x)[0] / 2., y - np.diff(y)[0] / 2.,
+                              phi, cmap=cm.get_cmap('Blues'), vmin=V_bias,
+                              vmax=V_readout)
+        cax = fig.add_axes([ax.get_position().xmax, 0.1, 0.05,
+                            ax.get_position().ymax - ax.get_position().ymin])
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
 
     # Plot E-Field
     if field_function:
         E_x, E_y = field_function(xx, yy)
-        ax.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='-')
-    elif potential_function:
+        ax.streamplot(x, y, E_x, E_y, density=1.0, color='gray',
+                      arrowstyle='-')
+    elif potential_function:  # Get field from potential differentiation
         E_y, E_x = np.gradient(-phi, np.gradient(y), np.gradient(x))
-        ax.streamplot(x, y, E_x, E_y, density=1.0, color='gray', arrowstyle='-')
+        ax.streamplot(x, y, E_x, E_y, density=1.0, color='gray',
+                      arrowstyle='-')
 
     if mesh:
         get_mesh_plot(fig, mesh, invert_y_axis=False)
 
     # Plot pixel bondaries in x
     for pos_x in desc.get_pixel_x_offsets():
-        ax.plot([pos_x - width_x / 2., pos_x - width_x / 2.], [min_y, max_y], '--', color='black', linewidth=4)
-    ax.plot([pos_x + width_x / 2., pos_x + width_x / 2.], [min_y, max_y], '--', color='black', linewidth=4)  # Last pixel end
+        ax.plot([pos_x - width_x / 2., pos_x - width_x / 2.], [min_y, max_y],
+                '--', color='black', linewidth=4)
+    # Last pixel end
+    ax.plot([pos_x + width_x / 2., pos_x + width_x / 2.], [min_y, max_y],
+            '--', color='black', linewidth=4)
 
     # Plot pixel bondaries in y
     for pos_y in desc.get_pixel_y_offsets():
-        ax.plot([min_x, max_x], [pos_y - width_y / 2., pos_y - width_y / 2.], '--', color='black', linewidth=4)
-    ax.plot([min_x, max_x], [pos_y + width_y / 2., pos_y + width_y / 2.], '--', color='black', linewidth=4)  # Last pixel end
+        ax.plot([min_x, max_x], [pos_y - width_y / 2., pos_y - width_y / 2.],
+                '--', color='black', linewidth=4)
+    ax.plot([min_x, max_x], [pos_y + width_y / 2., pos_y + width_y / 2.],
+            '--', color='black', linewidth=4)  # Last pixel end
 
     # Plot readout pillars
     for pos_x, pos_y in desc.get_ro_col_offsets():

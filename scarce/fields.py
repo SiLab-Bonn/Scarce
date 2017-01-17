@@ -125,21 +125,24 @@ class Description(object):
 
         # Create extended array and fill with old data
         new_potential_grid = np.zeros(
-            shape=(y_shape, self.potential_grid.shape[1]))#     ax2.plot(desc._y, -np.gradient(desc.potential_grid.T[xi, :], desc._y[1]-desc._y[0], edge_order=1), '-', label='DIFF N')
+            shape=(y_shape, self.potential_grid.shape[1]))  # ax2.plot(desc._y, -np.gradient(desc.potential_grid.T[xi, :], desc._y[1]-desc._y[0], edge_order=1), '-', label='DIFF N')
         new_potential_grid[dy_shape:, :] = self.potential_grid
 
         # Calculate the gradient in y for linear extrapolation
         dy = self.potential_grid[0, :] - self.potential_grid[1, :]
 
         # Extrapolate at the extended area
-        slope = (np.tile(np.arange(1, dy_shape + 1)
-                         [::-1], (self.potential_grid.shape[1], 1))).T * dy[np.newaxis, :]
+        slope = (np.tile(np.arange(1, dy_shape + 1)[::-1],
+                         (self.potential_grid.shape[1], 1))).T * dy[np.newaxis, :]
         new_potential_grid[:dy_shape] = self.potential_grid[0, :] + slope
-        self.potential_grid = new_potential_grid#[:new_potential_grid.shape[0] - dy_shape, :]
-        
+        # [:new_potential_grid.shape[0] - dy_shape, :]
+        self.potential_grid = new_potential_grid
+
         # Also extend y positions
-        self._y = np.linspace(self.min_y - dy_shape * np.diff(self._y)[0], self.max_y, self._ny + dy_shape)
-        
+        self._y = np.linspace(
+            self.min_y - dy_shape * np.diff(self._y)[0], self.max_y,
+            self._ny + dy_shape)
+
         print 'self._y', self._y
 #         raise
 
