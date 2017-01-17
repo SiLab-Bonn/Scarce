@@ -30,12 +30,12 @@ def transient_planar():
                                                   width=width,
                                                   pitch=pitch,
                                                   thickness=thickness,
-                                                  resolution=100.)
+                                                  resolution=200.)
 
     # Start parameters of e-h pairs
+    # Create a e-h pairs every 5 um in y
     xx, yy = np.meshgrid(np.linspace(0, width, 2),  # x
-                         np.linspace(3. * thickness / 4.,
-                                     3. * thickness / 4., 2),
+                         np.linspace(0, thickness, thickness/5.),
                          sparse=False)  # All combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])  # Position [um]
 
@@ -44,7 +44,7 @@ def transient_planar():
 
     # Time steps
     dt = 0.001  # [ns]
-    n_steps = 10000
+    n_steps = 20000
     t = np.arange(n_steps) * dt
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
@@ -68,20 +68,32 @@ def transient_planar():
     plt.title('Signal of drifting e-h pairs, readout pixel')
     plt.show()
 
-    plt.plot(t, Q_ind_e[:, 1], color='blue', label='Electrons')
-    plt.plot(t, Q_ind_h[:, 1], color='red', label='Holes')
-    plt.plot(t, Q_ind_e[:, 1] + Q_ind_h[:, 1], color='magenta', label='Sum')
+    plt.plot(t, Q_ind_e[:, ::2].sum(axis=1) / xx.shape[0], color='blue',
+             label='Electrons')
+    plt.plot(t, Q_ind_h[:, ::2].sum(axis=1) / xx.shape[0], color='red',
+             label='Holes')
+    plt.plot(t, (Q_ind_e[:, ::2].sum(axis=1) +
+                 Q_ind_h[:, ::2].sum(axis=1)) / xx.shape[0], color='magenta',
+             label='Sum')
     plt.legend(loc=0)
     plt.xlabel('Time [ns]')
     plt.ylabel('Total induced charge [a.u.]')
-    plt.twinx(plt.gca())
-    plt.plot(t, I_ind_e[:, 1], '--', color='blue', label='Electrons')
-    plt.plot(t, I_ind_h[:, 1], '--', color='red', label='Holes')
-    plt.plot(t, I_ind_e[:, 1] + I_ind_h[:, 1], '--', color='magenta',
-             label='Sum')
-    plt.ylabel('Induced current [a.u.]')
     plt.grid()
-    plt.title('Induced charge of drifting e-h pairs, neighbouring pixel')
+    plt.title('Induced charge of MIP, readout pixel')
+    plt.show()
+
+    plt.plot(t, Q_ind_e[:, 1::2].sum(axis=1) / xx.shape[0], color='blue',
+             label='Electrons')
+    plt.plot(t, Q_ind_h[:, 1::2].sum(axis=1) / xx.shape[0], color='red',
+             label='Holes')
+    plt.plot(t, (Q_ind_e[:, 1::2].sum(axis=1) +
+                 Q_ind_h[:, 1::2].sum(axis=1)) / xx.shape[0], color='magenta',
+             label='Sum')
+    plt.legend(loc=0)
+    plt.xlabel('Time [ns]')
+    plt.ylabel('Total induced charge [a.u.]')
+    plt.grid()
+    plt.title('Induced charge of MIP, neighbouring pixel')
     plt.show()
 
     # Plot numerical result in 2D with particle animation
