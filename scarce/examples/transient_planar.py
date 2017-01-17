@@ -12,7 +12,7 @@ from scarce import fields, plot, geometry, silicon, solver
 
 def transient_planar():
     # Number of pixels influences how correct the field for the
-    # center pixel(s) is due to more far away infinite boundary condition
+    # center pixel(s) is due to more correct "infinite" boundary condition
     n_pixel = 9
 
     # Geometry of one pixel
@@ -20,15 +20,15 @@ def transient_planar():
     thickness = 200.
     pitch = 45.
 
-    n_eff = 5e12  # n_eff [cm^-3]
+    n_eff = 1.7e12  # [cm^-3]
     temperature = 300
 
     # Potentials
-    V_bias = -560.
+    V_bias = -80.
     V_readout = 0.
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
-    resolution = 200.
+    resolution = 100.
 
     # Create mesh of the sensor and stores the result
     # The created file can be viewed with any mesh viewer (e.g. gmsh)
@@ -39,7 +39,7 @@ def transient_planar():
         resolution=resolution,
         filename='planar_mesh_example.msh')
 
-    # Numerically solve the laplace equation on the mesh
+    # Numerically solve the Laplace equation on the mesh
     potential = fields.calculate_planar_sensor_potential(
         mesh=mesh,
         width=width,
@@ -51,6 +51,7 @@ def transient_planar():
         V_readout=V_readout,
         V_bi=V_bi)
 
+    # Numerically solve the Poisson equation on the mesh
     w_potential = fields.calculate_planar_sensor_w_potential(
         mesh=mesh,
         width=width,
@@ -58,6 +59,7 @@ def transient_planar():
         n_pixel=n_pixel,
         thickness=thickness)
 
+    # Decribe numerical solutions
     min_x = float(mesh.getFaceCenters()[0, :].min())
     max_x = float(mesh.getFaceCenters()[0, :].max())
     pot_descr = fields.Description(potential,
@@ -77,34 +79,47 @@ def transient_planar():
                          sparse=False)  # all combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])
 
-    # Initial charge
+    # Initial charge set to 1
     q0 = np.ones(p0.shape[1])
 
     # Time steps
-    dt = 0.0001  # [ns]
-    n_steps = 30000
+    dt = 0.001  # [ns]
+    n_steps = 10000
     t = np.arange(n_steps) * dt
 
-    dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr, T=temperature)
-    traj_e, traj_h, Q_ind_e, Q_ind_h, Q_ind_tot = dd.solve(p0, q0, dt, n_steps)
+    dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
+                                     T=temperature, diffusion=False)
+    traj_e, traj_h, Q_ind_e, Q_ind_h, I_ind_e, I_ind_h = dd.solve(p0, q0, dt,
+                                                                  n_steps)
 
-    plt.plot(t, Q_ind_e[:, 0], label='Electrons')
-    plt.plot(t, Q_ind_h[:, 0], label='Holes')
-    plt.plot(t, Q_ind_tot[:, 0], label='Sum')
+    plt.plot(t, Q_ind_e[:, 0], color='blue', label='Electrons')
+    plt.plot(t, Q_ind_h[:, 0], color='red', label='Holes')
+    plt.plot(t, Q_ind_e[:, 0] + Q_ind_h[:, 0], color='magenta', label='Sum')
     plt.legend(loc=0)
     plt.xlabel('Time [ns]')
-    plt.ylabel('Charge normalized to 1')
+    plt.ylabel('Total induced charge [a.u.]')
+    plt.twinx(plt.gca())
+    plt.plot(t, I_ind_e[:, 0], '--', color='blue', label='Electrons')
+    plt.plot(t, I_ind_h[:, 0], '--', color='red', label='Holes')
+    plt.plot(t, I_ind_e[:, 0] + I_ind_h[:, 0], '--', color='magenta',
+             label='Sum')
+    plt.ylabel('Induced current [a.u.]')
     plt.grid()
-    plt.title('Induced charge of drifting e-h pairs, readout pixel')
+    plt.title('Signal of drifting e-h pairs, readout pixel')
     plt.show()
 
-    plt.clf()
-    plt.plot(t, Q_ind_e[:, 1], label='Electrons')
-    plt.plot(t, Q_ind_h[:, 1], label='Holes')
-    plt.plot(t, Q_ind_tot[:, 1], label='Sum')
+    plt.plot(t, Q_ind_e[:, 1], color='blue', label='Electrons')
+    plt.plot(t, Q_ind_h[:, 1], color='red', label='Holes')
+    plt.plot(t, Q_ind_e[:, 1] + Q_ind_h[:, 1], color='magenta', label='Sum')
     plt.legend(loc=0)
     plt.xlabel('Time [ns]')
-    plt.ylabel('Charge normalized to 1')
+    plt.ylabel('Total induced charge [a.u.]')
+    plt.twinx(plt.gca())
+    plt.plot(t, I_ind_e[:, 1], '--', color='blue', label='Electrons')
+    plt.plot(t, I_ind_h[:, 1], '--', color='red', label='Holes')
+    plt.plot(t, I_ind_e[:, 1] + I_ind_h[:, 1], '--', color='magenta',
+             label='Sum')
+    plt.ylabel('Induced current [a.u.]')
     plt.grid()
     plt.title('Induced charge of drifting e-h pairs, neighbouring pixel')
     plt.show()
