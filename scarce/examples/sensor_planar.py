@@ -27,7 +27,7 @@ def sensor_planar():
     V_readout = 0.
 
     # Create sensor
-    pot_descr = sensor.planar(n_eff=n_eff,
+    pot_descr = sensor.planar_sensor(n_eff=n_eff,
                               V_bias=V_bias,
                               V_readout=V_readout,
                               temperature=temperature,

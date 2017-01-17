@@ -180,8 +180,9 @@ def get_resistivity(n_eff, is_n_type=True, temperature=300, e_field=1e3):
 
 def get_trapping(fluence, is_electron, paper=1):
     ''' Calculate the trapping time tr (e^-(tr) in ns) of charge carriers in
-        silicon as a function of the fluence. There was also a dependence on
-        the temperature measured, that is omitted here!
+        silicon as a function of the fluence [Neq/cm^2].
+        There was also a dependence on the temperature measured, that is
+        omitted here!
     '''
 
     if paper == 1:
@@ -208,7 +209,7 @@ def get_trapping(fluence, is_electron, paper=1):
         # Oldest most cited reference, with irradiation to 2 e 14 only.
         # Calculates the trapping time tr (e^-(tr) in ns) of charge carriers in
         # silicon at a temperature of T = 263 K as a function of the
-        # fluence (in 10^12 Neq/cm^2). This was measured with a laser and
+        # fluence. This was measured with a laser and
         # planar silicon sensors with a fluence up to 2*10^14 Neq/cm^2. There
         # was a linear behaviour between fluence and the effective trapping
         # propability measured intepended of the silicon type (oxygenated or
