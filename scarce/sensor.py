@@ -1,4 +1,4 @@
-''' Functions to create a planar or 3D sensor. '''
+''' Functions to create a planar_sensor or 3D sensor. '''
 
 import logging
 
@@ -7,10 +7,10 @@ from scarce import (silicon, fields, geometry)
 _LOGGER = logging.getLogger(__name__)
 
 
-def planar(n_eff, V_bias, V_readout=0., temperature=300, n_pixel=9,
+def planar_sensor(n_eff, V_bias, V_readout=0., temperature=300, n_pixel=9,
            width=50., pitch=45., thickness=200., selection=None,
            resolution=300., nx=202, ny=200, smoothing=0.1):
-    ''' Create a planar sensor pixel array.
+    ''' Create a planar_sensor sensor pixel array.
 
         Parameters
         ----------
