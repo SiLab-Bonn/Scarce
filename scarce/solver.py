@@ -214,7 +214,7 @@ class DriftDiffusionSolver(object):
 
                 # Reduce induced charge due to trapping
                 if self.t_e_trapping:
-                    dQ_e *= np.exp(-dt / self.t_e_trapping)
+                    dQ_e *= np.exp(-dt * step / self.t_e_trapping)
 
                 # Induced current
                 I_ind_e[step, sel_e] = dQ_e / dt
@@ -234,7 +234,7 @@ class DriftDiffusionSolver(object):
 
                 # Reduce induced charge due to trapping
                 if self.t_h_trapping:
-                    dQ_h *= np.exp(-dt / self.t_h_trapping)
+                    dQ_h *= np.exp(-dt * step / self.t_e_trapping)
 
                 # Induced current
                 I_ind_h[step, sel_h] = dQ_h / dt
