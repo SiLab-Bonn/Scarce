@@ -54,7 +54,8 @@ class DriftDiffusionSolver(object):
     '''
 
     def __init__(self, pot_descr, pot_w_descr,
-                 T=300, geom_descr=None, diffusion=True):
+                 T=300, geom_descr=None, diffusion=True,
+                 t_e_trapping=0., t_h_trapping=0.):
         '''
         Parameters
         ----------
@@ -70,6 +71,12 @@ class DriftDiffusionSolver(object):
         geom_descr : scarce.geometry.SensorDescription3D
             Describes the 3D sensor geometry
 
+        t_e_trapping : number
+            Trapping time for electrons in ns
+
+        t_h_trapping : number
+            Trapping time for holes in ns
+
         Notes
         -----
 
@@ -78,7 +85,9 @@ class DriftDiffusionSolver(object):
         self.pot_descr = pot_descr
         self.pot_w_descr = pot_w_descr
 
-        self.T = T
+        self.T = T  # Temperatur in Kelvin
+        self.t_e_trapping = t_e_trapping  # Trapping time in ns
+        self.t_h_trapping = t_h_trapping  # Trapping time in ns
         self.geom_descr = geom_descr
         self.diffusion = diffusion
 
@@ -114,7 +123,8 @@ class DriftDiffusionSolver(object):
         traj_h = np.empty(shape=(n_steps, p_h.shape[0], p_h.shape[1]))
         Q_ind_e = np.zeros(shape=(n_steps, p_e.shape[1]))
         Q_ind_h = np.zeros(shape=(n_steps, p_h.shape[1]))
-        Q_ind_tot = np.zeros(shape=(n_steps, p_h.shape[1]))
+        I_ind_e = np.zeros(shape=(n_steps, p_e.shape[1]))
+        I_ind_h = np.zeros(shape=(n_steps, p_h.shape[1]))
         traj_e[:], traj_h[:] = np.nan, np.nan
 
         progress_bar = progressbar.ProgressBar(
@@ -151,7 +161,7 @@ class DriftDiffusionSolver(object):
         for step in range(n_steps):
             # Check if all particles out of boundary
             if not np.any(sel_e) and not np.any(sel_h):
-                break
+                break  # Stop loop to safe time
 
             # Electric field in V/cm
             E_e = self.pot_descr.get_field(p_e[0, sel_e], p_e[1, sel_e]) * 1e4
@@ -191,10 +201,6 @@ class DriftDiffusionSolver(object):
 
                 v_e += v_th_e
                 v_h += v_th_h
-#                 print np.sqrt(v_th_e[0][0] ** 2 + v_th_e[1][0] ** 2)
-#                 print v_th_e.shape
-#                 print v_e.shape
-#                 raise
 
             # Calculate induced current
             if np.any(p_e[0, sel_e]):  # Only if electrons are still drifting
@@ -206,11 +212,17 @@ class DriftDiffusionSolver(object):
                 dQ_e = (W_e[0] * v_e[0] + W_e[1] * v_e[1]) * \
                     - q0[sel_e] * dt * 1e-5
 
+                # Reduce induced charge due to trapping
+                if self.t_e_trapping:
+                    dQ_e *= np.exp(-dt / self.t_e_trapping)
+
+                # Induced current
+                I_ind_e[step, sel_e] = dQ_e / dt
+
                 # Total integrated induced charge
                 Q_ind_e[step, sel_e] = Q_ind_e[step - 1, sel_e] + dQ_e
 
             Q_ind_e[step, ~sel_e] = Q_ind_e[step - 1, ~sel_e]
-            Q_ind_tot[step] += Q_ind_e[step]
 
             if np.any(p_h[0, sel_h]):  # Only if holes are still drifting
                 # Weighting field in V/um
@@ -220,11 +232,17 @@ class DriftDiffusionSolver(object):
                 dQ_h = (W_h[0] * v_h[0] + W_h[1] * v_h[1]) * \
                     q0[sel_h] * dt * 1e-5
 
+                # Reduce induced charge due to trapping
+                if self.t_h_trapping:
+                    dQ_h *= np.exp(-dt / self.t_h_trapping)
+
+                # Induced current
+                I_ind_h[step, sel_h] = dQ_h / dt
+
                 # Total integrated induced charge
                 Q_ind_h[step, sel_h] = Q_ind_h[step - 1, sel_h] + dQ_h
 
             Q_ind_h[step, ~sel_h] = Q_ind_h[step - 1, ~sel_h]
-            Q_ind_tot[step] += Q_ind_h[step]
 
             # Position change in um
             d_p_e, d_p_h = v_e * dt * 1e-5, v_h * dt * 1e-5
@@ -247,4 +265,4 @@ class DriftDiffusionSolver(object):
             progress_bar.update(step)
         progress_bar.finish()
 
-        return traj_e, traj_h, Q_ind_e, Q_ind_h, Q_ind_tot
+        return traj_e, traj_h, Q_ind_e, Q_ind_h, I_ind_e, I_ind_h
