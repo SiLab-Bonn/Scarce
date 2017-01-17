@@ -35,7 +35,7 @@ def transient_3D():
     V_readout = 0.
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
-    resolution = 100.
+    resolution = 50.
 
     mesh = geometry.mesh_3D_sensor(width_x=width_x,
                                    width_y=width_y,
@@ -110,14 +110,12 @@ def transient_3D():
                                      geom_descr=geom_descr,
                                      T=temperature,
                                      diffusion=True)
-    traj_e, traj_h, Q_ind_e, Q_ind_h, Q_ind_tot = dd.solve(p0, q0, dt, n_steps)
+    traj_e, traj_h, Q_ind_e, Q_ind_h, _, _ = dd.solve(p0, q0, dt, n_steps)
 
-    for i in (4, 5, 8, 13):
-        print p0[:, i]
-
-        plt.plot(t, Q_ind_e[:, i], label='Electrons')
-        plt.plot(t, Q_ind_h[:, i], label='Holes')
-        plt.plot(t, Q_ind_tot[:, i], label='Sum')
+    for i in (5, 13):
+        plt.plot(t, Q_ind_e[:, i], color='blue', label='Electrons')
+        plt.plot(t, Q_ind_h[:, i], color='red', label='Holes')
+        plt.plot(t, Q_ind_e[:, i] + Q_ind_h[:, i], color='magenta', label='Sum')
         plt.legend(loc=0)
         plt.xlabel('Time [ns]')
         plt.ylabel('Charge normalized to 1')
@@ -151,7 +149,7 @@ def transient_3D():
                                   interval=ani_time / frames * 1000.,
                                   blit=True, init_func=init,
                                   repeat_delay=ani_time / 5.)
-    ani.save('Example_3D_drift.gif', dpi=80, writer='imagemagick')
+#     ani.save('Example_3D_drift.gif', dpi=80, writer='imagemagick')
     plt.show()
 
 
