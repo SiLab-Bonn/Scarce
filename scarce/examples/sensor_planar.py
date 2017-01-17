@@ -6,8 +6,8 @@
 
     .. WARNING::
        The calculation of the depletion region is simplified. If the depletion
-       is not at a contant y position in the sensor (e.g. for pixels with small
-       fill factor) it deviates from the correct solution.
+       is not at a contant y position in the sensor (e.g. for pixels with very
+       small fill factor) it deviates from the correct solution.
 '''
 
 import numpy as np
