@@ -21,8 +21,8 @@ def get_thermal_velocity(temperature, is_electron=True):
 
 
 def get_depletion_depth(V_bias, n_eff, temperature):
-    ''' Depletion depth [um] of silcon with an effective doping concentration n_eff [10^12 /cm^3]
-        at a temperature [K] and reverse bias V_bias [V].
+    ''' Depletion depth [um] of silcon with an effective doping concentration
+        n_eff [10^12 /cm^3] at a temperature [K] and reverse bias V_bias [V].
 
         Check/citetation of formulars needed!'''
 
@@ -33,7 +33,8 @@ def get_depletion_depth(V_bias, n_eff, temperature):
 
     # Depletion depth [m]
     return np.sqrt(
-        2. * constants.epsilon_0 * epsilon_r * (V_bi + V_bias) / (constants.elementary_charge * n_eff * 10 ** 6))
+        2. * constants.epsilon_0 * epsilon_r * (V_bi + V_bias) /
+        (constants.elementary_charge * n_eff * 10 ** 6))
 
 
 def get_depletion_voltage(n_eff, distance):
@@ -46,7 +47,8 @@ def get_depletion_voltage(n_eff, distance):
         in irradiated silicon'.
     """
 
-    return constants.elementary_charge * n_eff / (constant.epsilon_s) * distance ** 2. / 2 * 1e6
+    return constants.elementary_charge * (n_eff / (constant.epsilon_s) *
+                                          distance ** 2. / 2 * 1e6)
 
 
 def get_diffusion_potential(n_eff, temperature):
@@ -60,14 +62,16 @@ def get_diffusion_potential(n_eff, temperature):
         (temperature / 300.) ** 2 * np.exp(-6884. / temperature)
 
     # Diffusion potential in thermal equilibrium [V]
-    return constants.Boltzmann * temperature / constants.elementary_charge * np.log(n_eff ** 2. / N_i ** 2)
+    return constants.Boltzmann * (temperature / constants.elementary_charge *
+                                  np.log(n_eff ** 2. / N_i ** 2))
 
 
 def get_eff_acceptor_concentration(fluence, n_eff_0, is_ntype, is_oxygenated):
-    """ Calculate the effective acceptor concentration [10^12 cm^-3] of irradiated n and
-        p-type silicon with and without oxygen enriched as a function of the
+    """ Effective acceptor concentration [10^12 cm^-3] of irradiated n- and p-
+        type silicon with and without oxygen enriched as a function of the
         fluence [10^12 cm^-2]. The data can be desribed by different line fits.
-        The parameters were extracted from a plot taken for n-type silicon from:
+        The parameters were extracted from a plot taken for n-type silicon
+        from:
         CERN/LHCC 2000-009 LEB Status Report/RD48 31 Dec. 1999
         and for p-type silicon from:
         RD50 Status Report 2006 CERN-LHCC-2007-005, p. 4-6
@@ -110,16 +114,16 @@ def get_eff_acceptor_concentration(fluence, n_eff_0, is_ntype, is_oxygenated):
 
 
 def get_free_path(fluence, e_field, temperature, is_electron=True):
+    ''' Calculate mean free path [cm] of charge carriers from trapping
+        propability and the velocity. The trapping propability is a
+        function of the fluence and the velocity is a function
+        of the electric field and the temperature. The electric field itself
+        depends on the electrode geometry and the bias voltage.
+        velocity = get_mobility(e_field, temperature, is_electron) * e_field
+        trapping_time = get_trapping(fluence, is_electron, paper=1)
 
-    # Calculate the mean free path in cm of the charge carriers from the trapping
-    # propability and the velocity. The trapping propability is a
-    # function of the fluence and the velocity is a function
-    # of the electric field and the temperature. The electric field itself
-    # depends on the electrode geometry and the bias voltage.
-    velocity = get_mobility(e_field, temperature, is_electron) * e_field
-    trapping_time = get_trapping(fluence, is_electron, paper=1)
-
-    return velocity * trapping_time * 10e-9
+        eturn velocity * trapping_time * 10e-9
+    '''
 
 
 def get_mobility(e_field, temperature, is_electron):
@@ -132,7 +136,7 @@ def get_mobility(e_field, temperature, is_electron):
         From:
         C. Jacononi et al., Solid state electronics, 1977, vol 20., p. 87
         'A review of some charge transport properties of silicon'
-        
+
         Note
         ----
         The doping concentration is irrelevant for n_eff < 10^16/cm^3
@@ -162,10 +166,11 @@ def get_resistivity(n_eff, is_n_type=True, temperature=300, e_field=1e3):
         function of the temperature [K] and the electric field [V/cm].
         From http://ecee.colorado.edu/~bart/book/mobility.htm
 
-        TODO: If you take the mobility[E_field] equation seriously, then there is no constant
-        resitivity since the mobility depends also on the electric field. For low E-Fields <= 1000 V/cm
-        the mobility is independent of the E flied and thus the resistivity. Likely this parameter
-        is always given in low field approximation?! Source needed!
+        TODO: If you take the mobility[E_field] equation seriously, then there
+        is no constant resitivity since the mobility depends also on the
+        electric field. For low E-Fields <= 1000 V/cm the mobility is
+        independent of the E flied and thus the resistivity. Likely this
+        parameter is always given in low field approximation?! Source needed!
     '''
 
     mobility = get_mobility(e_field, temperature, is_electron=is_n_type)
@@ -203,9 +208,9 @@ def get_trapping(fluence, is_electron, paper=1):
         # Oldest most cited reference, with irradiation to 2 e 14 only.
         # Calculates the trapping time tr (e^-(tr) in ns) of charge carriers in
         # silicon at a temperature of T = 263 K as a function of the
-        # fluence (in 10^12 Neq/cm^2). This was measured with a laser and planar
-        # silicon sensors with a fluence up to 2*10^14 Neq/cm^2. There was a
-        # linear behaviour between fluence and the effective trapping
+        # fluence (in 10^12 Neq/cm^2). This was measured with a laser and
+        # planar silicon sensors with a fluence up to 2*10^14 Neq/cm^2. There
+        # was a linear behaviour between fluence and the effective trapping
         # propability measured intepended of the silicon type (oxygenated or
         # not and with different doping concentrations) from:
         # G. Kramberger et al., Nucl. Inst. And. Meth. A 476 (2002) 645-651
