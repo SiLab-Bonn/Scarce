@@ -7,77 +7,37 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from scarce import fields, plot, geometry, silicon, solver
+from scarce import plot, solver, sensor
 
 
 def transient_planar():
-    # Number of pixels influences how correct the field for the
-    # center pixel(s) is due to more correct "infinite" boundary condition
-    n_pixel = 9
-
-    # Geometry of one pixel
+    # Sensor parameters
+    n_eff = 1.7e12
     width = 50.
     thickness = 200.
+    temperature = 300.
     pitch = 45.
-
-    n_eff = 1.7e12  # [cm^-3]
-    temperature = 300
-
-    # Potentials
+    n_pixel = 9
     V_bias = -80.
     V_readout = 0.
-    V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
-    resolution = 100.
-
-    # Create mesh of the sensor and stores the result
-    # The created file can be viewed with any mesh viewer (e.g. gmsh)
-    mesh = geometry.mesh_planar_sensor(
-        n_pixel=n_pixel,
-        width=width,
-        thickness=thickness,
-        resolution=resolution,
-        filename='planar_mesh_example.msh')
-
-    # Numerically solve the Laplace equation on the mesh
-    potential = fields.calculate_planar_sensor_potential(
-        mesh=mesh,
-        width=width,
-        pitch=pitch,
-        n_pixel=n_pixel,
-        thickness=thickness,
-        n_eff=n_eff,
-        V_bias=V_bias,
-        V_readout=V_readout,
-        V_bi=V_bi)
-
-    # Numerically solve the Poisson equation on the mesh
-    w_potential = fields.calculate_planar_sensor_w_potential(
-        mesh=mesh,
-        width=width,
-        pitch=pitch,
-        n_pixel=n_pixel,
-        thickness=thickness)
-
-    # Decribe numerical solutions
-    min_x = float(mesh.getFaceCenters()[0, :].min())
-    max_x = float(mesh.getFaceCenters()[0, :].max())
-    pot_descr = fields.Description(potential,
-                                   min_x=min_x,
-                                   max_x=max_x,
-                                   min_y=0,
-                                   max_y=thickness)
-    pot_w_descr = fields.Description(w_potential,
-                                     min_x=min_x,
-                                     max_x=max_x,
-                                     min_y=0,
-                                     max_y=thickness)
+    # Create sensor
+    pot_w_descr, pot_descr = sensor.planar_sensor(n_eff=n_eff,
+                                                  V_bias=V_bias,
+                                                  V_readout=V_readout,
+                                                  temperature=temperature,
+                                                  n_pixel=n_pixel,
+                                                  width=width,
+                                                  pitch=pitch,
+                                                  thickness=thickness,
+                                                  resolution=100.)
 
     # Start parameters of e-h pairs
     xx, yy = np.meshgrid(np.linspace(0, width, 2),  # x
-                         np.linspace(thickness / 2., thickness / 2., 2),  # y
-                         sparse=False)  # all combinations of x / y
-    p0 = np.array([xx.ravel(), yy.ravel()])
+                         np.linspace(3. * thickness / 4.,
+                                     3. * thickness / 4., 2),
+                         sparse=False)  # All combinations of x / y
+    p0 = np.array([xx.ravel(), yy.ravel()])  # Position [um]
 
     # Initial charge set to 1
     q0 = np.ones(p0.shape[1])
