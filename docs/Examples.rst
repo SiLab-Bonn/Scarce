@@ -58,27 +58,11 @@ different start positions with and without diffusion.
 
 With diffusion:
 
-.. image:: _static/Example_transient_3D_m125_8_d.png
-
-Without diffusion:
-
-.. image:: _static/Example_transient_3D_m125_8.png
-
-With diffusion:
-
 .. image:: _static/Example_transient_3D_m125_m8_d.png
 
 Without diffusion:
 
 .. image:: _static/Example_transient_3D_m125_m8.png
-
-With diffusion:
-
-.. image:: _static/Example_transient_3D_m41_25_d.png
-
-Without diffusion:
-
-.. image:: _static/Example_transient_3D_m41_25.png
 
 With diffusion:
 
