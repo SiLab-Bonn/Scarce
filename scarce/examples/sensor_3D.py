@@ -1,7 +1,7 @@
 ''' Example that creates a 3D pixel array with a given geometry.
 
-    .. WARNING::
-       The calculation of a partially depleted sensor is not supported right now.
+    .. NOTE::
+       The calculation of a partially depleted 3D sensor is supported.
 '''
 
 import numpy as np
@@ -31,7 +31,7 @@ def sensor_3D():
                                              radius=radius,
                                              nD=nD,
                                              selection='drift',
-                                             resolution=50,
+                                             resolution=60,
                                              smoothing=2)
 
     # Plot potential and field in 2D and 1d
@@ -44,7 +44,7 @@ def sensor_3D():
                             potential_function=pot_descr.get_potential_smooth,
                             field_function=pot_descr.get_field,
                             # Comment in if you want to see the mesh
-                            mesh=None,  # potential.mesh,
+                            mesh=None,  # pot_descr.pot_data.mesh,
                             title='Potential and field of a 3D sensor, '\
                             '%dx%d pixel matrix, numerical solution' % \
                             (n_pixel_x, n_pixel_y))
@@ -80,6 +80,8 @@ def sensor_3D():
     plt.twinx(plt.gca())
     field_abs = np.sqrt(field[0] ** 2 + field[1] ** 2)
     plt.plot(position, field_abs, color='red', linewidth=2, label='Field')
+    x_r = position.max()
+    plt.plot([x_r, x_r], plt.ylim(), '-', label='Bias column')
     plt.grid()
     plt.legend(loc=4)
     plt.show()
