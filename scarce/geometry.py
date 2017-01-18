@@ -197,10 +197,16 @@ class SensorDescription3D(object):
 def mesh_3D_sensor(width_x, width_y,
                    n_pixel_x, n_pixel_y,
                    radius, nD,
-                   resolution, filename='sensor.msh'):
+                   resolution, radius_bias=None,
+                   filename='sensor.msh'):
     ''' Create the mesh of a 3D sensor array '''
 
     _LOGGER.info('Mesh 3D sensor array')
+
+    # Std. setting redout columns radius is bias
+    # column radius
+    if not radius_bias:
+        radius_bias = radius
 
     desc = SensorDescription3D(
         width_x, width_y, n_pixel_x, n_pixel_y, radius, nD)
@@ -227,14 +233,14 @@ def mesh_3D_sensor(width_x, width_y,
 
         return pillars
 
-    def generate_bias_pillars(geom, radius, resolution, x0=0., y0=0.):
+    def generate_bias_pillars(geom, r_bias, resolution, x0=0., y0=0.):
         pillars = []
 
         for position_x, position_y in desc.get_center_bias_col_offsets():
             circle = geom.add_circle(x0=[position_x + x0,
                                          position_y + y0,
                                          0.0],
-                                     radius=radius,
+                                     radius=r_bias,
                                      lcar=resolution,
                                      num_sections=4,
                                      compound=False
@@ -248,7 +254,7 @@ def mesh_3D_sensor(width_x, width_y,
 
         return pillars
 
-    def generate_domain_edge(x0_1, x0_2, y0_1, y0_2, r):
+    def generate_domain_edge(x0_1, x0_2, y0_1, y0_2, r_bias):
         ''' Generates the perimeter of the pixel array including 1/4 edge and
         1/2 side columns.
         '''
@@ -282,56 +288,56 @@ def mesh_3D_sensor(width_x, width_y,
 
         # Left side
         points.append(geom.add_point(
-            [x0_1, y0_1 + r, 0], lcar=resolution_x))
+            [x0_1, y0_1 + r_bias, 0], lcar=resolution_x))
 
         # Left side column halves
         for iy0 in desc.get_side_col_y_offsets():
-            add_side_column(x0_1=x0_1, x0_2=x0_1, y0_1=iy0 - r, y0_2=iy0 + r)
+            add_side_column(x0_1=x0_1, x0_2=x0_1, y0_1=iy0 - r_bias, y0_2=iy0 + r_bias)
 
         points.append(geom.add_point(
-            [x0_1, y0_2 - r, 0], lcar=resolution_x))
+            [x0_1, y0_2 - r_bias, 0], lcar=resolution_x))
         loop.append(geom.add_line(points[-2], points[-1]))
 
         # Left edge, bottom
         points.append(geom.add_point(
-            [x0_1 + r, y0_2, 0], lcar=resolution_x))
+            [x0_1 + r_bias, y0_2, 0], lcar=resolution_x))
         add_partial_column(x0=x0_1, y0=y0_2)
 
         # Bottom side column halve(s)
         for ix0 in desc.get_side_col_x_offsets():
-            add_side_column(x0_1=ix0 - r, x0_2=ix0 + r, y0_1=y0_2, y0_2=y0_2)
+            add_side_column(x0_1=ix0 - r_bias, x0_2=ix0 + r_bias, y0_1=y0_2, y0_2=y0_2)
 
         # Close bottom side
         points.append(geom.add_point(
-            [x0_2 - r, y0_2, 0], lcar=resolution_x))
+            [x0_2 - r_bias, y0_2, 0], lcar=resolution_x))
         loop.append(geom.add_line(points[-2], points[-1]))
 
         # Right edge, bottom
         points.append(
-            geom.add_point([x0_2, y0_2 - r, 0], lcar=resolution_x))
+            geom.add_point([x0_2, y0_2 - r_bias, 0], lcar=resolution_x))
         add_partial_column(x0=x0_2, y0=y0_2)
 
         # Right side column halve(s)
         for iy0 in desc.get_side_col_y_offsets()[::-1]:
-            add_side_column(x0_1=x0_2, x0_2=x0_2, y0_1=iy0 + r, y0_2=iy0 - r)
+            add_side_column(x0_1=x0_2, x0_2=x0_2, y0_1=iy0 + r_bias, y0_2=iy0 - r_bias)
 
         # Close right side
         points.append(
-            geom.add_point([x0_2, y0_1 + r, 0], lcar=resolution_x))
+            geom.add_point([x0_2, y0_1 + r_bias, 0], lcar=resolution_x))
         loop.append(geom.add_line(points[-2], points[-1]))
 
         # Right edge, top
         points.append(
-            geom.add_point([x0_2 - r, y0_1, 0], lcar=resolution_x))
+            geom.add_point([x0_2 - r_bias, y0_1, 0], lcar=resolution_x))
         add_partial_column(x0=x0_2, y0=y0_1)
 
         # Top side column halve(s)
         for ix0 in desc.get_side_col_x_offsets()[::-1]:  # return order
-            add_side_column(x0_1=ix0 + r, x0_2=ix0 - r, y0_1=y0_1, y0_2=y0_1)
+            add_side_column(x0_1=ix0 + r_bias, x0_2=ix0 - r_bias, y0_1=y0_1, y0_2=y0_1)
 
         # Close top side
         points.append(geom.add_point(
-            [x0_1 + r, y0_1, 0], lcar=resolution_x))
+            [x0_1 + r_bias, y0_1, 0], lcar=resolution_x))
         loop.append(geom.add_line(points[-2], points[-1]))
 
         # Right edge, top; closes loop
@@ -347,7 +353,7 @@ def mesh_3D_sensor(width_x, width_y,
                                          x0_2=max_x,
                                          y0_1=min_y,
                                          y0_2=max_y,
-                                         r=r)
+                                         r_bias=r)
 
         ro_pillars = generate_ro_pillars(geom,
                                          radius=r,
@@ -355,7 +361,7 @@ def mesh_3D_sensor(width_x, width_y,
                                          x0=x0, y0=y0)
 
         bias_pillars = generate_bias_pillars(geom,
-                                             radius=r,
+                                             r_bias=r,
                                              resolution=resolution_x,
                                              x0=x0, y0=y0)
 
@@ -380,7 +386,7 @@ def mesh_3D_sensor(width_x, width_y,
     _LOGGER.info('Created mesh with %d points', len(points))
     if len(points) < 200000:
         _LOGGER.warning('Mesh has less than 200000 points. '
-                        'Result maybe not accurate!')
+                        'Results may be not accurate!')
     mio.write(filename, points, cells)
     return GmshImporter2D(filename)
 
