@@ -8,8 +8,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def planar_sensor(n_eff, V_bias, V_readout=0., temperature=300, n_pixel=9,
-           width=50., pitch=45., thickness=200., selection=None,
-           resolution=300., nx=202, ny=200, smoothing=0.1):
+                  width=50., pitch=45., thickness=200., selection=None,
+                  resolution=300., nx=None, ny=None, smoothing=0.1,
+                  mesh_file='planar_mesh.msh'):
     ''' Create a planar_sensor sensor pixel array.
 
         Parameters
@@ -47,14 +48,14 @@ def planar_sensor(n_eff, V_bias, V_readout=0., temperature=300, n_pixel=9,
             Smoothing parameter for the potential. Higher number leads to
             more smooth looking potential, but be aware too much smoothing
             leads to wrong results!
+        mesh_file : str
+            File name of the created mesh file
 
         Returns
         -----
         Two scarce.fields.Description objects for the weighting potential and
         potential if no specified selection.
     '''
-
-    V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
 
     # Create mesh of the sensor and stores the result
     # The created file can be viewed with any mesh viewer (e.g. gmsh)
@@ -63,12 +64,18 @@ def planar_sensor(n_eff, V_bias, V_readout=0., temperature=300, n_pixel=9,
         width=width,
         thickness=thickness,
         resolution=resolution,
-        filename='planar_mesh.msh')
+        filename=mesh_file)
 
     min_x = float(mesh.getFaceCenters()[0, :].min())
     max_x = float(mesh.getFaceCenters()[0, :].max())
 
+    if not nx:
+        nx = width * n_pixel * 4
+    if not ny:
+        ny = thickness * 10
+
     if not selection or 'drift' in selection:
+        V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
         # Numerically solve the Laplace equation on the mesh
         potential = fields.calculate_planar_sensor_potential(
             mesh=mesh,
@@ -116,7 +123,7 @@ def planar_sensor(n_eff, V_bias, V_readout=0., temperature=300, n_pixel=9,
 def sensor_3D(n_eff, V_bias, V_readout=0., temperature=300, n_pixel_x=3,
               n_pixel_y=3, width_x=250., width_y=50., radius=6., nD=2,
               selection=None, resolution=80., nx=None, ny=None,
-              smoothing=0.1):
+              smoothing=0.1, mesh_file='3D_mesh.msh'):
     ''' Create a 3D sensor pixel array.
 
         Parameters
@@ -158,6 +165,8 @@ def sensor_3D(n_eff, V_bias, V_readout=0., temperature=300, n_pixel_x=3,
             Smoothing parameter for the potential. Higher number leads to
             more smooth looking potential, but be aware too much smoothing
             leads to wrong results!
+        mesh_file : str
+            File name of the created mesh file
 
         Returns
         -----
@@ -170,15 +179,14 @@ def sensor_3D(n_eff, V_bias, V_readout=0., temperature=300, n_pixel_x=3,
     if not ny:
         ny = width_y * n_pixel_y * 4
 
-    V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
-
     mesh = geometry.mesh_3D_sensor(width_x=width_x,
                                    width_y=width_y,
                                    n_pixel_x=n_pixel_x,
                                    n_pixel_y=n_pixel_y,
                                    radius=radius,
                                    nD=nD,
-                                   resolution=resolution)
+                                   resolution=resolution,
+                                   filename=mesh_file)
 
     # Describe the 3D sensor array
     geom_descr = geometry.SensorDescription3D(width_x, width_y,
@@ -187,6 +195,7 @@ def sensor_3D(n_eff, V_bias, V_readout=0., temperature=300, n_pixel_x=3,
     min_x, max_x, min_y, max_y = geom_descr.get_array_corners()
 
     if not selection or 'drift' in selection:
+        V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
         potential = fields.calculate_3D_sensor_potential(mesh,
                                                          width_x,
                                                          width_y,
