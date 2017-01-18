@@ -30,7 +30,10 @@ def transient_planar():
                                                   width=width,
                                                   pitch=pitch,
                                                   thickness=thickness,
-                                                  resolution=200.)
+                                                  resolution=300.,
+                                                  # Might have to be adjusted
+                                                  # when changing the geometry
+                                                  smoothing=0.05)
 
     # Start parameters of e-h pairs
     # Create a e-h pairs every 5 um in y
