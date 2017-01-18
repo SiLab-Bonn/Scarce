@@ -36,9 +36,10 @@ def transient_planar():
                                                   smoothing=0.05)
 
     # Start parameters of e-h pairs
-    # Create a e-h pairs every 5 um in y
+    # Create 10 e-h pairs every 5 um in y
     xx, yy = np.meshgrid(np.linspace(0, width, 2),  # x
-                         np.linspace(0, thickness, thickness/5.),
+                         np.repeat(np.linspace(0, thickness,
+                                               thickness / 5), 10),
                          sparse=False)  # All combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])  # Position [um]
 
@@ -51,7 +52,7 @@ def transient_planar():
     t = np.arange(n_steps) * dt
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
-                                     T=temperature, diffusion=False)
+                                     T=temperature, diffusion=True)
     traj_e, traj_h, Q_ind_e, Q_ind_h, I_ind_e, I_ind_h = dd.solve(p0, q0, dt,
                                                                   n_steps)
 

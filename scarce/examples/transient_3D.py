@@ -40,9 +40,11 @@ def transient_3D():
                                                           smoothing=0.1)
 
     # Start parameters of e-h pairs
-    xx, yy = np.meshgrid(np.linspace(-width_x / 2., width_x / 2., 4),  # x
-                         np.linspace(-width_y / 2., width_y / 2., 4),  # y
-                         sparse=False)  # all combinations of x / y
+    # 10 pairs per position
+    xx, yy = np.meshgrid(np.linspace(-width_x / 2., width_x / 2., 25),  # x
+                         np.repeat(np.linspace(-width_y / 2.,
+                                               width_y / 2., 5), 10),  # y
+                         sparse=False)  # All combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])
 
     # Initial charge
