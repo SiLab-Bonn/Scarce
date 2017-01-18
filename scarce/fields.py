@@ -71,7 +71,7 @@ class Description(object):
     '''
 
     def __init__(self, potential, min_x, max_x, min_y, max_y,
-                 nx=202, ny=200, smoothing=0.1):
+                 nx, ny, smoothing=0.1):
         _LOGGER.debug('Create potential and field description')
         self.pot_data = potential
 
@@ -152,9 +152,6 @@ class Description(object):
         _LOGGER.debug('Interpolate potential')
         if potential is None:
             potential = self.pot_data
-
-#         points = np.array(potential.mesh.cellCenters).T
-#         values = np.array(potential.value)
 
         points = np.array(potential.mesh.getFaceCenters()).T
         values = np.array(np.array(potential.arithmeticFaceValue()))
@@ -601,49 +598,138 @@ def calculate_3D_sensor_potential(mesh, width_x, width_y, n_pixel_x, n_pixel_y,
     # electrons = 1
     electrons.setValue(rho_scale)
 
-    # Set boundary condition
-    bcs = []
-    allfaces = mesh.getExteriorFaces()
-    X, Y = mesh.getFaceCenters()
-
     # Add build in potential to bias potential, although that might not be
     # correct. The analytic formular does it like this
     V_bias += V_bi
 
-    # Set boundary conditions
-    # Set readout pillars potentials
-    for pos_x, pos_y in desc.get_ro_col_offsets():
-        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
-        bcs.append(fipy.FixedValue(value=V_readout, faces=ring))
+    def get_potential(max_iter=10):
+        ''' Calculates the potential with boundary conditions.
 
-    # Full bias pillars potentials = V_bias
-    for pos_x, pos_y in desc.get_center_bias_col_offsets():
-        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
-        bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+        Can have a larger bias column radius to simulate a not fully depleted
+        sensor
+        '''
 
-    # Side bias pillars potentials = V_bias
-    for pos_x, pos_y in desc.get_side_bias_col_offsets():
-        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
-        bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+        r_bias = radius  # Start with full depletion assumption
 
-    # Edge bias pillars potentials = V_bias
-    for pos_x, pos_y in desc.get_edge_bias_col_offsets():
-        ring = allfaces & ((X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
-        bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+        for i in range(max_iter):
+            # Set boundary condition
+            bcs = []
+            allfaces = mesh.getExteriorFaces()
+            X, Y = mesh.getFaceCenters()
 
-    potential.equation = (
-        fipy.DiffusionTerm(coeff=epsilon_scaled) + charge == 0.)
-    solver.solve(
-        potential, equation=potential.equation, boundaryConditions=bcs)
+            # Set boundary conditions
+            # Set readout pillars potentials
+            for pos_x, pos_y in desc.get_ro_col_offsets():
+                ring = allfaces & (
+                    (X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius * 2) ** 2)
+                bcs.append(fipy.FixedValue(value=V_readout, faces=ring))
 
-    if not np.isclose(potential.arithmeticFaceValue().min(),
-                      V_bias, rtol=0.05, atol=0.01):
-        print potential.arithmeticFaceValue().min(), V_bias
-        raise NotImplementedError(
-            'The 3D sensor does not seem to be fully depleted,\
-            this is not supported yet!')
+            depletion_mask = None
 
-    return potential
+            # Full bias pillars potentials = V_bias
+            for pos_x, pos_y in desc.get_center_bias_col_offsets():
+                ring = allfaces & (
+                    (X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+                bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+                if not np.any(depletion_mask):
+                    depletion_mask = (potential.mesh.x - pos_x)**2 + \
+                        (potential.mesh.y - pos_y)**2 < r_bias ** 2
+                else:
+                    depletion_mask |= (potential.mesh.x - pos_x)**2 + \
+                        (potential.mesh.y - pos_y)**2 < (r_bias) ** 2
+
+            # Side bias pillars potentials = V_bias
+            for pos_x, pos_y in desc.get_side_bias_col_offsets():
+                ring = allfaces & (
+                    (X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+                bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+                if not np.any(depletion_mask):
+                    depletion_mask = (potential.mesh.x - pos_x)**2 + \
+                        (potential.mesh.y - pos_y)**2 < r_bias ** 2
+                else:
+                    depletion_mask |= (potential.mesh.x - pos_x)**2 + \
+                        (potential.mesh.y - pos_y)**2 < (r_bias) ** 2
+
+            # Edge bias pillars potentials = V_bias
+            for pos_x, pos_y in desc.get_edge_bias_col_offsets():
+                ring = allfaces & (
+                    (X - pos_x) ** 2 + (Y - pos_y) ** 2 < (radius) ** 2)
+                bcs.append(fipy.FixedValue(value=V_bias, faces=ring))
+                if not np.any(depletion_mask):
+                    depletion_mask = (potential.mesh.x - pos_x)**2 + \
+                        (potential.mesh.y - pos_y)**2 < r_bias ** 2
+                else:
+                    depletion_mask |= (potential.mesh.x - pos_x)**2 + \
+                        (potential.mesh.y - pos_y)**2 < (r_bias) ** 2
+
+            # A depletion zone within the bulk requires an internal boundary
+            # condition. Internal boundary conditions seem to challenge fipy
+            # http://www.ctcms.nist.gov/fipy/documentation/USAGE.html#applying-internal-boundary-conditions
+
+            large_value = 1e+10  # Hack for optimizer
+
+            potential.equation = (
+                fipy.DiffusionTerm(coeff=epsilon_scaled) + charge ==
+                fipy.ImplicitSourceTerm(depletion_mask * large_value) -
+                depletion_mask * large_value * V_bias)
+
+            solver.solve(potential, equation=potential.equation,
+                         boundaryConditions=bcs)
+
+            # Check if fully depleted
+            if not np.isclose(potential.arithmeticFaceValue().min(),
+                              V_bias, rtol=0.05, atol=0.01):
+                if i == 0:
+                    logging.warning('Sensor is not fully depleted. '
+                                    'Try to find depletion region. ')
+            else:
+                return potential
+
+            # Get line between readout and bias column to check for full
+            # depletion
+            for x, y in desc.get_ro_col_offsets():
+                if desc.position_in_center_pixel(x, y):
+                    x_ro, y_ro = x, y
+                    break
+            for x, y in list(desc.get_center_bias_col_offsets()) + desc.get_edge_bias_col_offsets():
+                if desc.position_in_center_pixel(x, y):
+                    x_bias, y_bias = x, y
+                    break
+
+            pot_descr = Description(potential,
+                                    min_x=min_x,
+                                    max_x=max_x,
+                                    min_y=min_y,
+                                    max_y=max_y,
+                                    nx=width_x * n_pixel_x,
+                                    ny=width_y * n_pixel_y)
+
+            N = 1000
+            x = np.linspace(x_ro, x_bias, N)
+            y = np.linspace(y_ro, y_bias, N)
+            # Deselect position that is within the columns
+            sel = ~desc.position_in_column(x, y)
+            x, y = x[sel], y[sel]
+            position = np.sqrt(x ** 2 + y ** 2)  # [um]
+            phi = pot_descr.get_potential(x, y)
+            x_r = position.max()
+            x_min = position[np.atleast_1d(np.argmin(phi))[0]]
+#             import matplotlib.pyplot as plt
+#             plt.plot(position, phi, color='blue', linewidth=2,
+#                      label='Potential')
+#             plt.plot([x_r, x_r], plt.ylim())
+#             plt.plot([x_min, x_min], plt.ylim())
+#             plt.show()
+
+            # Increase bias radius boundary to simulate not depleted
+            # region sourrounding bias column
+            r_bias += x_r - x_min
+
+            logging.info('Depletion region error: %d um', x_r - x_min)
+
+        raise RuntimeError('Unable to find the depletion region')
+
+    return get_potential(10)
 
 
 def calculate_3D_sensor_w_potential(mesh, width_x, width_y,
