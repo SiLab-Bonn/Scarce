@@ -121,9 +121,12 @@ def get_free_path(fluence, e_field, temperature, is_electron=True):
         depends on the electrode geometry and the bias voltage.
         velocity = get_mobility(e_field, temperature, is_electron) * e_field
         trapping_time = get_trapping(fluence, is_electron, paper=1)
-
-        eturn velocity * trapping_time * 10e-9
     '''
+
+    velocity = get_mobility(e_field, temperature, is_electron) * e_field
+    trapping_time = get_trapping(fluence, is_electron, paper=1)
+
+    return velocity * trapping_time * 10e-9
 
 
 def get_mobility(e_field, temperature, is_electron):
