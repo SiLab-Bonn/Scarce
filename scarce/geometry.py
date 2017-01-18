@@ -378,6 +378,9 @@ def mesh_3D_sensor(width_x, width_y,
 
     points, cells = pg.generate_mesh(geom, verbose=False)
     _LOGGER.info('Created mesh with %d points', len(points))
+    if len(points) < 200000:
+        _LOGGER.warning('Mesh has less than 200000 points. '
+                        'Result maybe not accurate!')
     mio.write(filename, points, cells)
     return GmshImporter2D(filename)
 
@@ -439,5 +442,8 @@ def mesh_planar_sensor(n_pixel, width, thickness,
 
     points, cells = pg.generate_mesh(geom, verbose=False)
     _LOGGER.info('Created mesh with %d points', len(points))
+    if len(points) < 200000:
+        _LOGGER.warning('Mesh has less than 200000 points. '
+                        'Result maybe not accurate!')
     mio.write(filename, points, cells)
     return GmshImporter2D(filename)
