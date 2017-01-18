@@ -19,31 +19,25 @@ from scarce import fields, plot, sensor
 
 def sensor_planar():
     # Sensor parameters
-    n_eff = 1.7e12
     width = 50.
     thickness = 200.
-    temperature = 300.
     pitch = 45.
     n_pixel = 9
-    V_bias = -80.
-    V_readout = 0.
 
-    # Create sensor
-    desc = sensor.planar_sensor(n_eff=n_eff,
-                         V_bias=V_bias,
-                         V_readout=V_readout,
-                         temperature=temperature,
-                         n_pixel=n_pixel,
-                         width=width,
-                         pitch=pitch,
-                         thickness=thickness,
-                         # Calculate drift potential only
-                         # to safe time
-                         selection='weighting',
-                         resolution=300.,
-                         nx=200 * n_pixel,
-                         ny=2000,
-                         smoothing=0.2)
+    # Create sensor with weighting potential
+    desc = sensor.planar_sensor(n_eff=None,  # Not needed for WP
+                                V_bias=None,  # Not needed for WP
+                                n_pixel=n_pixel,
+                                width=width,
+                                pitch=pitch,
+                                thickness=thickness,
+                                # Calculate weighting potential only
+                                # to safe time
+                                selection='weighting',
+                                resolution=300.,
+                                # Might have to be adjusted when changing
+                                # the geometry
+                                smoothing=0.2)
 
     # Analytical results
     def potential_analytic(x, y):
@@ -62,9 +56,6 @@ def sensor_planar():
              label='Potential, numerical', linewidth=2)
     plt.plot(y, desc.get_potential_smooth(x, y),
              label='Potential, smooth', linewidth=2)
-    xi = 900
-    plt.plot(desc._y, desc.potential_grid.T[xi, :], '.',
-             label='Potential, grid', linewidth=2)
     plt.plot(y, potential_analytic(x, y),
              '--', label='Potential, analytical', linewidth=2)
     plt.ylabel('Potential [V]')
