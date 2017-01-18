@@ -28,17 +28,21 @@ def sensor_planar():
 
     # Create sensor
     pot_descr = sensor.planar_sensor(n_eff=n_eff,
-                              V_bias=V_bias,
-                              V_readout=V_readout,
-                              temperature=temperature,
-                              n_pixel=n_pixel,
-                              width=width,
-                              pitch=pitch,
-                              thickness=thickness,
-                              # Calculate drift potential only
-                              # to safe time
-                              selection='drift',
-                              resolution=300.)
+                                     V_bias=V_bias,
+                                     V_readout=V_readout,
+                                     temperature=temperature,
+                                     n_pixel=n_pixel,
+                                     width=width,
+                                     pitch=pitch,
+                                     thickness=thickness,
+                                     # Calculate drift potential only
+                                     # to safe time
+                                     selection='drift',
+                                     resolution=300.,
+                                     # Might have to be adjusted when changing
+                                     # the geometry
+                                     smoothing=0.05
+                                     )
 
     # Build in voltage needed for analytical solution
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)

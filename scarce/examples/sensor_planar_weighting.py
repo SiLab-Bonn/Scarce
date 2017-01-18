@@ -37,7 +37,7 @@ def sensor_planar():
                                 resolution=300.,
                                 # Might have to be adjusted when changing
                                 # the geometry
-                                smoothing=0.2)
+                                smoothing=0.05)
 
     # Analytical results
     def potential_analytic(x, y):

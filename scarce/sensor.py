@@ -9,7 +9,7 @@ _LOGGER = logging.getLogger(__name__)
 
 def planar_sensor(n_eff, V_bias, V_readout=0., temperature=300, n_pixel=9,
                   width=50., pitch=45., thickness=200., selection=None,
-                  resolution=300., nx=None, ny=None, smoothing=0.1,
+                  resolution=300., nx=None, ny=None, smoothing=0.05,
                   mesh_file='planar_mesh.msh'):
     ''' Create a planar_sensor sensor pixel array.
 
@@ -69,10 +69,11 @@ def planar_sensor(n_eff, V_bias, V_readout=0., temperature=300, n_pixel=9,
     min_x = float(mesh.getFaceCenters()[0, :].min())
     max_x = float(mesh.getFaceCenters()[0, :].max())
 
+    # Set um resolution grid
     if not nx:
-        nx = width * n_pixel * 4
+        nx = width * n_pixel
     if not ny:
-        ny = thickness * 10
+        ny = thickness
 
     if not selection or 'drift' in selection:
         V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
