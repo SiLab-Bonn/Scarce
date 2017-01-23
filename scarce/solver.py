@@ -7,10 +7,11 @@ to other solvers.
 import fipy
 import numpy as np
 import matplotlib.pyplot as plt
+from multiprocessing import Pool, cpu_count
+from functools import partial
 import progressbar
 import logging
-
-from scarce import silicon
+from scarce import silicon, tools
 
 
 def solve(var, equation, **kwargs):
@@ -115,154 +116,195 @@ class DriftDiffusionSolver(object):
         if dt > 0.001:
             logging.warning('A time step > 1 ps result in wrong diffusion')
 
-        # Start positions
-        p_e, p_h = p0.copy(), p0.copy()
+        # Split data and into cores - 1 slices
+        pool = Pool()
+        n_slices = cpu_count() - 1
+        slices_p0 = np.array_split(p0, n_slices, axis=1)
+        slices_q0 = np.array_split(q0, n_slices, axis=0)
 
-        # Result arrays initialized to NaN
-        traj_e = np.empty(shape=(n_steps, p_e.shape[0], p_e.shape[1]))
-        traj_h = np.empty(shape=(n_steps, p_h.shape[0], p_h.shape[1]))
-        Q_ind_e = np.zeros(shape=(n_steps, p_e.shape[1]))
-        Q_ind_h = np.zeros(shape=(n_steps, p_h.shape[1]))
-        I_ind_e = np.zeros(shape=(n_steps, p_e.shape[1]))
-        I_ind_h = np.zeros(shape=(n_steps, p_h.shape[1]))
-        traj_e[:], traj_h[:] = np.nan, np.nan
+        logging.info('Calculate drift diffusion on %d cores', n_slices)
 
-        progress_bar = progressbar.ProgressBar(
-            widgets=['', progressbar.Percentage(), ' ',
-                     progressbar.Bar(marker='*', left='|', right='|'), ' ',
-                     progressbar.AdaptiveETA()],
-            maxval=n_steps, term_width=80)
+        jobs = []
+        for index in range(n_slices):
+            job = tools.apply_async(pool=pool,
+                                    fun=_solve_dd,
+                                    p0=slices_p0[index],
+                                    q0=slices_q0[index],
+                                    n_steps=n_steps,
+                                    dt=dt,
+                                    geom_descr=self.geom_descr,
+                                    pot_w_descr=self.pot_w_descr,
+                                    pot_descr=self.pot_descr,
+                                    T=self.T,
+                                    diffusion=self.diffusion,
+                                    t_e_trapping=self.t_e_trapping,
+                                    t_h_trapping=self.t_h_trapping
+                                    )
+            jobs.append(job)
 
-        progress_bar.start()
+        # Gather results
+        results = []
+        for job in jobs:
+            results.append(job.get())
 
-        def in_boundary(pot_descr, x, y):
-            ''' Checks if the particles are still in the bulk and should be propagated
-            '''
+        # Merge results
+        traj_e = np.concatenate([i[0] for i in results], axis=2)
+        traj_h = np.concatenate([i[1] for i in results], axis=2)
+        I_ind_e = np.concatenate([i[2] for i in results], axis=1)
+        I_ind_h = np.concatenate([i[3] for i in results], axis=1)
 
-            sel_x = np.logical_and(x >= pot_descr.min_x,
-                                   x <= pot_descr.max_x)
-            sel_y = np.logical_and(y >= pot_descr.min_y,
-                                   y <= pot_descr.max_y)
+        pool.close()
+        pool.join()
 
-            sel = np.logical_and(sel_x, sel_y)
+        return traj_e, traj_h, I_ind_e, I_ind_h
 
-            if self.geom_descr:
-                sel_col = self.geom_descr.position_in_column(x, y,
-                                                             incl_sides=True)
-                sel = np.logical_and(sel, ~sel_col)
 
-            return sel
+def test(**kwarg):
+    pass
 
-        sel_e = in_boundary(pot_descr=self.pot_descr,
-                            x=p_e[0, :], y=p_e[1, :])
-        sel_h = in_boundary(pot_descr=self.pot_descr,
-                            x=p_h[0, :], y=p_h[1, :])
+# Drift diffussion iteration loop helper functions
 
-        for step in range(n_steps):
-            # Check if all particles out of boundary
-            if not np.any(sel_e) and not np.any(sel_h):
-                break  # Stop loop to safe time
 
-            # Electric field in V/cm
-            E_e = self.pot_descr.get_field(p_e[0, sel_e], p_e[1, sel_e]) * 1e4
-            E_h = self.pot_descr.get_field(p_h[0, sel_h], p_h[1, sel_h]) * 1e4
+def _in_boundary(geom_descr, pot_descr, x, y):
+    ''' Checks if the particles are still in the bulk and should be propagated
+    '''
 
-            # Mobility in cm2 / Vs
-            mu_e = silicon.get_mobility(np.sqrt(E_e[0] ** 2 + E_e[1] ** 2),
-                                        temperature=self.T, is_electron=True)
-            mu_h = silicon.get_mobility(np.sqrt(E_h[0] ** 2 + E_h[1] ** 2),
-                                        temperature=self.T, is_electron=False)
+    sel_x = np.logical_and(x >= pot_descr.min_x,
+                           x <= pot_descr.max_x)
+    sel_y = np.logical_and(y >= pot_descr.min_y,
+                           y <= pot_descr.max_y)
 
-            # Drift velocity in cm / s
-            v_e, v_h = - E_e * mu_e, E_h * mu_h
+    sel = np.logical_and(sel_x, sel_y)
 
-            # Add diffusion velocity
-            if self.diffusion:
-                # Calculate absolute thermal velocity
-                v_th_e = silicon.get_thermal_velocity(temperature=self.T,
-                                                      is_electron=True)
-                v_th_h = silicon.get_thermal_velocity(temperature=self.T,
-                                                      is_electron=False)
-                # Create thermal velocity distribution
-                # From: IEEE VOL. 56, NO. 3, JUNE 2009
-                v_th_e *= np.log(np.abs(
-                    1. / (1. - np.random.uniform(size=v_e.shape[1]))))
-                v_th_h *= np.log(np.abs(
-                    1. / (1. - np.random.uniform(size=v_h.shape[1]))))
-                # Calculate random direction in x, y
-                # Uniform random number 0 .. 2 Pi
-                eta = np.random.uniform(0., 2. * np.pi, size=v_e.shape[1])
-                direction_e = np.array([np.cos(eta), np.sin(eta)])
-                eta = np.random.uniform(0., 2. * np.pi, size=v_h.shape[1])
-                direction_h = np.array([np.cos(eta), np.sin(eta)])
+    if geom_descr:
+        sel_col = geom_descr.position_in_column(x, y, incl_sides=True)
+        sel = np.logical_and(sel, ~sel_col)
 
-                v_th_e = v_th_e[np.newaxis, :] * direction_e
-                v_th_h = v_th_h[np.newaxis, :] * direction_h
+    return sel
 
-                v_e += v_th_e
-                v_h += v_th_h
 
-            # Calculate induced current
-            if np.any(p_e[0, sel_e]):  # Only if electrons are still drifting
-                # Weighting field in V/um
-                W_e = self.pot_w_descr.get_field(p_e[0, sel_e],
-                                                 p_e[1, sel_e])
+def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
+              diffusion, t_e_trapping, t_h_trapping):
+    # E-h pairs Start positions
+    p_e, p_h = p0.copy(), p0.copy()
 
-                # Induced charge in C/s, Q = E_w * v * q * dt
-                dQ_e = (W_e[0] * v_e[0] + W_e[1] * v_e[1]) * \
-                    - q0[sel_e] * dt * 1e-5
+    # Result arrays initialized to NaN
+    traj_e = np.empty(shape=(n_steps, p_e.shape[0], p_e.shape[1]))
+    traj_h = np.empty(shape=(n_steps, p_h.shape[0], p_h.shape[1]))
+    I_ind_e = np.zeros(shape=(n_steps, p_e.shape[1]))
+    I_ind_h = np.zeros(shape=(n_steps, p_h.shape[1]))
+    traj_e[:], traj_h[:] = np.nan, np.nan
 
-                # Reduce induced charge due to trapping
-                if self.t_e_trapping:
-                    dQ_e *= np.exp(-dt * step / self.t_e_trapping)
+#     progress_bar = progressbar.ProgressBar(
+#         widgets=['', progressbar.Percentage(), ' ',
+#                  progressbar.Bar(marker='*', left='|', right='|'), ' ',
+#                  progressbar.AdaptiveETA()],
+#         maxval=n_steps, term_width=80)
+#
+#     progress_bar.start()
 
-                # Induced current
-                I_ind_e[step, sel_e] = dQ_e / dt
+    sel_e = _in_boundary(geom_descr, pot_descr=pot_descr,
+                         x=p_e[0, :], y=p_e[1, :])
+    sel_h = _in_boundary(geom_descr, pot_descr=pot_descr,
+                         x=p_h[0, :], y=p_h[1, :])
 
-                # Total integrated induced charge
-                Q_ind_e[step, sel_e] = Q_ind_e[step - 1, sel_e] + dQ_e
+    for step in range(n_steps):
+        # Check if all particles out of boundary
+        if not np.any(sel_e) and not np.any(sel_h):
+            break  # Stop loop to safe time
 
-            Q_ind_e[step, ~sel_e] = Q_ind_e[step - 1, ~sel_e]
+        # Electric field in V/cm
+        E_e = pot_descr.get_field(
+            p_e[0, sel_e], p_e[1, sel_e]) * 1e4
+        E_h = pot_descr.get_field(
+            p_h[0, sel_h], p_h[1, sel_h]) * 1e4
 
-            if np.any(p_h[0, sel_h]):  # Only if holes are still drifting
-                # Weighting field in V/um
-                W_h = self.pot_w_descr.get_field(p_h[0, sel_h],
-                                                 p_h[1, sel_h])
-                # Induced charge in C/s, Q = E_w * v * q * dt
-                dQ_h = (W_h[0] * v_h[0] + W_h[1] * v_h[1]) * \
-                    q0[sel_h] * dt * 1e-5
+        # Mobility in cm2 / Vs
+        mu_e = silicon.get_mobility(np.sqrt(E_e[0] ** 2 + E_e[1] ** 2),
+                                    temperature=T, is_electron=True)
+        mu_h = silicon.get_mobility(np.sqrt(E_h[0] ** 2 + E_h[1] ** 2),
+                                    temperature=T, is_electron=False)
 
-                # Reduce induced charge due to trapping
-                if self.t_h_trapping:
-                    dQ_h *= np.exp(-dt * step / self.t_e_trapping)
+        # Drift velocity in cm / s
+        v_e, v_h = - E_e * mu_e, E_h * mu_h
 
-                # Induced current
-                I_ind_h[step, sel_h] = dQ_h / dt
+        # Add diffusion velocity
+        if diffusion:
+            # Calculate absolute thermal velocity
+            v_th_e = silicon.get_thermal_velocity(temperature=T,
+                                                  is_electron=True)
+            v_th_h = silicon.get_thermal_velocity(temperature=T,
+                                                  is_electron=False)
+            # Create thermal velocity distribution
+            # From: IEEE VOL. 56, NO. 3, JUNE 2009
+            v_th_e *= np.log(np.abs(
+                1. / (1. - np.random.uniform(size=v_e.shape[1]))))
+            v_th_h *= np.log(np.abs(
+                1. / (1. - np.random.uniform(size=v_h.shape[1]))))
+            # Calculate random direction in x, y
+            # Uniform random number 0 .. 2 Pi
+            eta = np.random.uniform(0., 2. * np.pi, size=v_e.shape[1])
+            direction_e = np.array([np.cos(eta), np.sin(eta)])
+            eta = np.random.uniform(0., 2. * np.pi, size=v_h.shape[1])
+            direction_h = np.array([np.cos(eta), np.sin(eta)])
 
-                # Total integrated induced charge
-                Q_ind_h[step, sel_h] = Q_ind_h[step - 1, sel_h] + dQ_h
+            v_th_e = v_th_e[np.newaxis, :] * direction_e
+            v_th_h = v_th_h[np.newaxis, :] * direction_h
 
-            Q_ind_h[step, ~sel_h] = Q_ind_h[step - 1, ~sel_h]
+            v_e += v_th_e
+            v_h += v_th_h
 
-            # Position change in um
-            d_p_e, d_p_h = v_e * dt * 1e-5, v_h * dt * 1e-5
+        # Calculate induced current
+        # Only if electrons are still drifting
+        if np.any(p_e[0, sel_e]):
+            # Weighting field in V/um
+            W_e = pot_w_descr.get_field(p_e[0, sel_e], p_e[1, sel_e])
 
-            # Update position
-            p_e[:, sel_e] = p_e[:, sel_e] + d_p_e
-            p_h[:, sel_h] = p_h[:, sel_h] + d_p_h
+            # Induced charge in C/s, Q = E_w * v * q * dt
+            dQ_e = (W_e[0] * v_e[0] + W_e[1] * v_e[1]) * \
+                - q0[sel_e] * dt * 1e-5
 
-            # Check boundaries and update selection
-            sel_e = in_boundary(pot_descr=self.pot_descr,
-                                x=p_e[0, :], y=p_e[1, :])
-            sel_h = in_boundary(pot_descr=self.pot_descr,
-                                x=p_h[0, :], y=p_h[1, :])
-            p_e[:, ~sel_e] = np.nan
-            p_h[:, ~sel_h] = np.nan
+            # Reduce induced charge due to trapping
+            if t_e_trapping:
+                dQ_e *= np.exp(-dt * step / t_e_trapping)
 
-            traj_e[step] = p_e
-            traj_h[step] = p_h
+            # Induced current
+            I_ind_e[step, sel_e] = dQ_e / dt
 
-            progress_bar.update(step)
-        progress_bar.finish()
+        if np.any(p_h[0, sel_h]):  # Only if holes are still drifting
+            # Weighting field in V/um
+            W_h = pot_w_descr.get_field(p_h[0, sel_h], p_h[1, sel_h])
 
-        return traj_e, traj_h, Q_ind_e, Q_ind_h, I_ind_e, I_ind_h
+            # Induced charge in C/s, Q = E_w * v * q * dt
+            dQ_h = (W_h[0] * v_h[0] + W_h[1] * v_h[1]) * \
+                q0[sel_h] * dt * 1e-5
+
+            # Reduce induced charge due to trapping
+            if t_h_trapping:
+                dQ_h *= np.exp(-dt * step / t_e_trapping)
+
+            # Induced current
+            I_ind_h[step, sel_h] = dQ_h / dt
+
+        # Position change in um
+        d_p_e, d_p_h = v_e * dt * 1e-5, v_h * dt * 1e-5
+
+        # Update position
+        p_e[:, sel_e] = p_e[:, sel_e] + d_p_e
+        p_h[:, sel_h] = p_h[:, sel_h] + d_p_h
+
+        # Check boundaries and update selection
+        sel_e = _in_boundary(
+            geom_descr, pot_descr=pot_descr, x=p_e[0, :], y=p_e[1, :])
+        sel_h = _in_boundary(
+            geom_descr, pot_descr=pot_descr, x=p_h[0, :], y=p_h[1, :])
+        p_e[:, ~sel_e] = np.nan
+        p_h[:, ~sel_h] = np.nan
+
+        traj_e[step] = p_e
+        traj_h[step] = p_h
+
+#         progress_bar.update(step)
+#     progress_bar.finish()
+
+    return traj_e, traj_h, I_ind_e, I_ind_h
