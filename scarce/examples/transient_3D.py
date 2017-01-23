@@ -59,13 +59,15 @@ def transient_3D():
                                      geom_descr=geom_descr,
                                      T=T,
                                      diffusion=True)
-    traj_e, traj_h, Q_ind_e, Q_ind_h, _, _ = dd.solve(p0, q0, dt, n_steps)
+    traj_e, traj_h, I_ind_e, I_ind_h = dd.solve(p0, q0, dt, n_steps)
 
     for i in (5, 13):
-        plt.plot(t, Q_ind_e[:, i], color='blue', label='Electrons')
-        plt.plot(t, Q_ind_h[:, i], color='red', label='Holes')
-        plt.plot(
-            t, Q_ind_e[:, i] + Q_ind_h[:, i], color='magenta', label='Sum')
+        plt.plot(t, np.cumsum(I_ind_e[:, i], axis=0) * dt, color='blue',
+                 label='Electrons')
+        plt.plot(t, np.cumsum(I_ind_h[:, i], axis=0) * dt, color='red',
+                 label='Holes')
+        plt.plot(t, np.cumsum(I_ind_e[:, i] + I_ind_h[:, i], axis=0) * dt,
+                 color='magenta', label='Sum')
         plt.legend(loc=0)
         plt.xlabel('Time [ns]')
         plt.ylabel('Charge normalized to 1')

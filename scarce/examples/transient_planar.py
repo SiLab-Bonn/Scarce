@@ -53,12 +53,14 @@ def transient_planar():
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
                                      T=temperature, diffusion=True)
-    traj_e, traj_h, Q_ind_e, Q_ind_h, I_ind_e, I_ind_h = dd.solve(p0, q0, dt,
-                                                                  n_steps)
+    traj_e, traj_h, I_ind_e, I_ind_h = dd.solve(p0, q0, dt, n_steps)
 
-    plt.plot(t, Q_ind_e[:, 0], color='blue', label='Electrons')
-    plt.plot(t, Q_ind_h[:, 0], color='red', label='Holes')
-    plt.plot(t, Q_ind_e[:, 0] + Q_ind_h[:, 0], color='magenta', label='Sum')
+    plt.plot(t, np.cumsum(I_ind_e[:, 0], axis=0) * dt, color='red',
+             label='Electrons')
+    plt.plot(t, np.cumsum(I_ind_h[:, 0], axis=0) * dt, color='red',
+             label='Holes')
+    plt.plot(t, np.cumsum(I_ind_e[:, 0] + I_ind_h[:, 0], axis=0) * dt,
+             color='magenta', label='Sum')
     plt.legend(loc=0)
     plt.xlabel('Time [ns]')
     plt.ylabel('Total induced charge [a.u.]')
@@ -72,13 +74,13 @@ def transient_planar():
     plt.title('Signal of drifting e-h pairs, readout pixel')
     plt.show()
 
-    plt.plot(t, Q_ind_e[:, ::2].sum(axis=1) / xx.shape[0], color='blue',
-             label='Electrons')
-    plt.plot(t, Q_ind_h[:, ::2].sum(axis=1) / xx.shape[0], color='red',
-             label='Holes')
-    plt.plot(t, (Q_ind_e[:, ::2].sum(axis=1) +
-                 Q_ind_h[:, ::2].sum(axis=1)) / xx.shape[0], color='magenta',
-             label='Sum')
+    plt.plot(t, np.cumsum(I_ind_e[:, ::2], axis=0).sum(axis=1) *
+             dt / xx.shape[0], color='blue', label='Electrons')
+    plt.plot(t, np.cumsum(I_ind_h[:, ::2], axis=0).sum(axis=1) *
+             dt / xx.shape[0], color='red', label='Holes')
+    plt.plot(t, np.cumsum(I_ind_e[:, ::2] +
+                          I_ind_h[:, ::2], axis=0).sum(axis=1) *
+             dt / xx.shape[0], color='magenta', label='Sum')
     plt.legend(loc=0)
     plt.xlabel('Time [ns]')
     plt.ylabel('Total induced charge [a.u.]')
@@ -86,13 +88,13 @@ def transient_planar():
     plt.title('Induced charge of MIP, readout pixel')
     plt.show()
 
-    plt.plot(t, Q_ind_e[:, 1::2].sum(axis=1) / xx.shape[0], color='blue',
-             label='Electrons')
-    plt.plot(t, Q_ind_h[:, 1::2].sum(axis=1) / xx.shape[0], color='red',
-             label='Holes')
-    plt.plot(t, (Q_ind_e[:, 1::2].sum(axis=1) +
-                 Q_ind_h[:, 1::2].sum(axis=1)) / xx.shape[0], color='magenta',
-             label='Sum')
+    plt.plot(t, np.cumsum(I_ind_e[:, 1::2], axis=0).sum(axis=1) *
+             dt / xx.shape[0], color='blue', label='Electrons')
+    plt.plot(t, np.cumsum(I_ind_h[:, 1::2], axis=0).sum(axis=1) *
+             dt / xx.shape[0], color='red', label='Holes')
+    plt.plot(t, np.cumsum(I_ind_e[:, 1::2] +
+                          I_ind_h[:, 1::2], axis=0).sum(axis=1) *
+             dt / xx.shape[0], color='magenta', label='Sum')
     plt.legend(loc=0)
     plt.xlabel('Time [ns]')
     plt.ylabel('Total induced charge [a.u.]')
