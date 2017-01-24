@@ -183,6 +183,17 @@ def _in_boundary(geom_descr, pot_descr, x, y):
     return sel
 
 
+def _correct_boundary(geom_descr, pot_descr, x, y, is_electron):
+    ''' Checks if the particles are still in the bulk and should be propagated
+    '''
+
+    if not geom_descr:  # planar sensor
+        if is_electron:
+            x[x >= pot_descr.max_x] = pot_descr.max_x
+        else:
+            x[x <= 0.] = 0.
+
+
 def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
               diffusion, t_e_trapping, t_h_trapping):
     # E-h pairs Start positions
@@ -209,6 +220,9 @@ def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
                          x=p_h[0, :], y=p_h[1, :])
 
     for step in range(n_steps):
+        # Store position in trajectory arrays
+        traj_e[step] = p_e
+        traj_h[step] = p_h
         # Check if all particles out of boundary
         if not np.any(sel_e) and not np.any(sel_h):
             break  # Stop loop to safe time
@@ -293,16 +307,19 @@ def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
         p_e[:, sel_e] = p_e[:, sel_e] + d_p_e
         p_h[:, sel_h] = p_h[:, sel_h] + d_p_h
 
+        # Correct boundaries (e.g. leaving sensor due to diffusion)
+        _correct_boundary(geom_descr, pot_descr,
+                          x=p_e[0, :], y=p_e[1, :], is_electron=True)
+        _correct_boundary(geom_descr, pot_descr,
+                          x=p_h[0, :], y=p_h[1, :], is_electron=False)
+
         # Check boundaries and update selection
-        sel_e = _in_boundary(
-            geom_descr, pot_descr=pot_descr, x=p_e[0, :], y=p_e[1, :])
-        sel_h = _in_boundary(
-            geom_descr, pot_descr=pot_descr, x=p_h[0, :], y=p_h[1, :])
+        sel_e = _in_boundary(geom_descr, pot_descr=pot_descr,
+                             x=p_e[0, :], y=p_e[1, :])
+        sel_h = _in_boundary(geom_descr, pot_descr=pot_descr,
+                             x=p_h[0, :], y=p_h[1, :])
         p_e[:, ~sel_e] = np.nan
         p_h[:, ~sel_h] = np.nan
-
-        traj_e[step] = p_e
-        traj_h[step] = p_h
 
 #         progress_bar.update(step)
 #     progress_bar.finish()
