@@ -194,7 +194,7 @@ class Description(object):
                     'The data does not have depletion information.')
         return self.depletion_region(x)
 
-    def get_depletion_mask(self, x=None, y=None):
+    def get_depl_mask(self, x=None, y=None):
         ''' Returns true for all points outside of the depletion zone
         '''
         if x is None or y is None:
@@ -468,7 +468,7 @@ def calculate_planar_sensor_potential(mesh, width, pitch, n_pixel, thickness,
             if i == 0:
                 depletion_mask = None
             else:
-                depletion_mask = description.get_depletion_mask()
+                depletion_mask = description.get_depl_mask()
 
             potential = calculate_potential(
                 depletion_mask=depletion_mask, y_dep_new=y_dep_new)

@@ -54,7 +54,7 @@ def sensor_planar():
     plt.plot(y, pot_descr.get_potential(x, y),
              label='Potential, numerical', linewidth=2)
     pot_masked = np.ma.masked_array(pot_descr.get_potential(x, y),
-                                    mask=pot_descr.get_depletion_mask(x, y))
+                                    mask=pot_descr.get_depl_mask(x, y))
     plt.plot(y, pot_masked, label='Potential, numerical, depl.',
              linewidth=2)
     plt.plot([pot_descr.get_depletion(x[500]),

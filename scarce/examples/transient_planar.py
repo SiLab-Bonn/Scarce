@@ -113,7 +113,7 @@ def transient_planar():
                                 V_readout=V_readout,
                                 potential_function=pot_descr.get_potential,
                                 field_function=pot_descr.get_field,
-                                depletion_function=pot_descr.get_depletion,
+                                depl_function=pot_descr.get_depletion,
                                 title='Planar sensor potential')
 
     # Create animation
