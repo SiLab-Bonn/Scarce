@@ -37,7 +37,8 @@ class TestTools(unittest.TestCase):
                                          min_x=min_x,
                                          max_x=max_x,
                                          min_y=0,
-                                         max_y=300.)
+                                         max_y=300.,
+                                         nx=202, ny=200)
 
         # Force the creation of the potential and field functions
         description.get_field(0, 0)
@@ -52,4 +53,8 @@ class TestTools(unittest.TestCase):
                                == np.array(description_2.get_field(description_2._xx, description_2._yy))))
 
 if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(message)s",
+                        datefmt="%Y-%m-%d %H:%M:%S")
     unittest.main()

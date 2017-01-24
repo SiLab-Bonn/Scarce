@@ -13,8 +13,9 @@ class TestGeometry(unittest.TestCase):
 
     def test_mesh_planar(self):
         ''' Check the mesh generation for planar sensor.
+
         Likely due to random pertubation (on purpose) the result
-        is never exactly constant.
+        is never exactly constant. Thus only numbers of points checked.
         '''
 
         n_pixel = 5
@@ -32,8 +33,7 @@ class TestGeometry(unittest.TestCase):
         self.assertGreater(points.shape[0], 14000)
 
     def test_mesh_3D(self):
-        ''' Check if all important combinations of a 3D pixel arrays 
-        do not lead to an exception. '''
+        ''' Check for no excpetion during meshing. '''
 
         for n_pixel_x in [1, 2, 3]:
             for n_pixel_y in [1, 2, 3]:
@@ -50,4 +50,8 @@ class TestGeometry(unittest.TestCase):
         pass
 
 if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s %(levelname)s %(message)s",
+                        datefmt="%Y-%m-%d %H:%M:%S")
     unittest.main()
