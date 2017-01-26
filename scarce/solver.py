@@ -270,7 +270,7 @@ def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
 
         # Calculate induced current
         # Only if electrons are still drifting
-        if np.any(p_e[0, sel_e]):
+        if np.any(sel_e):
             # Weighting field in V/um
             W_e = pot_w_descr.get_field(p_e[0, sel_e], p_e[1, sel_e])
 
@@ -285,7 +285,7 @@ def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
             # Induced current
             I_ind_e[step, sel_e] = dQ_e / dt
 
-        if np.any(p_h[0, sel_h]):  # Only if holes are still drifting
+        if np.any(sel_h):  # Only if holes are still drifting
             # Weighting field in V/um
             W_h = pot_w_descr.get_field(p_h[0, sel_h], p_h[1, sel_h])
 
