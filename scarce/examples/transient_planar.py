@@ -30,16 +30,16 @@ def transient_planar():
                                                   width=width,
                                                   pitch=pitch,
                                                   thickness=thickness,
-                                                  resolution=300.,
+                                                  resolution=100.,
                                                   # Might have to be adjusted
                                                   # when changing the geometry
-                                                  smoothing=0.05)
+                                                  smoothing=0.01)
 
     # Start parameters of e-h pairs
     # Create 10 e-h pairs every 5 um in y
-    xx, yy = np.meshgrid(np.linspace(0, width, 2),  # x
-                         np.repeat(np.linspace(0, thickness,
-                                               thickness / 5), 10),
+    xx, yy = np.meshgrid(np.linspace(0, width, 1),  # x
+                         np.repeat(np.linspace(thickness / 2., thickness,
+                                               1), 1),
                          sparse=False)  # All combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])  # Position [um]
 
@@ -48,39 +48,45 @@ def transient_planar():
 
     # Time steps
     dt = 0.001  # [ns]
-    n_steps = 20000
+    n_steps = 15000
     t = np.arange(n_steps) * dt
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
-                                     T=temperature, diffusion=True)
-    traj_e, traj_h, I_ind_e, I_ind_h = dd.solve(p0, q0, dt, n_steps)
+                                     T=temperature, diffusion=False, save_frac=100)
+    traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot = dd.solve(p0, q0, dt, n_steps,
+                                                              multicore=False)
 
-    plt.plot(t, np.cumsum(I_ind_e[:, 0], axis=0) * dt, color='red',
-             label='Electrons')
-    plt.plot(t, np.cumsum(I_ind_h[:, 0], axis=0) * dt, color='red',
-             label='Holes')
-    plt.plot(t, np.cumsum(I_ind_e[:, 0] + I_ind_h[:, 0], axis=0) * dt,
-             color='magenta', label='Sum')
+    print T.shape
+
+    Dt = np.diff(T[:, 0])[0]
+#     plt.plot(T[:, 0], np.cumsum(I_ind_e[:, 0], axis=0) * Dt, color='blue',
+#              label='Electrons')
+#     plt.plot(T[:, 0], np.cumsum(I_ind_h[:, 0], axis=0) * Dt, color='red',
+#              label='Holes')
+    plt.plot(T[:, 0], np.cumsum(I_ind_e[:, 0] + I_ind_h[:, 0], axis=0) * Dt, '.',
+             color='magenta', label='Sum Current')
+    plt.plot(t, np.cumsum(I_ind_tot) * dt,
+             color='black', label='Sum Current All')
     plt.legend(loc=0)
     plt.xlabel('Time [ns]')
     plt.ylabel('Total induced charge [a.u.]')
-    plt.twinx(plt.gca())
-    plt.plot(t, I_ind_e[:, 0], '--', color='blue', label='Electrons')
-    plt.plot(t, I_ind_h[:, 0], '--', color='red', label='Holes')
-    plt.plot(t, I_ind_e[:, 0] + I_ind_h[:, 0], '--', color='magenta',
-             label='Sum')
-    plt.ylabel('Induced current [a.u.]')
+#     plt.twinx(plt.gca())
+#     plt.plot(T, I_ind_e[:, 0], '--', color='blue', label='Electrons')
+#     plt.plot(T, I_ind_h[:, 0], '--', color='red', label='Holes')
+#     plt.plot(T, I_ind_e[:, 0] + I_ind_h[:, 0], '--', color='magenta',
+#              label='Sum')
+#     plt.ylabel('Induced current [a.u.]')
     plt.grid()
     plt.title('Signal of drifting e-h pairs, readout pixel')
     plt.show()
 
-    plt.plot(t, np.cumsum(I_ind_e[:, ::2], axis=0).sum(axis=1) *
-             dt / xx.shape[0], color='blue', label='Electrons')
-    plt.plot(t, np.cumsum(I_ind_h[:, ::2], axis=0).sum(axis=1) *
-             dt / xx.shape[0], color='red', label='Holes')
-    plt.plot(t, np.cumsum(I_ind_e[:, ::2] +
+    plt.plot(T, np.cumsum(I_ind_e[:, ::2], axis=0).sum(axis=1) *
+             Dt / xx.shape[0], color='blue', label='Electrons')
+    plt.plot(T, np.cumsum(I_ind_h[:, ::2], axis=0).sum(axis=1) *
+             Dt / xx.shape[0], color='red', label='Holes')
+    plt.plot(T, np.cumsum(I_ind_e[:, ::2] +
                           I_ind_h[:, ::2], axis=0).sum(axis=1) *
-             dt / xx.shape[0], color='magenta', label='Sum')
+             Dt / xx.shape[0], color='magenta', label='Sum')
     plt.legend(loc=0)
     plt.xlabel('Time [ns]')
     plt.ylabel('Total induced charge [a.u.]')
@@ -88,13 +94,13 @@ def transient_planar():
     plt.title('Induced charge of MIP, readout pixel')
     plt.show()
 
-    plt.plot(t, np.cumsum(I_ind_e[:, 1::2], axis=0).sum(axis=1) *
-             dt / xx.shape[0], color='blue', label='Electrons')
-    plt.plot(t, np.cumsum(I_ind_h[:, 1::2], axis=0).sum(axis=1) *
-             dt / xx.shape[0], color='red', label='Holes')
-    plt.plot(t, np.cumsum(I_ind_e[:, 1::2] +
+    plt.plot(T, np.cumsum(I_ind_e[:, 1::2], axis=0).sum(axis=1) *
+             Dt / xx.shape[0], color='blue', label='Electrons')
+    plt.plot(T, np.cumsum(I_ind_h[:, 1::2], axis=0).sum(axis=1) *
+             Dt / xx.shape[0], color='red', label='Holes')
+    plt.plot(T, np.cumsum(I_ind_e[:, 1::2] +
                           I_ind_h[:, 1::2], axis=0).sum(axis=1) *
-             dt / xx.shape[0], color='magenta', label='Sum')
+             Dt / xx.shape[0], color='magenta', label='Sum')
     plt.legend(loc=0)
     plt.xlabel('Time [ns]')
     plt.ylabel('Total induced charge [a.u.]')
@@ -111,14 +117,14 @@ def transient_planar():
                                 n_pixel=n_pixel,
                                 V_backplane=V_bias,
                                 V_readout=V_readout,
-                                potential_function=pot_descr.get_potential,
-                                field_function=pot_descr.get_field,
-                                depl_function=pot_descr.get_depletion,
+                                pot_func=pot_descr.get_potential,
+                                field_func=pot_descr.get_field,
+                                depl_func=pot_descr.get_depletion,
                                 title='Planar sensor potential')
 
     # Create animation
     init, animate = plot.animate_drift_diffusion(
-        fig, pe=traj_e, ph=traj_h, dt=dt)
+        fig, pe=traj_e, ph=traj_h, dt=Dt)
     ani_time = 5.  # [ns]
     frames = 30
     ani = animation.FuncAnimation(fig=fig, func=animate,
