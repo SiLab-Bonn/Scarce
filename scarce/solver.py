@@ -56,7 +56,7 @@ class DriftDiffusionSolver(object):
 
     def __init__(self, pot_descr, pot_w_descr,
                  T=300, geom_descr=None, diffusion=True,
-                 t_e_trapping=0., t_h_trapping=0.):
+                 t_e_trapping=0., t_h_trapping=0., save_frac=100):
         '''
         Parameters
         ----------
@@ -78,6 +78,15 @@ class DriftDiffusionSolver(object):
         t_h_trapping : number
             Trapping time for holes in ns
 
+        save_frac : number
+            Fraction of time steps to save for each e-h pair.
+            E.g.: 100 means that the position and current is saved for every
+            100th time step. Be aware that the sampling might be too low to get
+            the maxima correctly. If you want to be sure to get the correct
+            single e-h pair values save_frac should be set to one. Usually one
+            is interessted in the total current. This value is independent of
+            save_frac but not available for each e-h pair.
+
         Notes
         -----
 
@@ -92,7 +101,9 @@ class DriftDiffusionSolver(object):
         self.geom_descr = geom_descr
         self.diffusion = diffusion
 
-    def solve(self, p0, q0, dt, n_steps=4000):
+        self.save_frac = save_frac
+
+    def solve(self, p0, q0, dt, n_steps, multicore=True):
         ''' Solve the drift diffusion equation for quasi partciles and calculates
             the total induced current.
 
@@ -116,10 +127,28 @@ class DriftDiffusionSolver(object):
         if dt > 0.001:
             logging.warning('A time step > 1 ps result in wrong diffusion')
 
+        if not multicore:
+            # E-h pairs Start positions
+            p_e_0, p_h_0 = p0.copy(), p0.copy()
+            return _solve_dd(p_e_0,
+                             p_h_0,
+                             q0=q0,
+                             n_steps=n_steps,
+                             dt=dt,
+                             geom_descr=self.geom_descr,
+                             pot_w_descr=self.pot_w_descr,
+                             pot_descr=self.pot_descr,
+                             temp=self.T,
+                             diffusion=self.diffusion,
+                             t_e_trapping=self.t_e_trapping,
+                             t_h_trapping=self.t_h_trapping,
+                             save_frac=self.save_frac)
+
         # Split data and into cores - 1 slices
         pool = Pool()
         n_slices = cpu_count() - 1
-        slices_p0 = np.array_split(p0, n_slices, axis=1)
+        slices_p_e_0 = np.array_split(p0, n_slices, axis=1)
+        slices_p_h_0 = np.array_split(p0, n_slices, axis=1)
         slices_q0 = np.array_split(q0, n_slices, axis=0)
 
         logging.info('Calculate drift diffusion on %d cores', n_slices)
@@ -128,17 +157,19 @@ class DriftDiffusionSolver(object):
         for index in range(n_slices):
             job = tools.apply_async(pool=pool,
                                     fun=_solve_dd,
-                                    p0=slices_p0[index],
+                                    p_e_0=slices_p_e_0[index],
+                                    p_h_0=slices_p_h_0[index],
                                     q0=slices_q0[index],
                                     n_steps=n_steps,
                                     dt=dt,
                                     geom_descr=self.geom_descr,
                                     pot_w_descr=self.pot_w_descr,
                                     pot_descr=self.pot_descr,
-                                    T=self.T,
+                                    temp=self.T,
                                     diffusion=self.diffusion,
                                     t_e_trapping=self.t_e_trapping,
-                                    t_h_trapping=self.t_h_trapping
+                                    t_h_trapping=self.t_h_trapping,
+                                    save_frac=self.save_frac
                                     )
             jobs.append(job)
 
@@ -148,33 +179,33 @@ class DriftDiffusionSolver(object):
             results.append(job.get())
 
         # Merge results
+        I_ind_tot = np.zeros(shape=(n_steps,))
         traj_e = np.concatenate([i[0] for i in results], axis=2)
         traj_h = np.concatenate([i[1] for i in results], axis=2)
         I_ind_e = np.concatenate([i[2] for i in results], axis=1)
         I_ind_h = np.concatenate([i[3] for i in results], axis=1)
+        T = np.concatenate([i[4] for i in results], axis=2)
+#         T = results[0][4]  # Time scale is the same for each job
+        for i in results:
+            I_ind_tot += i[5]
 
         pool.close()
         pool.join()
 
-        return traj_e, traj_h, I_ind_e, I_ind_h
+        return traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot
 
 
-def test(**kwarg):
-    pass
-
-# Drift diffussion iteration loop helper functions
-
-
-def _in_boundary(geom_descr, pot_descr, x, y):
+# Drift diffusion iteration loop helper functions
+def _in_boundary(geom_descr, pot_descr, x, y, sel):
     ''' Checks if the particles are still in the bulk and should be propagated
     '''
 
-    sel_x = np.logical_and(x >= pot_descr.min_x,
-                           x <= pot_descr.max_x)
-    sel_y = np.logical_and(y >= pot_descr.min_y,
-                           y <= pot_descr.max_y)
+    sel_x = np.logical_and(x[sel] >= pot_descr.min_x,
+                           x[sel] <= pot_descr.max_x)
+    sel_y = np.logical_and(y[sel] >= pot_descr.min_y,
+                           y[sel] <= pot_descr.max_y)
 
-    sel = np.logical_and(sel_x, sel_y)
+    sel[sel] = np.logical_and(sel_x, sel_y)
 
     if geom_descr:
         sel_col = geom_descr.position_in_column(x, y, incl_sides=True)
@@ -183,48 +214,63 @@ def _in_boundary(geom_descr, pot_descr, x, y):
     return sel
 
 
-def _correct_boundary(geom_descr, pot_descr, x, y, is_electron):
+def _correct_boundary(geom_descr, pot_descr, x, y, sel, is_electron):
     ''' Checks if the particles are still in the bulk and should be propagated
     '''
 
     if not geom_descr:  # planar sensor
         if is_electron:
-            x[x >= pot_descr.max_x] = pot_descr.max_x
+            y[sel][y[sel] > pot_descr.max_y] = pot_descr.max_y
         else:
-            x[x <= 0.] = 0.
+            y[sel][y[sel] < 0.] = 0.
 
 
-def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
-              diffusion, t_e_trapping, t_h_trapping):
-    # E-h pairs Start positions
-    p_e, p_h = p0.copy(), p0.copy()
+def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
+              pot_descr, temp, diffusion, t_e_trapping, t_h_trapping,
+              save_frac):
+    p_e, p_h = p_e_0, p_h_0
 
     # Result arrays initialized to NaN
-    traj_e = np.empty(shape=(n_steps, p_e.shape[0], p_e.shape[1]))
-    traj_h = np.empty(shape=(n_steps, p_h.shape[0], p_h.shape[1]))
-    I_ind_e = np.zeros(shape=(n_steps, p_e.shape[1]))
-    I_ind_h = np.zeros(shape=(n_steps, p_h.shape[1]))
-    traj_e[:], traj_h[:] = np.nan, np.nan
+    T = np.full(shape=(n_steps / save_frac, p_e.shape[1]),
+                fill_value=np.nan, dtype=np.float16)
+    traj_e = np.full(shape=(n_steps / save_frac, p_e.shape[0], p_e.shape[1]),
+                     fill_value=np.nan)
+    traj_h = np.full(shape=(n_steps / save_frac, p_h.shape[0], p_h.shape[1]),
+                     fill_value=np.nan)
+    I_ind_e = np.zeros(shape=(n_steps / save_frac, p_e.shape[1]))
+    I_ind_h = np.zeros_like(I_ind_e)
+    I_ind_tot = np.zeros(shape=(n_steps))
 
-#     progress_bar = progressbar.ProgressBar(
-#         widgets=['', progressbar.Percentage(), ' ',
-#                  progressbar.Bar(marker='*', left='|', right='|'), ' ',
-#                  progressbar.AdaptiveETA()],
-#         maxval=n_steps, term_width=80)
-#
-#     progress_bar.start()
+    # Tmp. variables to store the total induced charge per save step
+    # Otherwise the resolution of induced current calculation
+    # is reduced
+    dQ_e_step = np.zeros(shape=p_e.shape[1])
+    dQ_h_step = np.zeros(shape=p_h.shape[1])
+
+    progress_bar = progressbar.ProgressBar(
+        widgets=['', progressbar.Percentage(), ' ',
+                 progressbar.Bar(marker='*', left='|', right='|'), ' ',
+                 progressbar.AdaptiveETA()],
+        maxval=n_steps, term_width=80)
+
+    progress_bar.start()
 
     sel_e = _in_boundary(geom_descr, pot_descr=pot_descr,
-                         x=p_e[0, :], y=p_e[1, :])
+                         x=p_e[0, :], y=p_e[1, :],
+                         sel=np.ones(p_e.shape[1], dtype=np.bool))
     sel_h = _in_boundary(geom_descr, pot_descr=pot_descr,
-                         x=p_h[0, :], y=p_h[1, :])
+                         x=p_h[0, :], y=p_h[1, :],
+                         sel=np.ones(p_h.shape[1], dtype=np.bool))
 
     for step in range(n_steps):
-        # Store position in trajectory arrays
-        traj_e[step] = p_e
-        traj_h[step] = p_h
+        if step % save_frac == 0:
+            save_step = step / save_frac
+            T[save_step, :] = step * dt
+            # Store position in trajectory arrays
+            traj_e[save_step] = p_e
+            traj_h[save_step] = p_h
         # Check if all particles out of boundary
-        if not np.any(sel_e) and not np.any(sel_h):
+        if not np.any(sel_h) and not np.any(sel_e):
             break  # Stop loop to safe time
 
         # Electric field in V/cm
@@ -235,9 +281,9 @@ def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
 
         # Mobility in cm2 / Vs
         mu_e = silicon.get_mobility(np.sqrt(E_e[0] ** 2 + E_e[1] ** 2),
-                                    temperature=T, is_electron=True)
+                                    temperature=temp, is_electron=True)
         mu_h = silicon.get_mobility(np.sqrt(E_h[0] ** 2 + E_h[1] ** 2),
-                                    temperature=T, is_electron=False)
+                                    temperature=temp, is_electron=False)
 
         # Drift velocity in cm / s
         v_e, v_h = - E_e * mu_e, E_h * mu_h
@@ -245,9 +291,9 @@ def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
         # Add diffusion velocity
         if diffusion:
             # Calculate absolute thermal velocity
-            v_th_e = silicon.get_thermal_velocity(temperature=T,
+            v_th_e = silicon.get_thermal_velocity(temperature=temp,
                                                   is_electron=True)
-            v_th_h = silicon.get_thermal_velocity(temperature=T,
+            v_th_h = silicon.get_thermal_velocity(temperature=temp,
                                                   is_electron=False)
             # Create thermal velocity distribution
             # From: IEEE VOL. 56, NO. 3, JUNE 2009
@@ -282,8 +328,14 @@ def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
             if t_e_trapping:
                 dQ_e *= np.exp(-dt * step / t_e_trapping)
 
-            # Induced current
-            I_ind_e[step, sel_e] = dQ_e / dt
+            dQ_e_step[sel_e] += dQ_e
+
+            I_ind_tot[step] += dQ_e.sum() / dt
+
+            if step % save_frac == 0:
+                # Induced current per e
+                I_ind_e[save_step, sel_e] = dQ_e_step[sel_e] / dt / save_frac
+                dQ_e_step[:] = 0.
 
         if np.any(sel_h):  # Only if holes are still drifting
             # Weighting field in V/um
@@ -297,8 +349,14 @@ def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
             if t_h_trapping:
                 dQ_h *= np.exp(-dt * step / t_e_trapping)
 
-            # Induced current
-            I_ind_h[step, sel_h] = dQ_h / dt
+            dQ_h_step[sel_h] += dQ_h
+
+            I_ind_tot[step] += dQ_h.sum() / dt
+
+            if step % save_frac == 0:
+                # Induced current per h
+                I_ind_h[save_step, sel_h] = dQ_h_step[sel_h] / dt / save_frac
+                dQ_h_step[:] = 0.
 
         # Position change in um
         d_p_e, d_p_h = v_e * dt * 1e-5, v_h * dt * 1e-5
@@ -309,19 +367,24 @@ def _solve_dd(p0, q0, n_steps, dt, geom_descr, pot_w_descr, pot_descr, T,
 
         # Correct boundaries (e.g. leaving sensor due to diffusion)
         _correct_boundary(geom_descr, pot_descr,
-                          x=p_e[0, :], y=p_e[1, :], is_electron=True)
+                          x=p_e[0, :], y=p_e[1, :],
+                          sel=sel_e, is_electron=True)
         _correct_boundary(geom_descr, pot_descr,
-                          x=p_h[0, :], y=p_h[1, :], is_electron=False)
+                          x=p_h[0, :], y=p_h[1, :],
+                          sel=sel_h, is_electron=False)
 
         # Check boundaries and update selection
         sel_e = _in_boundary(geom_descr, pot_descr=pot_descr,
-                             x=p_e[0, :], y=p_e[1, :])
+                             x=p_e[0, :], y=p_e[1, :],
+                             sel=sel_e)
         sel_h = _in_boundary(geom_descr, pot_descr=pot_descr,
-                             x=p_h[0, :], y=p_h[1, :])
+                             x=p_h[0, :], y=p_h[1, :],
+                             sel=sel_h)
+
         p_e[:, ~sel_e] = np.nan
         p_h[:, ~sel_h] = np.nan
 
-#         progress_bar.update(step)
-#     progress_bar.finish()
+        progress_bar.update(step)
+    progress_bar.finish()
 
-    return traj_e, traj_h, I_ind_e, I_ind_h
+    return traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot
