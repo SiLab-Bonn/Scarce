@@ -2,9 +2,12 @@ r"""The tools module offers helper functions.
 
 """
 
-import gzip
 import dill
+import gzip
 import logging
+
+import numpy as np
+from scipy import interpolate
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -43,3 +46,17 @@ def _run_with_dill(payload):
         return fun(*args, **kwargs)
     else:
         return fun(**kwargs)
+
+
+def time_data_interpolate(T, data, t, axis=-1, fill_value=0., kind='linear'):
+    ''' Interpolates data recorded at time points T to time point t.
+    '''
+    results = np.full(shape=(t.shape[0], data.shape[1]), fill_value=np.nan)
+
+    for i in range(data.shape[1]):  # Loop over e-h pairs
+        f = interpolate.interp1d(T[:, i], data[:, i], axis=axis,
+                                 bounds_error=False, fill_value=fill_value,
+                                 kind=kind)
+        results[:, i] = f(t)
+    return results
+    
