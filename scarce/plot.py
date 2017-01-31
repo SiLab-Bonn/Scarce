@@ -5,7 +5,7 @@ from matplotlib.patches import Rectangle
 from matplotlib import cm
 import logging
 
-from scarce import geometry
+from scarce import geometry, tools
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -331,11 +331,29 @@ def get_3D_sensor_plot(fig,
         ax.set_title(title, fontsize=22)
 
 
-def animate_drift_diffusion(fig, pe, ph, dt):
+def animate_drift_diffusion(fig, T, pe, ph, dt, n_steps):
     if not fig.get_axes():
         raise RuntimeError('Function has to be called with sensor plot figure')
     else:
         ax = fig.get_axes()[0]
+
+    # Interpolate to common time base
+    pe_x = tools.time_data_interpolate(T, pe[:, 0],
+                                       t=np.linspace(
+        0, dt * n_steps, n_steps),
+        fill_value=np.nan)
+    pe_y = tools.time_data_interpolate(T, pe[:, 1],
+                                       t=np.linspace(
+        0, dt * n_steps, n_steps),
+        fill_value=np.nan)
+    ph_x = tools.time_data_interpolate(T, ph[:, 0],
+                                       t=np.linspace(
+        0, dt * n_steps, n_steps),
+        fill_value=np.nan)
+    ph_y = tools.time_data_interpolate(T, ph[:, 1],
+                                       t=np.linspace(
+        0, dt * n_steps, n_steps),
+        fill_value=np.nan)
 
     electrons, = ax.plot([], [], 'o', label='Electrons')
     holes, = ax.plot([], [], '.', label='Holes')
@@ -349,8 +367,8 @@ def animate_drift_diffusion(fig, pe, ph, dt):
         return electrons, holes, time_text
 
     def animate(i):
-        electrons.set_data(pe[i, 0, :], pe[i, 1, :])
-        holes.set_data(ph[i, 0, :], ph[i, 1, :])
+        electrons.set_data(pe_x[i], pe_y[i])
+        holes.set_data(ph_x[i], ph_y[i])
         time_text.set_text(time_template % (i * dt))
         return electrons, holes, time_text
 
