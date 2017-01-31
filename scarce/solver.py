@@ -365,6 +365,8 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         # Increase storage hists indeces
         i_step[store] += 1
 
+        i_step[i_step >= T.shape[0]] = T.shape[0] - 1
+
     # Tmp. variables to store the total induced charge per save step
     # Otherwise the resolution of induced current calculation
     # is reduced
