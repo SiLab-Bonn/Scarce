@@ -56,7 +56,7 @@ class DriftDiffusionSolver(object):
 
     def __init__(self, pot_descr, pot_w_descr,
                  T=300, geom_descr=None, diffusion=True,
-                 t_e_trapping=0., t_h_trapping=0., save_frac=100):
+                 t_e_trapping=0., t_h_trapping=0., save_frac=20):
         '''
         Parameters
         ----------
@@ -184,8 +184,7 @@ class DriftDiffusionSolver(object):
         traj_h = np.concatenate([i[1] for i in results], axis=2)
         I_ind_e = np.concatenate([i[2] for i in results], axis=1)
         I_ind_h = np.concatenate([i[3] for i in results], axis=1)
-        T = np.concatenate([i[4] for i in results], axis=2)
-#         T = results[0][4]  # Time scale is the same for each job
+        T = np.concatenate([i[4] for i in results], axis=1)
         for i in results:
             I_ind_tot += i[5]
 
@@ -205,13 +204,15 @@ def _in_boundary(geom_descr, pot_descr, x, y, sel):
     sel_y = np.logical_and(y[sel] >= pot_descr.min_y,
                            y[sel] <= pot_descr.max_y)
 
+    old_sel = sel.copy()
+
     sel[sel] = np.logical_and(sel_x, sel_y)
 
     if geom_descr:
         sel_col = geom_descr.position_in_column(x, y, incl_sides=True)
         sel = np.logical_and(sel, ~sel_col)
 
-    return sel
+    return sel, np.where(old_sel != sel)[0]
 
 
 def _correct_boundary(geom_descr, pot_descr, x, y, sel, is_electron):
@@ -231,15 +232,138 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
     p_e, p_h = p_e_0, p_h_0
 
     # Result arrays initialized to NaN
-    T = np.full(shape=(n_steps / save_frac, p_e.shape[1]),
+    n_store = int(n_steps / save_frac)  # Steps to store
+
+    max_step_size = n_steps / n_store * 10
+    T = np.full(shape=(n_store, p_e.shape[1]),
                 fill_value=np.nan, dtype=np.float16)
-    traj_e = np.full(shape=(n_steps / save_frac, p_e.shape[0], p_e.shape[1]),
+    traj_e = np.full(shape=(n_store, p_e.shape[0], p_e.shape[1]),
                      fill_value=np.nan)
-    traj_h = np.full(shape=(n_steps / save_frac, p_h.shape[0], p_h.shape[1]),
+    traj_h = np.full(shape=(n_store, p_h.shape[0], p_h.shape[1]),
                      fill_value=np.nan)
-    I_ind_e = np.zeros(shape=(n_steps / save_frac, p_e.shape[1]))
+    I_ind_e = np.zeros(shape=(n_store, p_e.shape[1]))
     I_ind_h = np.zeros_like(I_ind_e)
+    i_step = np.zeros(p_e.shape[1], dtype=np.int)  # Result array indeces
+    next_step = np.zeros_like(i_step)  # Next time step to store
+    # Summed induced charge/current with every time step
     I_ind_tot = np.zeros(shape=(n_steps))
+    # Total induced charge
+    Q_ind_tot_e = np.zeros(shape=(p_e.shape[1]))
+    Q_ind_tot_h = np.zeros(shape=(p_h.shape[1]))
+
+    def cal_step_size(t, Q_ind_tot, dt, dy, q_max, i_step, n_store):
+        ''' Calculates the step size from the actual data
+
+        It is assumed that the actual slope stays constant.
+        The remaining time distance is calculated and the step size is
+        adjusted to fit the remaining steps.
+        '''
+
+        step_size = np.zeros_like(q_max)
+
+        # All steps are used, mark as done
+        sel_done = n_store - i_step - 1 <= 0
+
+        # All storage spaces used up
+        if step_size[~sel_done].size == 0:
+            return step_size.astype(np.int)
+
+        # Set next step to NaN is storing is done
+        step_size[sel_done] = np.NaN
+
+        # Calculate slope for linear data extrapolation
+        dy_dt = dy[~sel_done] / dt
+
+        # Calculate remaining x distance to cover
+
+        # Case: increasing function (assume value = q_max at tmax)
+        t_max_exp = (q_max[~sel_done] - Q_ind_tot[~sel_done]) / dy_dt + t
+        # Case: decreasing function (assume value = 0 at tmax)
+        t_max_exp[dy_dt < 0] = ((-q_max[~sel_done] - Q_ind_tot[~sel_done]) /
+                                dy_dt + t)[dy_dt < 0]
+        # Correct expected time larger than simulation time
+        t_max_exp[t_max_exp > n_steps * dt] = n_steps * dt
+        # Remaining time to cover
+        t_left = t_max_exp - t
+
+        # Calculate the step size
+        step_size[~sel_done] = t_left / dt / (n_store - i_step[~sel_done] - 1)
+
+        # Limit step size to max_step_size
+        # Needed for slope direction changing functions
+        sel_lim_max = step_size[~sel_done] > max_step_size
+        step_size[~sel_done][sel_lim_max] = max_step_size
+        # Minimum step size = 1
+        step_size[~sel_done][step_size[~sel_done] < 1.] = 1.
+
+        step_size = step_size.astype(np.int)
+
+        return step_size
+
+    def store_if_needed(step, next_step, Q_ind_tot_e, Q_ind_tot_h, dt, dQ_e,
+                        dQ_h, T, I_ind_e, I_ind_h, p_e, p_h, q_max,
+                        i_step, n_store, sel_e, sel_h):
+        ''' Checks if charge carriers value needs to be stored and returns
+                next storage time step
+        '''
+
+        t = dt * step  # Actual time step
+
+        # Select charges that need storing for full array (1 entry per e-h)
+        store = step == next_step
+
+        # Select charges that need storing and are not fully propagated yet
+        # for full array (1 entry per e-h)
+        store_e = np.logical_and(store, sel_e)
+        store_h = np.logical_and(store, sel_h)
+
+        # Select charges that need storing for reduced array (e-h that need
+        # propagating
+        s_e = store_e[sel_e]
+        s_h = store_h[sel_h]
+
+        # All carrier stored
+        if not np.any(store):
+            return
+
+        # All carriers needing storing are fully drifted
+        if not np.any(s_e) and not np.any(s_h):
+            return
+
+        # Set data of actual time step
+        T[i_step[store], store] = t
+
+        # Store data
+        I_ind_e[i_step[store_e], store_e] = dQ_e[s_e] / dt
+        I_ind_h[i_step[store_h], store_h] = dQ_h[s_h] / dt
+        traj_e[i_step[store_e], :, store_e] = p_e[:, store_e].T
+        traj_h[i_step[store_h], :, store_h] = p_h[:, store_h].T
+
+#         if np.max(i_step) == 145:
+#             plt.plot(T[:, 0], I_ind_e[:, 0], '.')
+#             plt.plot(T[:, 0], I_ind_h[:, 0], '.')
+#             plt.show()
+
+        # Calculate step size as the minimum of the e and h step size
+        d_step = np.zeros_like(next_step)
+        d_step_e = np.zeros_like(d_step)
+        d_step_h = np.zeros_like(d_step)
+        if np.any(store_e):
+            d_step_e[store_e] = cal_step_size(t, Q_ind_tot_e[store_e], dt, dQ_e[s_e],
+                                              q_max[store_e], i_step[store_e], n_store)
+            d_step[store_e] = d_step_e[store_e]
+
+        if np.any(store_h):
+            d_step_h[store_h] = cal_step_size(t, Q_ind_tot_h[store_h], dt, dQ_h[s_h],
+                                              q_max[store_h], i_step[store_h], n_store)
+            d_step[store_h] = d_step_h[store_h]
+        sel = np.logical_and(store_e, store_h)
+        d_step[sel] = np.minimum(d_step_e[sel], d_step_h[sel])
+
+        next_step += d_step
+
+        # Increase storage hists indeces
+        i_step[store] += 1
 
     # Tmp. variables to store the total induced charge per save step
     # Otherwise the resolution of induced current calculation
@@ -255,20 +379,14 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
 
     progress_bar.start()
 
-    sel_e = _in_boundary(geom_descr, pot_descr=pot_descr,
-                         x=p_e[0, :], y=p_e[1, :],
-                         sel=np.ones(p_e.shape[1], dtype=np.bool))
-    sel_h = _in_boundary(geom_descr, pot_descr=pot_descr,
-                         x=p_h[0, :], y=p_h[1, :],
-                         sel=np.ones(p_h.shape[1], dtype=np.bool))
+    sel_e, _ = _in_boundary(geom_descr, pot_descr=pot_descr,
+                            x=p_e[0, :], y=p_e[1, :],
+                            sel=np.ones(p_e.shape[1], dtype=np.bool))
+    sel_h, _ = _in_boundary(geom_descr, pot_descr=pot_descr,
+                            x=p_h[0, :], y=p_h[1, :],
+                            sel=np.ones(p_h.shape[1], dtype=np.bool))
 
     for step in range(n_steps):
-        if step % save_frac == 0:
-            save_step = step / save_frac
-            T[save_step, :] = step * dt
-            # Store position in trajectory arrays
-            traj_e[save_step] = p_e
-            traj_h[save_step] = p_h
         # Check if all particles out of boundary
         if not np.any(sel_h) and not np.any(sel_e):
             break  # Stop loop to safe time
@@ -330,12 +448,9 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
 
             dQ_e_step[sel_e] += dQ_e
 
-            I_ind_tot[step] += dQ_e.sum() / dt
+            Q_ind_tot_e[sel_e] += dQ_e
 
-            if step % save_frac == 0:
-                # Induced current per e
-                I_ind_e[save_step, sel_e] = dQ_e_step[sel_e] / dt / save_frac
-                dQ_e_step[:] = 0.
+            I_ind_tot[step] += dQ_e.sum() / dt
 
         if np.any(sel_h):  # Only if holes are still drifting
             # Weighting field in V/um
@@ -351,12 +466,17 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
 
             dQ_h_step[sel_h] += dQ_h
 
+            Q_ind_tot_h[sel_h] += dQ_h
+
             I_ind_tot[step] += dQ_h.sum() / dt
 
-            if step % save_frac == 0:
-                # Induced current per h
-                I_ind_h[save_step, sel_h] = dQ_h_step[sel_h] / dt / save_frac
-                dQ_h_step[:] = 0.
+        # Store
+        store_if_needed(step, next_step, Q_ind_tot_e=Q_ind_tot_e,
+                        Q_ind_tot_h=Q_ind_tot_h, dt=dt,
+                        dQ_e=dQ_e, dQ_h=dQ_h, T=T, I_ind_e=I_ind_e,
+                        I_ind_h=I_ind_h, p_e=p_e, p_h=p_h, q_max=q0,
+                        i_step=i_step, n_store=n_store,
+                        sel_e=sel_e, sel_h=sel_h)
 
         # Position change in um
         d_p_e, d_p_h = v_e * dt * 1e-5, v_h * dt * 1e-5
@@ -374,12 +494,16 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
                           sel=sel_h, is_electron=False)
 
         # Check boundaries and update selection
-        sel_e = _in_boundary(geom_descr, pot_descr=pot_descr,
-                             x=p_e[0, :], y=p_e[1, :],
-                             sel=sel_e)
-        sel_h = _in_boundary(geom_descr, pot_descr=pot_descr,
-                             x=p_h[0, :], y=p_h[1, :],
-                             sel=sel_h)
+        sel_e, new_e = _in_boundary(geom_descr, pot_descr=pot_descr,
+                                    x=p_e[0, :], y=p_e[1, :],
+                                    sel=sel_e)
+        sel_h, new_h = _in_boundary(geom_descr, pot_descr=pot_descr,
+                                    x=p_h[0, :], y=p_h[1, :],
+                                    sel=sel_h)
+
+        # Force a storing step at for e-h pairs where one is finished
+        next_step[new_e] = step + 1
+        next_step[new_h] = step + 1
 
         p_e[:, ~sel_e] = np.nan
         p_h[:, ~sel_h] = np.nan
