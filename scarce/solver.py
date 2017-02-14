@@ -83,7 +83,7 @@ class DriftDiffusionSolver(object):
             E.g.: 100 means that the position and current is saved for every
             100th time step. Be aware that the sampling might be too low to get
             the maxima correctly. If you want to be sure to get the correct
-            single e-h pair values save_frac should be set to one. Usually one
+            single e-h pair values save_frac should be set to 1. Usually one
             is interessted in the total current. This value is independent of
             save_frac but not available for each e-h pair.
 
@@ -187,11 +187,13 @@ class DriftDiffusionSolver(object):
         T = np.concatenate([i[4] for i in results], axis=1)
         for i in results:
             I_ind_tot += i[5]
+        Q_ind_tot_e = np.concatenate([i[6] for i in results], axis=0)
+        Q_ind_tot_h = np.concatenate([i[7] for i in results], axis=0)
 
         pool.close()
         pool.join()
 
-        return traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot
+        return traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot, Q_ind_tot_e, Q_ind_tot_h
 
 
 # Drift diffusion iteration loop helper functions
@@ -236,7 +238,7 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
 
     max_step_size = n_steps / n_store * 10
     T = np.full(shape=(n_store, p_e.shape[1]),
-                fill_value=np.nan, dtype=np.float16)
+                fill_value=np.nan, dtype=np.float32)
     traj_e = np.full(shape=(n_store, p_e.shape[0], p_e.shape[1]),
                      fill_value=np.nan)
     traj_h = np.full(shape=(n_store, p_h.shape[0], p_h.shape[1]),
@@ -251,7 +253,34 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
     Q_ind_tot_e = np.zeros(shape=(p_e.shape[1]))
     Q_ind_tot_h = np.zeros(shape=(p_h.shape[1]))
 
-    def cal_step_size(t, Q_ind_tot, dt, dy, q_max, i_step, n_store):
+    def add_diffusion(v_e, v_h):
+        # Calculate absolute thermal velocity
+        v_th_e = silicon.get_thermal_velocity(temperature=temp,
+                                              is_electron=True)
+        v_th_h = silicon.get_thermal_velocity(temperature=temp,
+                                              is_electron=False)
+        # Create thermal velocity distribution
+        # From: IEEE VOL. 56, NO. 3, JUNE 2009
+        v_th_e *= np.log(np.abs(
+            1. / (1. - np.random.uniform(size=v_e.shape[1]))))
+        v_th_h *= np.log(np.abs(
+            1. / (1. - np.random.uniform(size=v_h.shape[1]))))
+        # Calculate random direction in x, y
+        # Uniform random number 0 .. 2 Pi
+        eta = np.random.uniform(0., 2. * np.pi, size=v_e.shape[1])
+        direction_e = np.array([np.cos(eta), np.sin(eta)])
+        eta = np.random.uniform(0., 2. * np.pi, size=v_h.shape[1])
+        direction_h = np.array([np.cos(eta), np.sin(eta)])
+
+        v_th_e = v_th_e[np.newaxis, :] * direction_e
+        v_th_h = v_th_h[np.newaxis, :] * direction_h
+
+        v_e += v_th_e
+        v_h += v_th_h
+
+        return v_e, v_h
+
+    def cal_step_size(t, Q_ind_tot, dt, dydt, q_max, i_step, n_store):
         ''' Calculates the step size from the actual data
 
         It is assumed that the actual slope stays constant.
@@ -271,16 +300,13 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         # Set next step to NaN is storing is done
         step_size[sel_done] = np.NaN
 
-        # Calculate slope for linear data extrapolation
-        dy_dt = dy[~sel_done] / dt
-
         # Calculate remaining x distance to cover
 
         # Case: increasing function (assume value = q_max at tmax)
-        t_max_exp = (q_max[~sel_done] - Q_ind_tot[~sel_done]) / dy_dt + t
+        t_max_exp = (q_max[~sel_done] - Q_ind_tot[~sel_done]) / dydt + t
         # Case: decreasing function (assume value = 0 at tmax)
-        t_max_exp[dy_dt < 0] = ((-q_max[~sel_done] - Q_ind_tot[~sel_done]) /
-                                dy_dt + t)[dy_dt < 0]
+        t_max_exp[dydt < 0] = ((-q_max[~sel_done] - Q_ind_tot[~sel_done]) /
+                                dydt + t)[dydt < 0]
         # Correct expected time larger than simulation time
         t_max_exp[t_max_exp > n_steps * dt] = n_steps * dt
         # Remaining time to cover
@@ -294,7 +320,7 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         sel_lim_max = step_size[~sel_done] > max_step_size
         step_size[~sel_done][sel_lim_max] = max_step_size
         # Minimum step size = 1
-        step_size[~sel_done][step_size[~sel_done] < 1.] = 1.
+        step_size[np.logical_and(~sel_done, step_size < 1.)] = 1
 
         step_size = step_size.astype(np.int)
 
@@ -333,9 +359,18 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         # Set data of actual time step
         T[i_step[store], store] = t
 
+        # Calculate induced charge for integrated time steps T
+        DT_e = T[i_step[store_e], store_e] - T[i_step[store_e] - 1, store_e]
+        DT_h = T[i_step[store_h], store_h] - T[i_step[store_h] - 1, store_h]
+        DT_e[np.isnan(DT_e)] = dt  # First storing
+        DT_h[np.isnan(DT_h)] = dt  # First storing
+        I_ind_e[i_step[store_e], store_e] = dQ_e_step[store_e] / DT_e
+        I_ind_h[i_step[store_h], store_h] = dQ_h_step[store_h] / DT_h
+
         # Store data
-        I_ind_e[i_step[store_e], store_e] = dQ_e[s_e] / dt
-        I_ind_h[i_step[store_h], store_h] = dQ_h[s_h] / dt
+#         I_ind_e[i_step[store_e], store_e] = dQ_e[s_e] / dt
+#         I_ind_h[i_step[store_h], store_h] = dQ_h[s_h] / dt
+        
         traj_e[i_step[store_e], :, store_e] = p_e[:, store_e].T
         traj_h[i_step[store_h], :, store_h] = p_h[:, store_h].T
 
@@ -349,12 +384,12 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         d_step_e = np.zeros_like(d_step)
         d_step_h = np.zeros_like(d_step)
         if np.any(store_e):
-            d_step_e[store_e] = cal_step_size(t, Q_ind_tot_e[store_e], dt, dQ_e[s_e],
+            d_step_e[store_e] = cal_step_size(t, Q_ind_tot_e[store_e], dt, I_ind_e[i_step[store_e], store_e],
                                               q_max[store_e], i_step[store_e], n_store)
             d_step[store_e] = d_step_e[store_e]
 
         if np.any(store_h):
-            d_step_h[store_h] = cal_step_size(t, Q_ind_tot_h[store_h], dt, dQ_h[s_h],
+            d_step_h[store_h] = cal_step_size(t, Q_ind_tot_h[store_h], dt, I_ind_h[i_step[store_h], store_h],
                                               q_max[store_h], i_step[store_h], n_store)
             d_step[store_h] = d_step_h[store_h]
         sel = np.logical_and(store_e, store_h)
@@ -366,6 +401,10 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         i_step[store] += 1
 
         i_step[i_step >= T.shape[0]] = T.shape[0] - 1
+
+        # Reset tmp. variable
+        dQ_e_step[store_e] = 0.
+        dQ_h_step[store_h] = 0.
 
     # Tmp. variables to store the total induced charge per save step
     # Otherwise the resolution of induced current calculation
@@ -408,31 +447,8 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         # Drift velocity in cm / s
         v_e, v_h = - E_e * mu_e, E_h * mu_h
 
-        # Add diffusion velocity
         if diffusion:
-            # Calculate absolute thermal velocity
-            v_th_e = silicon.get_thermal_velocity(temperature=temp,
-                                                  is_electron=True)
-            v_th_h = silicon.get_thermal_velocity(temperature=temp,
-                                                  is_electron=False)
-            # Create thermal velocity distribution
-            # From: IEEE VOL. 56, NO. 3, JUNE 2009
-            v_th_e *= np.log(np.abs(
-                1. / (1. - np.random.uniform(size=v_e.shape[1]))))
-            v_th_h *= np.log(np.abs(
-                1. / (1. - np.random.uniform(size=v_h.shape[1]))))
-            # Calculate random direction in x, y
-            # Uniform random number 0 .. 2 Pi
-            eta = np.random.uniform(0., 2. * np.pi, size=v_e.shape[1])
-            direction_e = np.array([np.cos(eta), np.sin(eta)])
-            eta = np.random.uniform(0., 2. * np.pi, size=v_h.shape[1])
-            direction_h = np.array([np.cos(eta), np.sin(eta)])
-
-            v_th_e = v_th_e[np.newaxis, :] * direction_e
-            v_th_h = v_th_h[np.newaxis, :] * direction_h
-
-            v_e += v_th_e
-            v_h += v_th_h
+            v_e, v_h = add_diffusion(v_e, v_h)
 
         # Calculate induced current
         # Only if electrons are still drifting
@@ -513,4 +529,5 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         progress_bar.update(step)
     progress_bar.finish()
 
-    return traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot
+    return traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot, Q_ind_tot_e, Q_ind_tot_h
+
