@@ -3,7 +3,9 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scarce import silicon, solver, sensor
+from scipy import integrate
+
+from scarce import silicon, solver, sensor, tools
 
 
 def transient_irrad():
@@ -26,27 +28,28 @@ def transient_irrad():
     pitch = 45.
     n_pixel = 9
     V_readout = 0.
+    resolution = 200
 
     # Create sensor
-    planar_pot_w, planar_pot = sensor.planar_sensor(n_eff=n_eff,
-                                                    V_bias=V_bias,
-                                                    V_readout=V_readout,
-                                                    temperature=temperature,
-                                                    n_pixel=n_pixel,
-                                                    width=width,
-                                                    pitch=pitch,
-                                                    thickness=thickness,
-                                                    resolution=300.,
-                                                    # Might have to be adjusted
-                                                    # when changing the
-                                                    # geometry
-                                                    smoothing=0.05)
+    pot_w_descr, pot_descr = sensor.planar_sensor(n_eff=n_eff,
+                                                  V_bias=V_bias,
+                                                  V_readout=V_readout,
+                                                  temperature=temperature,
+                                                  n_pixel=n_pixel,
+                                                  width=width,
+                                                  pitch=pitch,
+                                                  thickness=thickness,
+                                                  resolution=resolution,
+                                                  # Might have to be adjusted
+                                                  # when changing the
+                                                  # geometry
+                                                  smoothing=0.01)
 
     # Start parameters of e-h pairs
     # Create 10 e-h pairs every 5 um in y
     xx, yy = np.meshgrid(np.linspace(0, width, 1),  # x
-                         np.repeat(np.linspace(0, thickness,
-                                               thickness / 5), 10),
+                         np.repeat(np.linspace(0., thickness,
+                                               thickness / 5.), 10),
                          sparse=False)  # All combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])  # Position [um]
 
@@ -63,16 +66,31 @@ def transient_irrad():
     t_h_trapping = silicon.get_trapping(
         fluence=fluence, is_electron=False, paper=1)
 
-    dd = solver.DriftDiffusionSolver(planar_pot, planar_pot_w,
+    dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
                                      T=temperature, diffusion=True)
-    dd_irrad = solver.DriftDiffusionSolver(planar_pot, planar_pot_w,
-                                           T=temperature, diffusion=True,
-                                           t_e_trapping=t_e_trapping,
-                                           t_h_trapping=t_h_trapping)
-    _, _, Q_ind_e, Q_ind_h, _, _ = dd.solve(p0, q0, dt, n_steps)
+    dd_irr = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
+                                         T=temperature, diffusion=True,
+                                         t_e_trapping=t_e_trapping,
+                                         t_h_trapping=t_h_trapping)
+    _, _, I_ind_e, I_ind_h, T, _ = dd.solve(p0, q0, dt, n_steps)
+    _, _, I_ind_e_irr, I_ind_h_irr, T_irr, _ = dd_irr.solve(p0, q0, dt,
+                                                            n_steps)
 
-    _, _, Q_ind_e_irr, Q_ind_h_irr, _, _ = dd_irrad.solve(p0, q0, dt, n_steps)
-
+    # Interpolate data to fixed time points for easier plotting
+    I_ind_e = tools.time_data_interpolate(T, I_ind_e, t, axis=0, fill_value=0.)
+    I_ind_h = tools.time_data_interpolate(T, I_ind_h, t, axis=0, fill_value=0.)
+    I_ind_e[np.isnan(I_ind_e)] = 0.
+    I_ind_h[np.isnan(I_ind_h)] = 0.
+    I_ind_e_irr = tools.time_data_interpolate(
+        T_irr, I_ind_e_irr, t, axis=0, fill_value=0.)
+    I_ind_h_irr = tools.time_data_interpolate(
+        T_irr, I_ind_h_irr, t, axis=0, fill_value=0.)
+    I_ind_e_irr[np.isnan(I_ind_e_irr)] = 0.
+    I_ind_h_irr[np.isnan(I_ind_h_irr)] = 0.
+    Q_ind_e = integrate.cumtrapz(I_ind_e, t, axis=0, initial=0)
+    Q_ind_h = integrate.cumtrapz(I_ind_h, t, axis=0, initial=0)
+    Q_ind_e_irr = integrate.cumtrapz(I_ind_e_irr, t, axis=0, initial=0)
+    Q_ind_h_irr = integrate.cumtrapz(I_ind_h_irr, t, axis=0, initial=0)
     plt.plot(t, Q_ind_e.sum(axis=1) / xx.shape[0], color='blue',
              label='Electrons, depl.')
     plt.plot(t, Q_ind_h.sum(axis=1) / xx.shape[0], color='red',

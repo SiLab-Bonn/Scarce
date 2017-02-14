@@ -12,6 +12,7 @@ from scipy import integrate
 from scarce import plot, solver, geometry, silicon, fields, tools
 
 import time
+from matplotlib.pyplot import twinx
 
 
 def timing(f):
@@ -34,7 +35,7 @@ def transient_planar():
     n_pixel = 9
     V_bias = -80.
     V_readout = 0.
-    resolution = 200
+    resolution = 300
     smoothing = 0.05
 
     # Create mesh of the sensor and stores the result
@@ -89,12 +90,13 @@ def transient_planar():
                                      smoothing=smoothing)
 
     # Start parameters of e-h pairs
-    # Create n_pairs e-h pairs every 5 um in x and y
-    n_pairs = 1
-    grid_x = 2  # grid spacing in x
-    grid_y = 2  # grid spacing in y
+    # Create n_pairs e-h pairs
+    n_pairs = 200
+    grid_x = 10  # grid spacing in x in um
+    grid_y = 10  # grid spacing in y in um
     x_bins = int(width / grid_x)
     y_bins = int(thickness / grid_y)
+
     print x_bins, y_bins
 
     range_x = (-width / 2., width / 2.)
@@ -108,47 +110,82 @@ def transient_planar():
                                                range_y[1] - grid_y / 2., y_bins),
                                    n_pairs),  # 10 e-h per position
                          sparse=False)  # All combinations of x / y
+
+#     xx, yy = np.meshgrid(np.linspace(17.5,
+#                                      17.5, 1),
+#                          np.repeat(np.linspace(137.5,
+#                                                137.5, 1),
+#                                    n_pairs),  # 10 e-h per position
+#                          sparse=False)  # All combinations of x / y
+
     p0 = np.array([xx.ravel(), yy.ravel()])  # Position [um]
 
     # Initial charge set to 1
-    q_start = 1
+    q_start = 1.
     q0 = np.ones(p0.shape[1]) * q_start
+    q_max = q_start * 1.05
 
     # Time steps
     dt = 0.001  # [ns]
-    n_steps = 20000
-    
+    n_steps = 25000
+
     t = np.linspace(0, n_steps * dt, 1000)
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
-                                     T=temperature, diffusion=False, save_frac=20)
-    traj_e, traj_h, I_ind_e, I_ind_h, T, _ = dd.solve(p0, q0, dt, n_steps,
-                                                      multicore=False)
+                                     T=temperature, diffusion=True, save_frac=50)
+    traj_e, traj_h, I_ind_e, I_ind_h, T, _, Q_ind_e_tot, Q_ind_h_tot = dd.solve(p0, q0, dt, n_steps,
+                                                      multicore=True)
 
     # Trajectory at t=0 is start position
     pos_0 = traj_e[0]
-    
+
     # Interpolate data to fixed time points for easier plotting
-    I_ind_e = tools.time_data_interpolate(T, I_ind_e, t, axis=0, fill_value=0.)
-    I_ind_h = tools.time_data_interpolate(T, I_ind_h, t, axis=0, fill_value=0.)
+#     I_ind_e = tools.time_data_interpolate(T, I_ind_e, t, axis=0, fill_value=0.)
+#     I_ind_h = tools.time_data_interpolate(T, I_ind_h, t, axis=0, fill_value=0.)
     I_ind_e[np.isnan(I_ind_e)] = 0.
     I_ind_h[np.isnan(I_ind_h)] = 0.
-    Q_ind_e = integrate.cumtrapz(I_ind_e, t, axis=0, initial=0)
-    Q_ind_h = integrate.cumtrapz(I_ind_h, t, axis=0, initial=0)
+    Q_ind_e = integrate.cumtrapz(I_ind_e, T, axis=0, initial=0)
+    Q_ind_h = integrate.cumtrapz(I_ind_h, T, axis=0, initial=0)
 
+    # Last index with data (time != nan)
+    index = np.nanargmax(T, axis=0)
+    y = np.indices(index.shape)
     # Last recorded integrated charge is total induced charge
-    q_ind = Q_ind_e[-1] + Q_ind_h[-1]
+    q_ind = Q_ind_e[index, y][0] + Q_ind_h[index, y][0]
+    q_ind = Q_ind_e_tot + Q_ind_h_tot
 
+    # Histogram charge per start position
     data = np.vstack((pos_0[0], pos_0[1], q_ind)).T
-
-    print 'q_ind<=0.1', data[q_ind <= 0.1]
 
     n_bins_c = 100
     H, edges = np.histogramdd(sample=data,
                               bins=(x_bins, y_bins, n_bins_c),
                               range=((range_x[0], range_x[1]),
                                      (range_y[0], range_y[1]),
-                                     (0., 2 * q_start + 0.5 * q_start / n_bins_c)))
+                                     (0., q_max)))
+
+#     sel = q_ind > 1.03
+    # Induced charge of one e-h pair
+#     plt.plot(T, Q_ind_e, '-',
+#              color='blue', linewidth=2, label='e')
+#     plt.plot(T, Q_ind_h, '-',
+#              color='red', linewidth=2, label='h')
+#     plt.plot(T, Q_ind_e + Q_ind_h,
+#              '-', color='magenta', linewidth=2, label='e+h')
+#     plt.legend(loc=0)
+#     plt.xlabel('Time [ns]')
+#     plt.ylabel('Total induced charge [a.u.]')
+
+#     plt.twinx()
+#     plt.plot(t[:, sel], Q_ind_e[:, sel], '.-',
+#              color='blue', linewidth=2, label='e')
+#     plt.plot(t[:, sel], Q_ind_h[:, sel], '.-',
+#              color='red', linewidth=2, label='h')
+#     plt.plot(t[:, sel], Q_ind_e[:, sel] + Q_ind_h[:, sel],
+#              '.-', color='magenta', linewidth=2, label='e+h')
+
+#     plt.show()
+#     print pos_0[0][sel], pos_0[1][sel]
 
 #     print range_x[0], range_x[1]
 #     print range_y[0], range_y[1]
@@ -196,23 +233,14 @@ def transient_planar():
     cmap.set_bad('white')
     # np.max(charge_pos))
     cmesh = plt.pcolormesh(
-        edges[0], edges[1], charge_pos.T, cmap=cmap, vmin=0, vmax=1.)
+        edges[0], edges[1], charge_pos.T, cmap=cmap, vmin=0, vmax=q_max)
     plt.grid()
     cax = plt.gcf().add_axes([plt.gca().get_position().xmax, 0.1, 0.05,
                               plt.gca().get_position().ymax - plt.gca().get_position().ymin])
     plt.colorbar(cmesh, cax=cax, orientation='vertical')
     plt.grid()
     plt.show()
-#
-#     plt.clf()
-#     plt.plot(t, np.cumsum(I_ind_e, axis=0)[:, 0] * dt, color='red',
-#              label='Electrons')
-#     plt.plot(t, np.cumsum(I_ind_h[:, 0], axis=0) * dt, color='red',
-#              label='Holes')
-#     plt.plot(t, np.cumsum(I_ind_e[:, 0] + I_ind_h[:, 0], axis=0) * dt,
-#              color='magenta', label='Sum')
-#     plt.show()
-#
+
     # Plot numerical result in 2D with particle animation
     fig = plt.figure()
     plot.get_planar_sensor_plot(fig=fig,
@@ -226,28 +254,6 @@ def transient_planar():
                                 field_func=pot_descr.get_field,
                                 depl_func=pot_descr.get_depletion,
                                 title='Planar sensor potential')
-
-    # Create animation
-    frames = 50
-    init, animate = plot.animate_drift_diffusion(fig, T=T, pe=traj_e,
-                                                 ph=traj_h, dt=t.max() /
-                                                 frames,
-                                                 n_steps=frames)
-    ani = animation.FuncAnimation(fig=fig, func=animate,
-                                  blit=True, init_func=init, frames=frames,
-                                  interval=5000 / frames)
-#
-#     plot.get_planar_cce_plot(fig=fig,
-#                                 width=width,
-#                                 pitch=pitch,
-#                                 thickness=thickness,
-#                                 n_pixel=n_pixel,
-#
-#                                 title='Planar sensor potential')
-#
-#     print traj_e.shape
-#     print q_ind.shape
-#     print np.count_nonzero(q_ind<=0.01)
 
     # Create animation
     frames = 50
