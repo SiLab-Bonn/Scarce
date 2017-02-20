@@ -35,7 +35,7 @@ def transient_planar():
     n_pixel = 9
     V_bias = -80.
     V_readout = 0.
-    resolution = 300
+    resolution = 200
     smoothing = 0.05
 
     # Create mesh of the sensor and stores the result
@@ -91,9 +91,9 @@ def transient_planar():
 
     # Start parameters of e-h pairs
     # Create n_pairs e-h pairs
-    n_pairs = 200
-    grid_x = 10  # grid spacing in x in um
-    grid_y = 10  # grid spacing in y in um
+    n_pairs = 1
+    grid_x = 5  # grid spacing in x in um
+    grid_y = 5  # grid spacing in y in um
     x_bins = int(width / grid_x)
     y_bins = int(thickness / grid_y)
 
@@ -126,15 +126,15 @@ def transient_planar():
     q_max = q_start * 1.05
 
     # Time steps
-    dt = 0.001  # [ns]
-    n_steps = 25000
+    dt = 0.0001  # [ns]
+    n_steps = 250000
 
     t = np.linspace(0, n_steps * dt, 1000)
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
-                                     T=temperature, diffusion=True, save_frac=50)
+                                     T=temperature, diffusion=True, save_frac=10)
     traj_e, traj_h, I_ind_e, I_ind_h, T, _, Q_ind_e_tot, Q_ind_h_tot = dd.solve(p0, q0, dt, n_steps,
-                                                      multicore=True)
+                                                                                multicore=True)
 
     # Trajectory at t=0 is start position
     pos_0 = traj_e[0]
@@ -148,16 +148,16 @@ def transient_planar():
     Q_ind_h = integrate.cumtrapz(I_ind_h, T, axis=0, initial=0)
 
     # Last index with data (time != nan)
-    index = np.nanargmax(T, axis=0)
-    y = np.indices(index.shape)
+#     index = np.nanargmax(T, axis=0)
+#     y = np.indices(index.shape)
     # Last recorded integrated charge is total induced charge
-    q_ind = Q_ind_e[index, y][0] + Q_ind_h[index, y][0]
+#     q_ind = Q_ind_e[index, y][0] + Q_ind_h[index, y][0]
     q_ind = Q_ind_e_tot + Q_ind_h_tot
 
     # Histogram charge per start position
     data = np.vstack((pos_0[0], pos_0[1], q_ind)).T
 
-    n_bins_c = 100
+    n_bins_c = 200
     H, edges = np.histogramdd(sample=data,
                               bins=(x_bins, y_bins, n_bins_c),
                               range=((range_x[0], range_x[1]),
@@ -203,37 +203,33 @@ def transient_planar():
     charge_pos[sel] = np.average(
         H, axis=2, weights=weights)[sel] * weights.sum() / np.sum(H, axis=2)[sel]
 
-#     print np.average(H, axis=2, weights=weights)
-#     raise
-    # charge_pos = np.nansum(H, axis=2)
-#     charge_pos.mask[~sel] = 1
+    edges_x = (edges[0][:-1] + edges[0][1:]) / 2.
+    edges_y = (edges[1][:-1] + edges[1][1:]) / 2.
 
-    print edges[0].shape
-    print edges[1].shape
-    print 'sel.shape', sel.shape
-    print 'charge_pos.shape', charge_pos.shape
-    print np.max(charge_pos)
-    print '((edges[0][:-1] + edges[0][1:]) / 2.)', ((edges[0][:-1] + edges[0][1:]) / 2.)
-
-    print ((edges[0][:-1] + edges[0][1:]) / 2.)[sel[0][0]]
-    print ((edges[1][:-1] + edges[1][1:]) / 2.)[sel[0][1]]
-
-    print np.count_nonzero(np.average(H, axis=2, weights=weights)), data.shape[0]
-#     raise
-
-#     print 'sel', sel
-#     raise
-    # X, Y = np.meshgrid((edges[0][:-1] + edges[0][1:])/2., (edges[1][:-1] + edges[1][1:])/2.)
+    for xi, yi in zip(*np.where(charge_pos < 0.9)):
+        print edges_x[xi], edges_y[yi], charge_pos[xi, yi]
+        plt.clf()
+        plt.bar(weights, H[xi, yi], width=np.diff(weights)[0])
+        plt.show()
+        plt.clf()
+        sel = np.logical_and(pos_0[0] == edges_x[xi],
+                             pos_0[1] == edges_y[yi])
+        plt.plot(T[:, sel], Q_ind_e[:, sel] + Q_ind_h[:, sel])
+        for c in weights[H[xi, yi].astype(np.bool)]:
+            plt.plot(plt.xlim(), [c, c])
+        plt.twinx()
+        print traj_e.shape
+        plt.plot(T[:, sel], traj_e[:, 0, sel])
+        plt.plot(T[:, sel], traj_e[:, 1, sel])
+        plt.show()
 
     plt.clf()
     plt.gca().set_aspect('equal')
     plt.gca().invert_yaxis()
-
     cmap = cm.get_cmap('inferno')
     cmap.set_bad('white')
-    # np.max(charge_pos))
-    cmesh = plt.pcolormesh(
-        edges[0], edges[1], charge_pos.T, cmap=cmap, vmin=0, vmax=q_max)
+    cmesh = plt.pcolormesh(edges[0], edges[1], charge_pos.T,
+                           cmap=cmap, vmin=0, vmax=q_max)
     plt.grid()
     cax = plt.gcf().add_axes([plt.gca().get_position().xmax, 0.1, 0.05,
                               plt.gca().get_position().ymax - plt.gca().get_position().ymin])
