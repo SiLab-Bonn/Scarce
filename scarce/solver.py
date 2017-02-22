@@ -260,11 +260,13 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         v_th_h = silicon.get_thermal_velocity(temperature=temp,
                                               is_electron=False)
         # Create thermal velocity distribution
-        # From: IEEE VOL. 56, NO. 3, JUNE 2009
-        v_th_e *= np.log(np.abs(
-            1. / (1. - np.random.uniform(size=v_e.shape[1]))))
-        v_th_h *= np.log(np.abs(
-            1. / (1. - np.random.uniform(size=v_h.shape[1]))))
+        # From: The Atomistic Simulation of Thermal Diffusion
+        # and Coulomb Drift in Semiconductor Detectors
+        # IEEE VOL. 56, NO. 3, JUNE 2009
+        v_th_e *= np.sqrt(2. / 3. * np.log(np.abs(
+            1. / (1. - np.random.uniform(size=v_e.shape[1])))))
+        v_th_h *= np.sqrt(2. / 3. * np.log(np.abs(
+            1. / (1. - np.random.uniform(size=v_h.shape[1])))))
         # Calculate random direction in x, y
         # Uniform random number 0 .. 2 Pi
         eta = np.random.uniform(0., 2. * np.pi, size=v_e.shape[1])
@@ -306,7 +308,7 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         t_max_exp = (q_max[~sel_done] - Q_ind_tot[~sel_done]) / dydt + t
         # Case: decreasing function (assume value = 0 at tmax)
         t_max_exp[dydt < 0] = ((-q_max[~sel_done] - Q_ind_tot[~sel_done]) /
-                                dydt + t)[dydt < 0]
+                               dydt + t)[dydt < 0]
         # Correct expected time larger than simulation time
         t_max_exp[t_max_exp > n_steps * dt] = n_steps * dt
         # Remaining time to cover
@@ -370,7 +372,7 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         # Store data
 #         I_ind_e[i_step[store_e], store_e] = dQ_e[s_e] / dt
 #         I_ind_h[i_step[store_h], store_h] = dQ_h[s_h] / dt
-        
+
         traj_e[i_step[store_e], :, store_e] = p_e[:, store_e].T
         traj_h[i_step[store_h], :, store_h] = p_h[:, store_h].T
 
@@ -530,4 +532,3 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
     progress_bar.finish()
 
     return traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot, Q_ind_tot_e, Q_ind_tot_h
-
