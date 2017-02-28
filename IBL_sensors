@@ -1,6 +1,17 @@
 n-in-n CiS: effective dopant concentration: 1.7 e 12 / cm3 from The ATLAS silicon pixel sensors
 and 2-5 kOh-cm from :
 
+A published reference:
+Slim Edge Studies,
+Design and Quality Control
+of Planar ATLAS IBL Pixel Sensors
+
+On wafer for IBL production (not published?!)
+Full depletion with C-V measured on wafer to be 46 V on average, this would correspond more to 1.30 - 1.65 e 12!
+https://indico.cern.ch/event/161493/contributions/1409692/attachments/187164/262804/Muenstermann_PlanarIBLSensors.pdf
+46+-6 V --> 1.30 - 1.65 e 12!
+1.475 e 12 / cm3
+
 70 %, 1e15, 250 um, 480 V, FV 430
 75 %, 1e15, 200 um, 308 V, FV 280
 
