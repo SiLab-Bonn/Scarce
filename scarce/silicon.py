@@ -11,13 +11,18 @@ def get_thermal_velocity(temperature, is_electron=True):
     ''' Calculate the thermal velocity [cm/s] for a given temperature [K].
 
         From: IEEE TRANSACTIONS ON NUCLEAR SCIENCE, VOL. 56, NO. 3, JUNE 2009
+
+        Note: This paper result is likely wrong since the simulated diffusion is (in contrast to the
+        claim in the paper) dependent on the step size. Diffusion is only independent of
+        the step size for large numbers of steps that follow a normal distribution! This
+        is not statisfied.
     '''
     # Effective mass
     if is_electron:
         m_eff = 0.26 * constants.electron_mass
     else:
         m_eff = 0.386 * constants.electron_mass
-    return np.sqrt(3.*constants.Boltzmann*temperature / m_eff) * 100.
+    return np.sqrt(3. * constants.Boltzmann * temperature / m_eff) * 100.
 
 
 def get_depletion_depth(V_bias, n_eff, temperature):
@@ -187,6 +192,10 @@ def get_trapping(fluence, is_electron, paper=1):
         There was also a dependence on the temperature measured, that is
         omitted here!
     '''
+
+    # Assume 100 us before irradiation
+    if fluence == 0.:
+        return 100000.
 
     if paper == 1:
         # Newer paper where the finding was that there is no difference
