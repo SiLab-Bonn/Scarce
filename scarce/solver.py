@@ -56,7 +56,7 @@ class DriftDiffusionSolver(object):
 
     def __init__(self, pot_descr, pot_w_descr,
                  T=300, geom_descr=None, diffusion=True,
-                 t_e_trapping=0., t_h_trapping=0., save_frac=20):
+                 t_e_trapping=0., t_h_trapping=0., t_r=20., save_frac=20):
         '''
         Parameters
         ----------
@@ -78,6 +78,9 @@ class DriftDiffusionSolver(object):
         t_h_trapping : number
             Trapping time for holes in ns
 
+        t_r : number
+            Peaking time of CSA
+
         save_frac : number
             Fraction of time steps to save for each e-h pair.
             E.g.: 100 means that the position and current is saved for every
@@ -98,6 +101,7 @@ class DriftDiffusionSolver(object):
         self.T = T  # Temperatur in Kelvin
         self.t_e_trapping = t_e_trapping  # Trapping time in ns
         self.t_h_trapping = t_h_trapping  # Trapping time in ns
+        self.t_r = t_r  # Rise time of Amplifier
         self.geom_descr = geom_descr
         self.diffusion = diffusion
 
@@ -142,6 +146,7 @@ class DriftDiffusionSolver(object):
                              diffusion=self.diffusion,
                              t_e_trapping=self.t_e_trapping,
                              t_h_trapping=self.t_h_trapping,
+                             t_r=self.t_r,
                              save_frac=self.save_frac)
 
         # Split data and into cores - 1 slices
@@ -169,6 +174,7 @@ class DriftDiffusionSolver(object):
                                     diffusion=self.diffusion,
                                     t_e_trapping=self.t_e_trapping,
                                     t_h_trapping=self.t_h_trapping,
+                                    t_r=self.t_r,
                                     save_frac=self.save_frac
                                     )
             jobs.append(job)
@@ -230,21 +236,25 @@ def _correct_boundary(geom_descr, pot_descr, x, y, sel, is_electron):
 
 def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
               pot_descr, temp, diffusion, t_e_trapping, t_h_trapping,
-              save_frac):
+              t_r, save_frac):
     p_e, p_h = p_e_0, p_h_0
 
     # Result arrays initialized to NaN
     n_store = int(n_steps / save_frac)  # Steps to store
 
     max_step_size = n_steps / n_store * 10
+    # Different store time step for each e-h pair
     T = np.full(shape=(n_store, p_e.shape[1]),
                 fill_value=np.nan, dtype=np.float32)
+    # Stored trajectory for each eh pair
     traj_e = np.full(shape=(n_store, p_e.shape[0], p_e.shape[1]),
                      fill_value=np.nan)
     traj_h = np.full(shape=(n_store, p_h.shape[0], p_h.shape[1]),
                      fill_value=np.nan)
+    # Stored induced charge for each eh pair
     I_ind_e = np.zeros(shape=(n_store, p_e.shape[1]))
     I_ind_h = np.zeros_like(I_ind_e)
+    # Helper array(s) of actual step index and next step index
     i_step = np.zeros(p_e.shape[1], dtype=np.int)  # Result array indeces
     next_step = np.zeros_like(i_step)  # Next time step to store
     # Summed induced charge/current with every time step
@@ -484,6 +494,9 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
             if t_e_trapping:
                 dQ_e *= np.exp(-dt * step / t_e_trapping)
 
+            if t_r:
+                dQ_e *= np.exp(-dt * step / t_r)
+
             dQ_e_step[sel_e] += dQ_e
 
             Q_ind_tot_e[sel_e] += dQ_e
@@ -501,6 +514,9 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
             # Reduce induced charge due to trapping
             if t_h_trapping:
                 dQ_h *= np.exp(-dt * step / t_e_trapping)
+
+            if t_r:
+                dQ_h *= np.exp(-dt * step / t_r)
 
             dQ_h_step[sel_h] += dQ_h
 
