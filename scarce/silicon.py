@@ -196,7 +196,7 @@ def get_trapping(fluence, is_electron, paper=1):
     # Assume 100 us before irradiation
     try:
         fluence[0]
-    except KeyError:
+    except TypeError:
         if fluence == 0.:
             return 100000.
 
