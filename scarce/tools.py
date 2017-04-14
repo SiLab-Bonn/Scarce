@@ -11,18 +11,26 @@ from scipy import interpolate
 _LOGGER = logging.getLogger(__name__)
 
 
-def save(obj, filename):
+def save(obj, filename, compress=True):
     ''' Save object to file'''
     _LOGGER.info('Saving to %s', filename)
-    with gzip.open(filename, mode='wb') as out_file:
-        dill.dump(obj, out_file, protocol=0)
+    if compress:
+        with gzip.open(filename, mode='wb') as out_file:
+            dill.dump(obj, out_file, protocol=0)
+    else:
+        with open(filename, mode='wb') as out_file:
+            dill.dump(obj, out_file, protocol=0)
 
 
-def load(filename):
+def load(filename, compress=True):
     ''' Load object from file'''
     _LOGGER.info('Loading %s', filename)
-    with gzip.open(filename, mode='rb') as in_file:
-        return dill.load(in_file)
+    if compress:
+        with gzip.open(filename, mode='rb') as in_file:
+            return dill.load(in_file)
+    else:
+        with open(filename, mode='rb') as in_file:
+            return dill.load(in_file)
 
 
 def apply_async(pool, fun, args=None, **kwargs):
