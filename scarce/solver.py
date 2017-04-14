@@ -178,6 +178,9 @@ class DriftDiffusionSolver(object):
         for job in jobs:
             results.append(job.get())
 
+        pool.close()
+        pool.join()
+
         # Merge results
         I_ind_tot = np.zeros(shape=(n_steps,))
         traj_e = np.concatenate([i[0] for i in results], axis=2)
@@ -189,9 +192,6 @@ class DriftDiffusionSolver(object):
             I_ind_tot += i[5]
         Q_ind_tot_e = np.concatenate([i[6] for i in results], axis=0)
         Q_ind_tot_h = np.concatenate([i[7] for i in results], axis=0)
-
-        pool.close()
-        pool.join()
 
         return traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot, Q_ind_tot_e, Q_ind_tot_h
 
@@ -299,20 +299,32 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         if step_size[~sel_done].size == 0:
             return step_size.astype(np.int)
 
-        # Set next step to NaN is storing is done
+        # Set next step to NaN if storing is done
         step_size[sel_done] = np.NaN
 
         # Calculate remaining x distance to cover
+        try:
+            # Case: increasing function (assume value = q_max at tmax)
+            t_max_exp = ((q_max - Q_ind_tot) / dydt + t)[~sel_done]
+            # Case: decreasing function (assume value = 0 at tmax)
+            t_max_exp[dydt[~sel_done] < 0] = ((-q_max - Q_ind_tot) /
+                                              dydt + t)[~sel_done][dydt[~sel_done] < 0]
+            # Correct expected time larger than simulation time
+            t_max_exp[t_max_exp > n_steps * dt] = n_steps * dt
+            # Remaining time to cover
+            t_left = t_max_exp - t
+        except (IndexError, ValueError):
+            logging.error('q_max.shape %s', str(q_max.shape))
+            logging.error('sel_done.shape %s', str(sel_done.shape))
+            logging.error('Q_ind_tot.shape %s', str(Q_ind_tot.shape))
+            logging.error('dydt.shape %s', str(dydt.shape))
+            logging.error('t_max_exp.shape %s', str(t_max_exp.shape))
+            logging.error('dydt[~sel_done].shape %s', str(dydt[~sel_done].shape))
+            logging.error('(dydt[~sel_done] < 0).shape %s', str((dydt[~sel_done] < 0).shape))
+            logging.error('(-q_max - Q_ind_tot) / dydt + t).shape %s', str(((-q_max - Q_ind_tot) / dydt + t).shape))
+            logging.error('(-q_max - Q_ind_tot) / dydt + t)[~sel_done].shape %s', str(((-q_max - Q_ind_tot) / dydt + t)[~sel_done].shape))
 
-        # Case: increasing function (assume value = q_max at tmax)
-        t_max_exp = (q_max[~sel_done] - Q_ind_tot[~sel_done]) / dydt + t
-        # Case: decreasing function (assume value = 0 at tmax)
-        t_max_exp[dydt < 0] = ((-q_max[~sel_done] - Q_ind_tot[~sel_done]) /
-                               dydt + t)[dydt < 0]
-        # Correct expected time larger than simulation time
-        t_max_exp[t_max_exp > n_steps * dt] = n_steps * dt
-        # Remaining time to cover
-        t_left = t_max_exp - t
+            raise
 
         # Calculate the step size
         step_size[~sel_done] = t_left / dt / (n_store - i_step[~sel_done] - 1)
@@ -386,13 +398,19 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
         d_step_e = np.zeros_like(d_step)
         d_step_h = np.zeros_like(d_step)
         if np.any(store_e):
-            d_step_e[store_e] = cal_step_size(t, Q_ind_tot_e[store_e], dt, I_ind_e[i_step[store_e], store_e],
-                                              q_max[store_e], i_step[store_e], n_store)
+            d_step_e[store_e] = cal_step_size(t, Q_ind_tot=Q_ind_tot_e[store_e], dt=dt,
+                                              dydt=I_ind_e[i_step[store_e], store_e],
+                                              q_max=q_max[store_e],
+                                              i_step=i_step[store_e],
+                                              n_store=n_store)
             d_step[store_e] = d_step_e[store_e]
 
         if np.any(store_h):
-            d_step_h[store_h] = cal_step_size(t, Q_ind_tot_h[store_h], dt, I_ind_h[i_step[store_h], store_h],
-                                              q_max[store_h], i_step[store_h], n_store)
+            d_step_h[store_h] = cal_step_size(t, Q_ind_tot=Q_ind_tot_h[store_h], dt=dt,
+                                              dydt=I_ind_h[i_step[store_h], store_h],
+                                              q_max=q_max[store_h],
+                                              i_step=i_step[store_h],
+                                              n_store=n_store)
             d_step[store_h] = d_step_h[store_h]
         sel = np.logical_and(store_e, store_h)
         d_step[sel] = np.minimum(d_step_e[sel], d_step_h[sel])
