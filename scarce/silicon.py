@@ -194,8 +194,11 @@ def get_trapping(fluence, is_electron, paper=1):
     '''
 
     # Assume 100 us before irradiation
-    if fluence == 0.:
-        return 100000.
+    try:
+        fluence[0]
+    except KeyError:
+        if fluence == 0.:
+            return 100000.
 
     if paper == 1:
         # Newer paper where the finding was that there is no difference
@@ -229,12 +232,16 @@ def get_trapping(fluence, is_electron, paper=1):
         # G. Kramberger et al., Nucl. Inst. And. Meth. A 476 (2002) 645-651
         # 'Determination of effective trapping times for electrons and holes
         # in irradiated silicon'
+        # Also compatible values for neutron were archieved in a follow up paper
+        # G. Kramberger et al.NIM A481 2002 297-305
+        # There a dependence on the particle type was found, making proton irradiation more severe and
+        # this does not scale with NIEL!
 
         if is_electron:
-            beta = 4.2e-16  # [cm^2/ns]
+            beta = 4.1e-16  # [cm^2/ns]
             # beta_error = 0.3e-16  # [cm^2/ns]
         else:
-            beta = 6.1e-16  # [cm^2/ns]
+            beta = 6.0e-16  # [cm^2/ns]
             # beta_error = 0.3e-16  # [cm^2/ns]
 
         tr = 1. / (fluence * beta)
