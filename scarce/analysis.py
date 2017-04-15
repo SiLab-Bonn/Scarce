@@ -6,7 +6,7 @@ from scipy import integrate
 from scarce import solver
 
 
-def get_charge_planar(width, thickness, pot_descr, pot_w_descr, t_e_trapping=0., t_h_trapping=0., grid_x=5, grid_y=5, n_pairs=10, dt=0.001, n_steps=25000, temperature=300):
+def get_charge_planar(width, thickness, pot_descr, pot_w_descr, t_e_trapping=0., t_h_trapping=0., t_e_t1=0., t_h_t1=0., t_r=0., grid_x=5, grid_y=5, n_pairs=10, dt=0.001, n_steps=25000, temperature=300):
         ''' Calculate the collected charge in one planar pixel
 
             Charge is given as a 2d map depending on the start postitions of the e-h pairs.
@@ -56,7 +56,9 @@ def get_charge_planar(width, thickness, pot_descr, pot_w_descr, t_e_trapping=0.,
 
         dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
                                          T=temperature, diffusion=True,
-                                         t_e_trapping=t_e_trapping, t_h_trapping=t_h_trapping, save_frac=50)
+                                         t_e_trapping=t_e_trapping, t_h_trapping=t_h_trapping,
+                                         t_e_t1=t_e_t1, t_h_t1=t_h_t1, t_r=t_r,
+                                         save_frac=50)
         traj_e, traj_h, I_ind_e, I_ind_h, T, _, Q_ind_e_tot, Q_ind_h_tot = dd.solve(p0, q0, dt, n_steps,
                                                                                     multicore=True)
 
@@ -66,16 +68,11 @@ def get_charge_planar(width, thickness, pot_descr, pot_w_descr, t_e_trapping=0.,
         # Interpolate data to fixed time points for easier plotting
     #     I_ind_e = tools.time_data_interpolate(T, I_ind_e, t, axis=0, fill_value=0.)
     #     I_ind_h = tools.time_data_interpolate(T, I_ind_h, t, axis=0, fill_value=0.)
-        I_ind_e[np.isnan(I_ind_e)] = 0.
-        I_ind_h[np.isnan(I_ind_h)] = 0.
-        Q_ind_e = integrate.cumtrapz(I_ind_e, T, axis=0, initial=0)
-        Q_ind_h = integrate.cumtrapz(I_ind_h, T, axis=0, initial=0)
+#         I_ind_e[np.isnan(I_ind_e)] = 0.
+#         I_ind_h[np.isnan(I_ind_h)] = 0.
+#         Q_ind_e = integrate.cumtrapz(I_ind_e, T, axis=0, initial=0)
+#         Q_ind_h = integrate.cumtrapz(I_ind_h, T, axis=0, initial=0)
 
-        # Last index with data (time != nan)
-    #     index = np.nanargmax(T, axis=0)
-    #     y = np.indices(index.shape)
-        # Last recorded integrated charge is total induced charge
-    #     q_ind = Q_ind_e[index, y][0] + Q_ind_h[index, y][0]
         q_ind = Q_ind_e_tot + Q_ind_h_tot
 
         # Histogram charge per start position

@@ -56,7 +56,9 @@ class DriftDiffusionSolver(object):
 
     def __init__(self, pot_descr, pot_w_descr,
                  T=300, geom_descr=None, diffusion=True,
-                 t_e_trapping=0., t_h_trapping=0., t_r=20., save_frac=20):
+                 t_e_trapping=0., t_h_trapping=0., 
+                 t_e_t1=0., t_h_t1=0.,
+                 t_r=0., save_frac=20):
         '''
         Parameters
         ----------
@@ -77,6 +79,12 @@ class DriftDiffusionSolver(object):
 
         t_h_trapping : number
             Trapping time for holes in ns
+
+        t_e_t1 : number
+            E-Field dependent trapping time in ns / (V / um)
+
+        t_h_t1 : number
+            E-Field dependent trapping time in ns / (V / um)
 
         t_r : number
             Peaking time of CSA
@@ -101,6 +109,8 @@ class DriftDiffusionSolver(object):
         self.T = T  # Temperatur in Kelvin
         self.t_e_trapping = t_e_trapping  # Trapping time in ns
         self.t_h_trapping = t_h_trapping  # Trapping time in ns
+        self.t_e_t1 = t_e_t1  # Trapping time in ns
+        self.t_h_t1 = t_h_t1  # Trapping time in ns
         self.t_r = t_r  # Rise time of Amplifier
         self.geom_descr = geom_descr
         self.diffusion = diffusion
@@ -146,6 +156,8 @@ class DriftDiffusionSolver(object):
                              diffusion=self.diffusion,
                              t_e_trapping=self.t_e_trapping,
                              t_h_trapping=self.t_h_trapping,
+                             t_e_t1=self.t_e_t1,
+                             t_h_t1=self.t_h_t1,
                              t_r=self.t_r,
                              save_frac=self.save_frac)
 
@@ -174,6 +186,8 @@ class DriftDiffusionSolver(object):
                                     diffusion=self.diffusion,
                                     t_e_trapping=self.t_e_trapping,
                                     t_h_trapping=self.t_h_trapping,
+                                    t_e_t1=self.t_e_t1,
+                                    t_h_t1=self.t_h_t1,
                                     t_r=self.t_r,
                                     save_frac=self.save_frac
                                     )
@@ -236,7 +250,7 @@ def _correct_boundary(geom_descr, pot_descr, x, y, sel, is_electron):
 
 def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
               pot_descr, temp, diffusion, t_e_trapping, t_h_trapping,
-              t_r, save_frac):
+              t_e_t1, t_h_t1, t_r, save_frac):
     p_e, p_h = p_e_0, p_h_0
 
     # Result arrays initialized to NaN
@@ -492,10 +506,11 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
 
             # Reduce induced charge due to trapping
             if t_e_trapping:
-                dQ_e *= np.exp(-dt * step / t_e_trapping)
+                t_e = t_e_trapping + t_e_t1 * np.sqrt(E_e[0]**2 + E_e[1]**2) * 1e-4
+                dQ_e *= np.exp(-dt * step / t_e)
 
             if t_r:
-                dQ_e *= np.exp(-dt * step / t_r)
+                dQ_e *= np.exp(-dt * step / (t_r / 2.2))
 
             dQ_e_step[sel_e] += dQ_e
 
@@ -513,10 +528,11 @@ def _solve_dd(p_e_0, p_h_0, q0, n_steps, dt, geom_descr, pot_w_descr,
 
             # Reduce induced charge due to trapping
             if t_h_trapping:
-                dQ_h *= np.exp(-dt * step / t_e_trapping)
+                t_h = t_h_trapping + t_h_t1 * np.sqrt(E_h[0]**2 + E_h[1]**2) * 1e-4
+                dQ_h *= np.exp(-dt * step / t_h)
 
             if t_r:
-                dQ_h *= np.exp(-dt * step / t_r)
+                dQ_h *= np.exp(-dt * step / (t_r / 2.2))
 
             dQ_h_step[sel_h] += dQ_h
 

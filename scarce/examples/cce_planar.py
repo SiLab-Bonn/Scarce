@@ -25,12 +25,7 @@ def timing(f):
     return wrap
 
 
-def cc_efficiency(fluences, biases, temperatures):
-    # Sensor bulk parameters
-    n_eff_0 = 1.475e12
-    is_ntype = True
-    is_oxygenated = True
-
+def cc_efficiency(fluences, biases, temperatures, n_effs, t_e_trappings, t_h_trappings):
     n_pixel = 9
     width = 50.
     pitch = 30.
@@ -39,9 +34,11 @@ def cc_efficiency(fluences, biases, temperatures):
     smoothing = 0.05
     resolution = 287
 
-    # Prepend no irradiation if not defined
-    if fluences[0] != 0.:
-        fluences = [0.] + fluences
+    try:
+        n_effs = float(n_effs)
+        n_effs = [n_effs] * len(n_effs)
+    except TypeError:
+        pass
 
     try:
         biases = float(biases)
@@ -65,6 +62,7 @@ def cc_efficiency(fluences, biases, temperatures):
         thickness=thickness,
         resolution=resolution)
     # Numerically solve the Poisson equation on the mesh
+    # To create the weighting potential
     w_potential = fields.calculate_planar_sensor_w_potential(
         mesh=mesh,
         width=width,
@@ -84,19 +82,24 @@ def cc_efficiency(fluences, biases, temperatures):
                                      ny=ny,
                                      smoothing=smoothing)
 
+    pot_descr = None
     for i, fluence in enumerate(fluences):
-        n_eff = silicon.get_eff_acceptor_concentration(
-            fluence, n_eff_0 / 1e12, is_ntype, is_oxygenated) * 1e12
-        t_e_trapping = silicon.get_trapping(fluence * 1e12, is_electron=True,
-                                            paper=0)
-        t_h_trapping = silicon.get_trapping(fluence * 1e12, is_electron=False,
-                                            paper=0)
-        print 'n_eff', n_eff
-        print 't_r', t_e_trapping, t_h_trapping
-        edge_x, edge_y, charge = charge_collected(n_eff=n_eff, t_e_trapping=t_e_trapping, t_h_trapping=t_h_trapping,
-                                                  width=width, pitch=pitch, thickness=thickness, n_pixel=n_pixel,
-                                                  temperature=temperatures[i], V_bias=biases[i],
-                                                  pot_w_descr=pot_w_descr, mesh=mesh, smoothing=smoothing)
+
+        print 'fluence', fluence
+        print 'n_eff', n_effs[i]
+        print 'V_bias', biases[i]
+        print 't_r', t_e_trappings[i], t_h_trappings[i]
+
+        # Reset potenital description if recalc of field is needed
+        # Is needed when n_eff changes
+        if i > 0 and n_effs[i] != n_effs[i - 1]:
+            pot_descr = None
+
+        edge_x, edge_y, charge, pot_descr = charge_collected(n_eff=n_effs[i], t_e_trapping=t_e_trappings[i], t_h_trapping=t_h_trappings[i],
+                                                             width=width, pitch=pitch, thickness=thickness, n_pixel=n_pixel,
+                                                             temperature=temperatures[
+                                                                 i], V_bias=biases[i],
+                                                             pot_w_descr=pot_w_descr, mesh=mesh, smoothing=smoothing, pot_descr=pot_descr)
         # Plot collected charge map
         plt.clf()
         plt.gca().set_aspect('equal')
@@ -113,7 +116,7 @@ def cc_efficiency(fluences, biases, temperatures):
         plt.title('Charge collection, fluence %1.2f neq_cm2' % fluence)
         ccs.append(charge)
         plt.savefig('CC_%d_%d.pdf' % (fluence, biases[i]), layout='tight')
-        #plt.show()
+        # plt.show()
 
         if i > 0:
             # Plot charge collection efficiency map
@@ -133,13 +136,13 @@ def cc_efficiency(fluences, biases, temperatures):
                       'fluence %1.2f neq_cm2' % fluence)
             print 'CCE', fluence, charge.mean() / ccs[0].mean() * 100.
             plt.savefig('CCE_%d_%d.pdf' % (fluence, biases[i]), layout='tight')
-            #plt.show()
+            # plt.show()
 
     return ccs
 
 
 def charge_collected(n_eff, t_e_trapping, t_h_trapping, width, pitch, thickness, n_pixel, temperature,
-                     V_bias, pot_w_descr, mesh, smoothing):
+                     V_bias, pot_w_descr, mesh, smoothing, pot_descr=None):
     V_readout = 0.
 
     min_x = float(mesh.getFaceCenters()[0, :].min())
@@ -151,29 +154,30 @@ def charge_collected(n_eff, t_e_trapping, t_h_trapping, width, pitch, thickness,
 
     V_bi = -silicon.get_diffusion_potential(n_eff, temperature)
     # Numerically solve the Laplace equation on the mesh
-    potential = fields.calculate_planar_sensor_potential(
-        mesh=mesh,
-        width=width,
-        pitch=pitch,
-        n_pixel=n_pixel,
-        thickness=thickness,
-        n_eff=n_eff,
-        V_bias=V_bias,
-        V_readout=V_readout,
-        V_bi=V_bi)
-    pot_descr = fields.Description(potential,
-                                   min_x=min_x,
-                                   max_x=max_x,
-                                   min_y=0,
-                                   max_y=thickness,
-                                   nx=nx,
-                                   ny=ny,
-                                   smoothing=smoothing)
+    if not pot_descr:
+        potential = fields.calculate_planar_sensor_potential(
+            mesh=mesh,
+            width=width,
+            pitch=pitch,
+            n_pixel=n_pixel,
+            thickness=thickness,
+            n_eff=n_eff,
+            V_bias=V_bias,
+            V_readout=V_readout,
+            V_bi=V_bi)
+        pot_descr = fields.Description(potential,
+                                       min_x=min_x,
+                                       max_x=max_x,
+                                       min_y=0,
+                                       max_y=thickness,
+                                       nx=nx,
+                                       ny=ny,
+                                       smoothing=smoothing)
 
     return analysis.get_charge_planar(width, thickness, pot_descr, pot_w_descr,
                                       t_e_trapping=t_e_trapping, t_h_trapping=t_h_trapping,
                                       grid_x=5, grid_y=5, n_pairs=10, dt=0.001,
-                                      n_steps=25000, temperature=300)
+                                      n_steps=20000, temperature=300), pot_descr
 
     #         # Plot numerical result in 2D with particle animation
     #         fig = plt.figure()
@@ -210,21 +214,47 @@ if __name__ == '__main__':
         format="%(asctime)s %(levelname)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S")
 
-    # fluences = [0., 100.] + range(200, 900, 200) + range(1000, 4900, 1000) + range(5000, 11000, 2500)
-    fluences = [0.] + [1000] * 8
-    biases = [-80.] + range(-100, -801, -100)
-  
-    ccs = cc_efficiency(fluences=fluences,
-                        biases=biases,
-                        temperatures=300)
-  
-    ccs_mean = [cc.mean() / ccs[0].mean() * 100. for cc in ccs]
-    #ccs_mean = [100.0, 95.819278274882421, 91.492897261571542, 84.44507498549774, 78.023854736701296, 72.517359275661676, 67.581338385657943, 49.639626527411856, 38.39041632424324, 30.536375588272836, 24.835251542831479, 17.418036145128809, 13.384192805371708]
+    fluences = [1000.] * 4
+    biases = [-200, -300, -400, -600]
+    n_eff_0s = [1.475e12] * 4
+
+    n_effs = []
+    t_e_trappings = []
+    t_h_trappings = []
+    
+    with open("data.txt", "a+") as myfile:
+        myfile.append('Fluence\tBias\tN_eff_0\tN_eff\tt_e\tt_h\n')
+    
+        for i, fluence in enumerate(fluences):
+            n_effs.append(silicon.get_eff_acceptor_concentration(fluence, n_eff_0s[i] / 1e12,
+                                                                 is_ntype=True,
+                                                                 is_oxygenated=True)[0] * 1e12)
+            t_e_trappings.append(silicon.get_trapping(fluence * 1e12, is_electron=True,
+                                                      paper=1) * (i + 1))
+            t_h_trappings.append(silicon.get_trapping(fluence * 1e12, is_electron=False,
+                                                      paper=1) * (i + 1))
+    
+            ccs = cc_efficiency(fluences=fluences,
+                                biases=biases,
+                                temperatures=300,
+                                n_effs=n_effs,
+                                t_e_trappings=t_e_trappings,
+                                t_h_trappings=t_h_trappings)
+            
+        for i, fluence in enumerate(fluences):
+            myfile.append('%d\t%d\t%1.2e\t%1.2e\t%1.2e\t%1.2e\n', (fluence,
+                                                                   biases[i],
+                                                                   n_eff_0s[i]))
+
+
     print biases
     print ccs_mean
+#     ccs_mean = [100.0, 95.819278274882421, 91.492897261571542, 84.44507498549774, 78.023854736701296, 72.517359275661676, 67.581338385657943, 49.639626527411856, 38.39041632424324, 30.536375588272836, 24.835251542831479, 17.418036145128809, 13.384192805371708]
+#     print biases
+#     print ccs_mean
 #     biases =  np.abs([-100, -200, -300, -400, -500, -600, -700, -800])
 #     ccs_mean =  [30.315111552256575, 41.117291542671161, 48.451824125239519, 54.58876529456731, 58.059736778438165, 59.735573362868422, 60.508863282827484, 61.292900450661357]
     plt.clf()
     plt.plot(biases, ccs_mean, '.-')
-    
+
     plt.show()
