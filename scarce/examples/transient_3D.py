@@ -12,6 +12,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from scipy import integrate
+
 from scarce import plot, solver, sensor
 
 
@@ -52,22 +54,28 @@ def transient_3D():
 
     # Time steps
     dt = 0.001  # [ns]
-    n_steps = 5000
+    n_steps = 10000
     t = np.arange(n_steps) * dt
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
                                      geom_descr=geom_descr,
                                      T=T,
                                      diffusion=True)
-    traj_e, traj_h, I_ind_e, I_ind_h = dd.solve(p0, q0, dt, n_steps)
+    traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot, Q_ind_e_tot, Q_ind_h_tot = dd.solve(p0, q0, dt, n_steps)
+
+    I_ind_e[np.isnan(I_ind_e)] = 0.
+    I_ind_h[np.isnan(I_ind_h)] = 0.
+    Q_ind_e = integrate.cumtrapz(I_ind_e, T, axis=0, initial=0)
+    Q_ind_h = integrate.cumtrapz(I_ind_h, T, axis=0, initial=0)
 
     for i in (5, 13):
-        plt.plot(t, np.cumsum(I_ind_e[:, i], axis=0) * dt, color='blue',
+        plt.plot(T[:, i], Q_ind_e[:, i], color='blue',
                  label='Electrons')
-        plt.plot(t, np.cumsum(I_ind_h[:, i], axis=0) * dt, color='red',
+        plt.plot(T[:, i], Q_ind_h[:, i], color='red',
                  label='Holes')
-        plt.plot(t, np.cumsum(I_ind_e[:, i] + I_ind_h[:, i], axis=0) * dt,
+        plt.plot(T[:, i], (Q_ind_e + Q_ind_h)[:, i],
                  color='magenta', label='Sum')
+        plt.plot(plt.xlim(), [(Q_ind_e_tot + Q_ind_h_tot)[i]] * 2, '-', color='magenta')
         plt.legend(loc=0)
         plt.xlabel('Time [ns]')
         plt.ylabel('Charge normalized to 1')
@@ -82,8 +90,8 @@ def transient_3D():
                             radius, nD,
                             n_pixel_x, n_pixel_y,
                             V_bias=V_bias, V_readout=V_readout,
-                            potential_function=pot_descr.get_potential_smooth,
-                            field_function=pot_descr.get_field,
+                            pot_func=pot_descr.get_potential_smooth,
+                            field_func=pot_descr.get_field,
                             # Comment in if you want to see the mesh
                             mesh=None,  # potential.mesh,
                             title='Potential and field of a 3D sensor, '\
@@ -91,17 +99,16 @@ def transient_3D():
                             (n_pixel_x, n_pixel_y))
 
     # Create animation
-    init, animate = plot.animate_drift_diffusion(
-        fig, pe=traj_e, ph=traj_h, dt=dt)
-    ani_time = 5.  # [s]
-    frames = 100
+    frames = 50
+    init, animate = plot.animate_drift_diffusion(fig, T=T, pe=traj_e,
+                                                 ph=traj_h, dt=t.max() /
+                                                 frames,
+                                                 n_steps=frames)
     ani = animation.FuncAnimation(fig=fig, func=animate,
-                                  frames=np.arange(1, traj_h.shape[0],
-                                                   traj_h.shape[0] / frames),
-                                  interval=ani_time / frames * 1000.,
-                                  blit=True, init_func=init,
-                                  repeat_delay=ani_time / 5.)
-#     ani.save('Example_3D_drift.gif', dpi=80, writer='imagemagick')
+                                  blit=True, init_func=init, frames=frames,
+                                  interval=5000 / frames)
+
+    # ani.save('Example_3D_drift.gif', dpi=80, writer='imagemagick')
     plt.show()
 
 
