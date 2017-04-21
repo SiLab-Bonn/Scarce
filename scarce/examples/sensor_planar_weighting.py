@@ -98,7 +98,7 @@ def sensor_planar():
                             n_pixel=n_pixel,
                             V_backplane=0,  # Weighting field = 0 at backplane
                             V_readout=1,  # Weighting field = 1 at readout
-                            potential_function=potential_analytic,
+                            pot_func=potential_analytic,
                             title='Planar sensor weighting potential and field,' \
                                   ' analytical solution')
 
