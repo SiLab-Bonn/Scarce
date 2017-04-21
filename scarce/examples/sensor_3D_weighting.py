@@ -42,8 +42,8 @@ def sensor_3D():
                             radius, nD,
                             n_pixel_x, n_pixel_y,
                             V_bias=1, V_readout=0,
-                            potential_function=pot_descr.get_potential_smooth,
-                            field_function=pot_descr.get_field,
+                            pot_func=pot_descr.get_potential_smooth,
+                            field_func=pot_descr.get_field,
                             # Comment in if you want to see the mesh
                             mesh=None,  # potential.mesh,
                             title='Weihting potential and field of 3D sensor,'\

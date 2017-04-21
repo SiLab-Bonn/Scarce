@@ -41,7 +41,7 @@ def sensor_3D():
                             radius, nD,
                             n_pixel_x, n_pixel_y,
                             V_bias=V_bias, V_readout=V_readout,
-                            potential_function=pot_descr.get_potential_smooth,
+                            pot_func=pot_descr.get_potential_smooth,
                             field_function=pot_descr.get_field,
                             # Comment in if you want to see the mesh
                             mesh=None,  # pot_descr.pot_data.mesh,

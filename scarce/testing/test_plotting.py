@@ -34,24 +34,24 @@ class TestPlotting(unittest.TestCase):
             return fields.get_weighting_field_analytic(x, y, D=thickness, S=width, is_planar=True)
 
         # Plot with analytical field function
-        plot.plot_planar_sensor(potential_function=potential_function,
+        plot.plot_planar_sensor(pot_func=potential_function,
                                 width=width,
                                 pitch=width,
                                 thickness=thickness,
                                 n_pixel=1,
                                 V_backplane=0,
                                 V_readout=1,
-                                field_function=field_function)
+                                field_func=field_function)
 
         # Plot without a field function
-        plot.plot_planar_sensor(potential_function=potential_function,
+        plot.plot_planar_sensor(pot_func=potential_function,
                                 width=width,
                                 pitch=width,
                                 thickness=thickness,
                                 n_pixel=1,
                                 V_backplane=0,
                                 V_readout=1,
-                                field_function=None)
+                                field_func=None)
 
     def test_plot_mesh(self):
         mesh = geometry.mesh_planar_sensor(

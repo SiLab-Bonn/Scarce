@@ -58,8 +58,12 @@ class TestFields(unittest.TestCase):
                 Phi_w = fields.get_weighting_potential_analytic(
                     xx, yy, D=thickness, S=width, is_planar=True)
 
-                E_w_y_2, E_w_x_2 = np.gradient(-Phi_w, np.gradient(y),
-                                               np.gradient(x))
+                # Check for constant gradient
+                assert np.allclose(np.gradient(x), np.gradient(x)[0])
+                assert np.allclose(np.gradient(y), np.gradient(y)[0])
+
+                E_w_y_2, E_w_x_2 = np.gradient(-Phi_w, np.gradient(y)[0],
+                                               np.gradient(x)[0])
 
                 array_1 = np.array([E_w_x, E_w_y])
                 array_2 = np.array([E_w_x_2, E_w_y_2])
@@ -79,7 +83,8 @@ class TestFields(unittest.TestCase):
         n_pixel = 11
 
         for i, width in enumerate([50., 200.]):
-            for j, thickness in enumerate([50., 250.]):  # FIXME: 50 um thichness does not work
+            # FIXME: 50 um thichness does not work
+            for j, thickness in enumerate([50., 250.]):
                 # Analytical solution only existing for pixel width = readout
                 # pitch (100% fill factor)
                 pitch = width
@@ -216,10 +221,12 @@ class TestFields(unittest.TestCase):
         # Check only at center pixel, edge pixel are not interessting
         for pox_x in [-45, -30, -15, -10, 0, 10, 15, 30, 45]:
             self.assertTrue(np.allclose(
-                f_analytic_x.T[nx / 2 + pox_x, :], f_numeric_x.T[nx / 2 + pox_x, :],
+                f_analytic_x.T[
+                    nx / 2 + pox_x, :], f_numeric_x.T[nx / 2 + pox_x, :],
                 rtol=0.01, atol=0.01))
             self.assertTrue(np.allclose(
-                f_analytic_y.T[nx / 2 + pox_x, :], f_numeric_y.T[nx / 2 + pox_x, :],
+                f_analytic_y.T[
+                    nx / 2 + pox_x, :], f_numeric_y.T[nx / 2 + pox_x, :],
                 rtol=0.01, atol=0.01))
 
     def test_potential_smoothing(self):

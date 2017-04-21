@@ -82,8 +82,8 @@ def sensor_planar():
                             n_pixel=n_pixel,
                             V_backplane=0,  # Weighting field = 0 at backplane
                             V_readout=1,  # Weighting field = 1 at readout
-                            potential_function=desc.get_potential_smooth,
-                            field_function=desc.get_field,
+                            pot_func=desc.get_potential_smooth,
+                            field_func=desc.get_field,
                             # Comment in if you want to see the mesh
                             mesh=None,  # potential.mesh,
                             title='Planar sensor weighting potential and field,' \
