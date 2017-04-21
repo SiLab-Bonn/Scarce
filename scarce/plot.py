@@ -164,7 +164,10 @@ def get_planar_sensor_plot(fig,
         ax.streamplot(x, y, E_x, E_y, density=1.0, color='gray',
                       arrowstyle='-')
     elif pot_func:
-        E_y, E_x = np.gradient(-phi, np.gradient(y), np.gradient(x))
+        # Check for constant gradient
+        assert np.allclose(np.gradient(x), np.gradient(x)[0])
+        assert np.allclose(np.gradient(y), np.gradient(y)[0])
+        E_y, E_x = np.gradient(-phi, np.gradient(y)[0], np.gradient(x)[0])
         ax.streamplot(x, y, E_x, E_y, density=1.0, color='gray',
                       arrowstyle='-')
 
@@ -281,7 +284,9 @@ def get_3D_sensor_plot(fig,
         ax.streamplot(x, y, E_x, E_y, density=1.0, color='gray',
                       arrowstyle='-')
     elif pot_func:  # Get field from pot differentiation
-        E_y, E_x = np.gradient(-phi, np.gradient(y), np.gradient(x))
+        assert np.allclose(np.gradient(x), np.gradient(x)[0])
+        assert np.allclose(np.gradient(y), np.gradient(y)[0])
+        E_y, E_x = np.gradient(-phi, np.gradient(y)[0], np.gradient(x)[0])
         ax.streamplot(x, y, E_x, E_y, density=1.0, color='gray',
                       arrowstyle='-')
 
