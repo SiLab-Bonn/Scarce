@@ -17,13 +17,15 @@ from scarce import fields, plot, silicon, sensor
 
 def sensor_planar():
     # Sensor parameters
-    n_eff = 1.7e12
-    width = 50.
-    thickness = 200.
-    temperature = 300.
-    pitch = 45.
+    n_eff = 6.2e12
     n_pixel = 9
-    V_bias = -80.
+    width = 50.
+    pitch = 30.
+    thickness = 250.
+    smoothing = 0.05
+    resolution = 287
+    temperature = 300.
+    V_bias = -300.
     V_readout = 0.
 
     # Create sensor
@@ -38,10 +40,10 @@ def sensor_planar():
                                      # Calculate drift potential only
                                      # to safe time
                                      selection='drift',
-                                     resolution=300.,
+                                     resolution=resolution,
                                      # Might have to be adjusted when changing
                                      # the geometry
-                                     smoothing=0.05
+                                     smoothing=smoothing
                                      )
 
     # Build in voltage needed for analytical solution
@@ -102,9 +104,9 @@ def sensor_planar():
                             V_backplane=V_bias,
                             # Weighting field = 1 at readout
                             V_readout=V_readout,
-                            potential_function=pot_descr.get_potential,
-                            field_function=pot_descr.get_field,
-                            depletion_function=pot_descr.get_depletion,
+                            pot_func=pot_descr.get_potential,
+                            field_func=pot_descr.get_field,
+                            depl_func=pot_descr.get_depletion,
                             # Comment in if you want to see the mesh
                             mesh=None,  # potential.mesh,
                             title='Planar sensor potential')
