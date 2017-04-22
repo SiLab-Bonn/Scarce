@@ -175,7 +175,7 @@ def charge_collected(t_e_trapping, t_h_trapping,
                                       t_e_trapping=t_e_trapping, t_h_trapping=t_h_trapping,
                                       t_e_t1=t_e_t1, t_h_t1=t_h_t1, t_r=None,
                                       grid_x=5, grid_y=25, n_pairs=10, dt=0.001,
-                                      n_steps=20000, temperature=TEMP)
+                                      n_steps=20000, temperature=TEMP, multicore=False)
 
 def ccs(t_trappings, t_t1, n_eff, thickness, biases):
     cc = []
