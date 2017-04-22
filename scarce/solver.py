@@ -160,10 +160,11 @@ class DriftDiffusionSolver(object):
                              t_h_t1=self.t_h_t1,
                              t_r=self.t_r,
                              save_frac=self.save_frac)
+            
+        n_slices = min(4, cpu_count() - 1)
+        pool = Pool(self.n_slices)
 
-        # Split data and into cores - 1 slices
-        n_slices = 4 # cpu_count() - 1
-        pool = Pool(n_slices)
+        # Split data and into cores - 1 slices, max 4
         slices_p_e_0 = np.array_split(p0, n_slices, axis=1)
         slices_p_h_0 = np.array_split(p0, n_slices, axis=1)
         slices_q0 = np.array_split(q0, n_slices, axis=0)
@@ -200,6 +201,8 @@ class DriftDiffusionSolver(object):
 
         pool.close()
         pool.join()
+        
+        del pool
 
         # Merge results
         I_ind_tot = np.zeros(shape=(n_steps,))
