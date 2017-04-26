@@ -311,22 +311,22 @@ def get_3D_sensor_plot(fig,
     # Plot readout pillars
     for pos_x, pos_y in desc.get_ro_col_offsets():
         ax.add_patch(plt.Circle((pos_x, pos_y), radius, color="darkred",
-                                linewidth=0))
+                                linewidth=0, zorder=5))
 
     # Plot full bias pillars
     for pos_x, pos_y in desc.get_center_bias_col_offsets():
         ax.add_patch(plt.Circle((pos_x, pos_y), radius, color="darkblue",
-                                linewidth=0))
+                                linewidth=0, zorder=5))
 
     # Plot side bias pillars
     for pos_x, pos_y in desc.get_side_bias_col_offsets():
         ax.add_patch(plt.Circle((pos_x, pos_y), radius, color="darkblue",
-                                linewidth=0))
+                                linewidth=0, zorder=5))
 
     # Plot edge bias pillars
     for pos_x, pos_y in desc.get_edge_bias_col_offsets():
         ax.add_patch(plt.Circle((pos_x, pos_y), radius, color="darkblue",
-                                linewidth=0))
+                                linewidth=0, zorder=5))
 
     ax.set_xlim((1.05 * min_x, 1.05 * max_x))
     ax.set_ylim((1.05 * min_y, 1.05 * max_y))
