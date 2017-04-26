@@ -14,12 +14,14 @@ from scarce import plot, solver, sensor, tools
 
 def transient_planar():
     # Sensor parameters
-    n_eff = 1.7e12
-    width = 50.
-    thickness = 200.
-    temperature = 300.
-    pitch = 45.
+    n_eff = 1.45e12
     n_pixel = 9
+    width = 50.
+    pitch = 30.
+    thickness = 200.
+    smoothing = 0.05
+    resolution = 251
+    temperature = 300.
     V_bias = -80.
     V_readout = 0.
 
@@ -32,16 +34,17 @@ def transient_planar():
                                                   width=width,
                                                   pitch=pitch,
                                                   thickness=thickness,
-                                                  resolution=200.,
+                                                  resolution=resolution,
                                                   # Might have to be adjusted
                                                   # when changing the geometry
-                                                  smoothing=0.01)
+                                                  smoothing=smoothing)
 
     # Start parameters of e-h pairs
     # Create 10 e-h pairs every 5 um in y
     xx, yy = np.meshgrid(np.linspace(0, width, 1),  # x
-                         np.repeat(np.linspace(thickness/2., thickness,
-                                               4), 1),
+                         np.repeat(np.linspace(0.,
+                                               thickness - 10,
+                                               10), 1),
                          sparse=False)  # All combinations of x / y
     p0 = np.array([xx.ravel(), yy.ravel()])  # Position [um]
 
@@ -55,6 +58,7 @@ def transient_planar():
 
     dd = solver.DriftDiffusionSolver(pot_descr, pot_w_descr,
                                      T=temperature, diffusion=True,
+                                     t_r=0.,
                                      save_frac=1)
     traj_e, traj_h, I_ind_e, I_ind_h, T, I_ind_tot, Q_ind_e_tot, Q_ind_h_tot = dd.solve(p0, q0, dt,
                                                               n_steps,
@@ -94,13 +98,14 @@ def transient_planar():
 #     plt.plot(T[:, 0], Q_ind_h[:, 0], '.-',
 #              color='red', linewidth=2, label='h')
     Q_ind_tot = Q_ind_e_tot + Q_ind_h_tot
-    plt.plot(T[:, 0], Q_ind_e[:, 0] + Q_ind_h[:, 0],
-             '-', color='magenta', linewidth=1, label='e+h')
-    plt.plot(T[:, 1], Q_ind_e[:, 1] + Q_ind_h[:, 1],
-            '-', color='magenta', linewidth=1, label='e+h')
     
-    plt.plot(plt.xlim(), [Q_ind_tot[0], Q_ind_tot[0]])
-    plt.plot(plt.xlim(), [Q_ind_tot[1], Q_ind_tot[1]])
+    for i in range(10):
+        plt.plot(T[:, i], Q_ind_e[:, i] + Q_ind_h[:, i],
+                 '-', linewidth=1, label='e+h')
+    
+        plt.plot(plt.xlim(), [Q_ind_tot[i], Q_ind_tot[i]])
+        print Q_ind_tot[i]
+
 #     plt.plot(t, Q_ind_t, '.-', color='black',
 #              label='e+h', linewidth=1)
     plt.legend(loc=0)
