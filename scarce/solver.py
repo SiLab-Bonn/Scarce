@@ -162,7 +162,7 @@ class DriftDiffusionSolver(object):
                              save_frac=self.save_frac)
             
         n_slices = min(4, cpu_count() - 1)
-        pool = Pool(self.n_slices)
+        pool = Pool(n_slices)
 
         # Split data and into cores - 1 slices, max 4
         slices_p_e_0 = np.array_split(p0, n_slices, axis=1)
