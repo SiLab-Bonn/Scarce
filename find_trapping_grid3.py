@@ -281,35 +281,35 @@ if __name__ == '__main__':
         format="%(asctime)s %(levelname)s %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S")
 
-#     parser = argparse.ArgumentParser(
-#         description='Minimize to best trapping constants with start value')
-#     parser.add_argument(
-#         '--neff', type=float, nargs=1, help='Effective doping concentration [1e12 / cm2]', required=True)
-#     parser.add_argument(
-#         '--tr0', type=float, nargs=1, help='Start trapping parameter ns', required=True)
-#     parser.add_argument('--tr1', type=float, nargs=1,
-#                         help='Start trapping parameter per E-Field ns / V/um', required=True)
-#     parser.add_argument('--datafolder', type=str, nargs=1,
-#                         help='Folder with input and output data', required=True)
-#     parser.add_argument(
-#         '--output', type=str, nargs=1, help='Filename of output', required=True)
-#
-#     parser.add_argument('-o', '--optimize', action='store_true')
-#
-#     args = parser.parse_args()
-#     DATAFOLDER = args.datafolder[0]
-#     RESULT = args.output[0]
-#     TR0 = args.tr0[0]
-#     TR1 = args.tr1[0]
-#     NEFF = args.neff[0] * 1e12
-#     FIT = args.optimize
+    parser = argparse.ArgumentParser(
+        description='Minimize to best trapping constants with start value')
+    parser.add_argument(
+        '--neff', type=float, nargs=1, help='Effective doping concentration [1e12 / cm2]', required=True)
+    parser.add_argument(
+        '--tr0', type=float, nargs=1, help='Start trapping parameter ns', required=True)
+    parser.add_argument('--tr1', type=float, nargs=1,
+                        help='Start trapping parameter per E-Field ns / V/um', required=True)
+    parser.add_argument('--datafolder', type=str, nargs=1,
+                        help='Folder with input and output data', required=True)
+    parser.add_argument(
+        '--output', type=str, nargs=1, help='Filename of output', required=True)
 
-    FIT = False
-    TR0 = 2.
-    TR1 = 0.
-    DATAFOLDER = r'/home/davidlp/git/Thesis/Analysis/CCE/Landau/SCC112/'
-    RESULT = r'/home/davidlp/git/Thesis/Analysis/CCE/Landau/SCC112/result.txt'
-    NEFF = silicon.get_eff_acceptor_concentration(FLUENCE, NEFF0 / 1e12, is_ntype=False, is_oxygenated=True) * 1e12 / 3.
+    parser.add_argument('-o', '--optimize', action='store_true')
+
+    args = parser.parse_args()
+    DATAFOLDER = args.datafolder[0]
+    RESULT = args.output[0]
+    TR0 = args.tr0[0]
+    TR1 = args.tr1[0]
+    NEFF = args.neff[0] * 1e12
+    FIT = args.optimize
+
+#     FIT = False
+#     TR0 = 2.
+#     TR1 = 0.
+#     DATAFOLDER = r'/home/davidlp/git/Thesis/Analysis/CCE/Landau/SCC112/'
+#     RESULT = r'/home/davidlp/git/Thesis/Analysis/CCE/Landau/SCC112/result.txt'
+#     NEFF = silicon.get_eff_acceptor_concentration(FLUENCE, NEFF0 / 1e12, is_ntype=False, is_oxygenated=True) * 1e12 / 3.
 
     logging.info('Data folder: %s', DATAFOLDER)
     logging.info('Result file: %s', RESULT)
