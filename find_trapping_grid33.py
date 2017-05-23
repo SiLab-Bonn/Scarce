@@ -185,7 +185,7 @@ def charge_collected(t_e_trapping, t_h_trapping,
                                   t_e_trapping=t_e_trapping, t_h_trapping=t_h_trapping,
                                   t_e_t1=t_e_t1, t_h_t1=t_h_t1,
                                   grid_x=5, grid_y=5, n_pairs=10, dt=0.001,
-                                  n_steps=20000, temperature=TEMP, multicore=True)
+                                  n_steps=20000, temperature=TEMP, multicore=False)
 
 
 def ccs(t_trappings, t_t1, n_eff, biases, cc_0_1):
@@ -338,7 +338,7 @@ if __name__ == '__main__':
 
     unirrad_charge = 16574.
     data_files_1 = [
-        os.path.normpath(os.path.join(DATAFOLDER, 'mpv_bias_irrad2.txt'))]
+        os.path.normpath(os.path.join(DATAFOLDER, 'mpv_bias_irrad2_scc112.txt'))]
     data_files_iv_1 = [
         os.path.normpath(os.path.join(DATAFOLDER, r'SCC_112_5e15_-50C_FE_ON_AND_CFG.h5'))]
 
