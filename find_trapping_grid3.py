@@ -183,7 +183,7 @@ def charge_collected(t_e_trapping, t_h_trapping,
                                   t_e_trapping=t_e_trapping, t_h_trapping=t_h_trapping,
                                   t_e_t1=t_e_t1, t_h_t1=t_h_t1,
                                   grid_x=5, grid_y=5, n_pairs=10, dt=0.001,
-                                  n_steps=20000, temperature=TEMP)
+                                  n_steps=20000, temperature=TEMP, multicore=False)
 
 
 def ccs(t_trappings, t_t1, n_eff, biases):
@@ -318,9 +318,9 @@ if __name__ == '__main__':
 
     unirrad_charge = 16574.
     data_files_1 = [
-        os.path.normpath(os.path.join(DATAFOLDER, 'mpv_bias_irrad1.txt'))]
+        os.path.normpath(os.path.join(DATAFOLDER, 'mpv_bias_irrad1_scc112.txt'))]
     data_files_iv_1 = [
-        os.path.normpath(os.path.join(DATAFOLDER, r'data/2_scc_112_iv_scan.h5'))]
+        os.path.normpath(os.path.join(DATAFOLDER, r'2_scc_112_iv_scan.h5'))]
 
     SPLINE_1 = plot_cce_mpv(data_files_1, data_files_iv_1, start_i=7)
 
