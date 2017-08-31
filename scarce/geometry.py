@@ -396,9 +396,9 @@ def mesh_planar_sensor(n_pixel, width, thickness,
                        resolution=1., filename='sensor.msh'):
     _LOGGER.info('Mesh planar sensor array')
     if n_pixel < 3:
-        raise logging.warning(
+        logging.warning(
             'Less than 3 pixels result in quite wrong boundaries. \
-            It is better to choose more pixelss!')
+            It is better to choose more pixels!')
     if not n_pixel % 2:
         raise NotImplementedError(
             'Chose an odd pixel number (symmetry reasons)')
