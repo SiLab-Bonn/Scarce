@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import PolyCollection
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.patches import Rectangle
 from matplotlib import cm
 import logging
@@ -29,6 +30,7 @@ def get_mesh_plot(fig, mesh, values=None, invert_y_axis=True):
 
     collection = PolyCollection(polys)
     collection.set_facecolors('None')
+    collection.set_edgecolor((0.2, 0.2, 0.2, 0.5))
     if invert_y_axis:
         ax.invert_yaxis()
     ax.add_collection(collection)
@@ -40,7 +42,7 @@ def get_mesh_plot(fig, mesh, values=None, invert_y_axis=True):
 #         collection.set_facecolors(rgba)
 #         collection.set_edgecolors(rgba)
 
-    ax.plot()
+#    ax.plot()
 
 
 def plot_mesh(mesh, values=None, invert_y_axis=True):
@@ -147,8 +149,8 @@ def get_planar_sensor_plot(fig,
         cmesh = ax.pcolormesh(x - np.diff(x)[0] / 2., y - np.diff(y)[0] / 2.,
                               phi, cmap=cm.get_cmap('Blues'), vmin=V_backplane,
                               vmax=V_readout)
-        cax = fig.add_axes([ax.get_position().xmax, 0.1, 0.05,
-                            ax.get_position().ymax - ax.get_position().ymin])
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
 
     # Plot E-Field
@@ -176,12 +178,13 @@ def get_planar_sensor_plot(fig,
 
     # Plot backside
     ax.add_patch(Rectangle((min_x, max_y), (max_x - min_x), max_y,
-                           color="grey", linewidth=2))
+                           color="darkblue", linewidth=2))
 
     # Plot pixel(s)
+    ylim = ax.get_ylim()[0]
     for pixel in range(n_pixel):
         pixel_position = width * (pixel + 1. / 2.) - width * n_pixel / 2.
-        ax.add_patch(Rectangle((pixel_position - pitch / 2, ax.get_ylim()[0]),
+        ax.add_patch(Rectangle((pixel_position - pitch / 2, ylim),
                                pitch, 0, color="darkred", linewidth=5))
         ax.plot([pixel_position - width / 2, pixel_position - width / 2],
                 [min_y, max_y], '--', color='black', linewidth=4)
@@ -189,10 +192,10 @@ def get_planar_sensor_plot(fig,
             [min_y, max_y], '--', color='black', linewidth=4)  # Last pixel end
 
     ax.set_ylim((- 0.02 * (ax.get_ylim()[1] - ax.get_ylim()[0]), 1.02 * max_y))
-    ax.set_xlabel('Position x/y [um]', fontsize=22)
-    ax.set_ylabel('Position z [um]', fontsize=22)
+    ax.set_xlabel('Position x/y [um]', fontsize=18)
+    ax.set_ylabel('Position z [um]', fontsize=18)
     if title:
-        ax.set_title(title, fontsize=22)
+        ax.set_title(title, fontsize=18)
     ax.invert_yaxis()
 
 
@@ -221,7 +224,7 @@ def get_3D_sensor_plot(fig,
                        width_x, width_y,
                        radius, nD,
                        n_pixel_x, n_pixel_y,
-                       V_bias, V_readout,
+                       V_bias=None, V_readout=None,
                        pot_func=None,
                        field_func=None,
                        mesh=None,
@@ -270,12 +273,18 @@ def get_3D_sensor_plot(fig,
         # Mask pot in columns, otherwise contour plot goes crazy
         phi_masked = np.ma.masked_array(phi, mask=get_column_mask(xx, yy))
 
+        if V_bias is None:
+            V_bias = phi_masked.min()
+
+        if V_readout is None:
+            V_readout = phi_masked.max()
+
         ax.contour(x, y, phi_masked, 10, colors='black')
         cmesh = ax.pcolormesh(x - np.diff(x)[0] / 2., y - np.diff(y)[0] / 2.,
                               phi, cmap=cm.get_cmap('Blues'), vmin=V_bias,
                               vmax=V_readout)
-        cax = fig.add_axes([ax.get_position().xmax, 0.1, 0.05,
-                            ax.get_position().ymax - ax.get_position().ymin])
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
 
     # Plot E-Field
@@ -330,10 +339,10 @@ def get_3D_sensor_plot(fig,
 
     ax.set_xlim((1.05 * min_x, 1.05 * max_x))
     ax.set_ylim((1.05 * min_y, 1.05 * max_y))
-    ax.set_xlabel('Position x [um]', fontsize=22)
-    ax.set_ylabel('Position y [um]', fontsize=22)
+    ax.set_xlabel('Position x [um]', fontsize=18)
+    ax.set_ylabel('Position y [um]', fontsize=18)
     if title:
-        ax.set_title(title, fontsize=22)
+        ax.set_title(title, fontsize=18)
 
 
 def animate_drift_diffusion(fig, T, pe, ph, dt, n_steps):
