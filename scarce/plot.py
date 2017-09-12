@@ -6,6 +6,10 @@ from matplotlib.patches import Rectangle
 from matplotlib import cm
 import logging
 
+import matplotlib
+matplotlib.rcParams['contour.negative_linestyle'] = 'solid'
+
+
 from scarce import geometry, tools
 
 _LOGGER = logging.getLogger(__name__)
@@ -148,7 +152,7 @@ def get_planar_sensor_plot(fig,
                    vmax=V_readout)
         cmesh = ax.pcolormesh(x - np.diff(x)[0] / 2., y - np.diff(y)[0] / 2.,
                               phi, cmap=cm.get_cmap('Blues'), vmin=V_backplane,
-                              vmax=V_readout)
+                              vmax=V_readout, rasterized=True)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
@@ -282,7 +286,7 @@ def get_3D_sensor_plot(fig,
         ax.contour(x, y, phi_masked, 10, colors='black')
         cmesh = ax.pcolormesh(x - np.diff(x)[0] / 2., y - np.diff(y)[0] / 2.,
                               phi, cmap=cm.get_cmap('Blues'), vmin=V_bias,
-                              vmax=V_readout)
+                              vmax=V_readout, rasterized=True)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         fig.colorbar(cmesh, cax=cax, orientation='vertical')
