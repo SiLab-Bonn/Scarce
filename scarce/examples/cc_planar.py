@@ -12,7 +12,10 @@ from matplotlib import cm
 from scarce import plot, silicon, analysis, sensor
 
 
-def cc(bias, temperature, n_eff, t_e_trapping, t_h_trapping):
+def cc(n_eff, bias, V_readout, temperature,
+       t_e_trapping, t_h_trapping,
+       n_pixel, width, pitch, thickness,
+       resolution, smoothing):
     # Create sensor
     pot_w_descr, pot_descr = sensor.planar_sensor(n_eff=n_eff,
                                                   V_bias=bias,
@@ -23,15 +26,17 @@ def cc(bias, temperature, n_eff, t_e_trapping, t_h_trapping):
                                                   pitch=pitch,
                                                   thickness=thickness,
                                                   resolution=resolution,
-                                                  # Might have to be adjusted when changing
-                                                  # the geometry
+                                                  # Might have to be adjusted
+                                                  # when changing the geometry
                                                   smoothing=smoothing
                                                   )
 
     return analysis.get_charge_planar(width, thickness, pot_descr, pot_w_descr,
-                                      t_e_trapping=t_e_trapping, t_h_trapping=t_h_trapping,
+                                      t_e_trapping=t_e_trapping,
+                                      t_h_trapping=t_h_trapping,
                                       grid_x=5, grid_y=5, n_pairs=20, dt=0.001,
-                                      n_steps=20000, temperature=temperature), pot_descr
+                                      n_steps=20000,
+                                      temperature=temperature), pot_descr
 
 if __name__ == '__main__':
     import logging
@@ -54,17 +59,21 @@ if __name__ == '__main__':
     n_eff_0 = 6.475e12
     temperature = 300
 
-    n_eff = silicon.get_eff_acceptor_concentration(fluence, n_eff_0 / 1e12,
-                                                   is_ntype=True,
-                                                   is_oxygenated=True)[0] * 1e12
-    t_e_trapping = silicon.get_trapping(fluence * 1e12, is_electron=True, paper=1)
-    t_h_trapping = silicon.get_trapping(fluence * 1e12, is_electron=False, paper=1)
+    # Set doping concentration and fluence from models
+    n_eff = silicon.get_eff_acceptor_concentration(
+        fluence, n_eff_0 / 1e12,
+        is_ntype=True,
+        is_oxygenated=True)[0] * 1e12
+    t_e_trapping = silicon.get_trapping(fluence * 1e12, is_electron=True,
+                                        paper=1)
+    t_h_trapping = silicon.get_trapping(fluence * 1e12, is_electron=False,
+                                        paper=1)
 
-    (edge_x, edge_y, charge), pot_descr = cc(bias=bias,
-                                             temperature=temperature,
-                                             n_eff=n_eff,
-                                             t_e_trapping=t_e_trapping,
-                                             t_h_trapping=t_h_trapping)
+    (edge_x, edge_y, charge), pot_descr = cc(n_eff, bias,
+                                             V_readout, temperature,
+                                             t_e_trapping, t_h_trapping,
+                                             n_pixel, width, pitch, thickness,
+                                             resolution, smoothing)
 
     # Plot numerical potential result in 2D
     plot.plot_planar_sensor(width=width,
@@ -88,8 +97,9 @@ if __name__ == '__main__':
                            cmap=cmap, vmin=0, vmax=1.05)
     plt.title('Charge collection, fluence %1.2f neq_cm2' % fluence)
     plt.grid()
-    cax = plt.gcf().add_axes([plt.gca().get_position().xmax, 0.1, 0.05,
-                              plt.gca().get_position().ymax - plt.gca().get_position().ymin])
+    cax = plt.gcf().add_axes(
+        [plt.gca().get_position().xmax, 0.1, 0.05,
+         plt.gca().get_position().ymax - plt.gca().get_position().ymin])
     plt.colorbar(cmesh, cax=cax, orientation='vertical')
     plt.grid()
     plt.savefig('CC_%d_%d.pdf' % (fluence, bias), layout='tight')
