@@ -33,7 +33,7 @@ def cc(n_eff, bias, V_readout, temperature,
                                   t_h_trapping=t_h_trapping,
                                   grid_x=2.5, grid_y=2.5, n_pairs=20, dt=0.001,
                                   n_steps=20000,
-                                  temperature=temperature), pot_descr
+                                  temperature=temperature), pot_dcr
 
 if __name__ == '__main__':
     import logging
