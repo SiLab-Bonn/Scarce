@@ -4,16 +4,10 @@
     through the silicon.
 '''
 
-import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from matplotlib import cm
-from scipy import integrate
-from scarce import plot, solver, geometry, silicon, fields, tools, analysis
 
 from scarce import tools
-from matplotlib.pyplot import twinx
-
 from scarce.examples import cc_planar
 
 
@@ -66,42 +60,21 @@ if __name__ == '__main__':
     tools.save(obj=(edge_x, edge_y, charge),
                filename='charge_planar_irrad')
 
-    # Plot collected charge map
-    edge_x, edge_y, charge = tools.load(filename='charge_planar_unirrad')
+    # Plot CCE map
+    _, _, charge_u = tools.load(filename='charge_planar_unirrad')
     plt.clf()
     plt.gca().set_aspect('equal')
     plt.gca().invert_yaxis()
     cmap = cm.get_cmap('inferno')
     cmap.set_bad('white')
-    cmesh = plt.pcolormesh(edge_x, edge_y, charge,
+    cmesh = plt.pcolormesh(edge_x, edge_y, charge / charge_u,
                            cmap=cmap, vmin=0, vmax=1.05)
-    plt.title('Charge collection')
+    plt.title('Charge collection efficiency')
     plt.grid()
     cax = plt.gcf().add_axes(
         [plt.gca().get_position().xmax, 0.1, 0.05,
          plt.gca().get_position().ymax - plt.gca().get_position().ymin])
     plt.colorbar(cmesh, cax=cax, orientation='vertical')
     plt.grid()
-    plt.savefig('CC_planar.pdf', layout='tight')
-    plt.show()
-
-    edge_x, edge_y, charge_i = tools.load(filename='charge_planar_irrad')
-
-    # Plot collected charge map
-    edge_x, edge_y, charge = tools.load(filename='charge_planar_irrad')
-    plt.clf()
-    plt.gca().set_aspect('equal')
-    plt.gca().invert_yaxis()
-    cmap = cm.get_cmap('inferno')
-    cmap.set_bad('white')
-    cmesh = plt.pcolormesh(edge_x, edge_y, charge,
-                           cmap=cmap, vmin=0, vmax=1.05)
-    plt.title('Charge collection')
-    plt.grid()
-    cax = plt.gcf().add_axes(
-        [plt.gca().get_position().xmax, 0.1, 0.05,
-         plt.gca().get_position().ymax - plt.gca().get_position().ymin])
-    plt.colorbar(cmesh, cax=cax, orientation='vertical')
-    plt.grid()
-    plt.savefig('CC_planar_irrad.pdf', layout='tight')
+    plt.savefig('CCE_planar_irrad.pdf', layout='tight')
     plt.show()
