@@ -5,6 +5,6 @@ numpy  # fast math functions on c arrays
 scipy  # equation solver backend and smoothing
 pygmsh==2.4.2  # gmsh interface, version 3 has different API
 meshio  # io library for meshes
-fipy  # the used finite volume element solver
+fipy==3.1  # the used finite volume element solver
 matplotlib  # plot library
 progressbar-latest  # show a progressbar
